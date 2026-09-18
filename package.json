@@ -19,6 +19,7 @@
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",
     "test": "node test/run-spike.mjs",
+    "capture:readme": "node test/capture-readme-shots.mjs",
     "test:login": "node test/login.mjs",
     "postinstall": "wxt prepare",
     "test:fps": "node test/measure-fps.mjs",
