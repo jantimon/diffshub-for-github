@@ -19,9 +19,10 @@
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",
     "test": "node test/run-spike.mjs",
+    "test:login": "node test/login.mjs",
     "postinstall": "wxt prepare",
     "test:fps": "node test/measure-fps.mjs",
-    "test:units": "node test/reconstruct-old-file.mjs"
+    "test:units": "node test/reconstruct-old-file.mjs && node test/pull-request-paths.mjs"
   },
   "dependencies": {
     "@pierre/diffs": "^1.4.3",

@@ -23,9 +23,16 @@ export function filesUrl(ref: PullRequestRef): string {
   return `${GITHUB_ORIGIN}/${ref.owner}/${ref.repo}/pull/${ref.number}/files`;
 }
 
-/** The PR title as GitHub renders it, for the overlay header. */
+/** The PR title, from the page if it exposes one and from the tab title if not. */
 export function readPullRequestTitle(): string {
-  return document.querySelector('.js-issue-title, [data-testid="issue-title"]')?.textContent?.trim() ?? '';
+  const heading = document
+    .querySelector('.js-issue-title, [data-testid="issue-title"], [data-component="PH_Title"] bdi')
+    ?.textContent?.trim();
+  if (heading != null && heading !== '') return heading;
+
+  // "<title> by <author> · Pull Request #123 · owner/repo"
+  const match = /^(.*?)\s+by\s+\S+\s+·\s+Pull Request #\d+/.exec(document.title);
+  return match?.[1]?.trim() ?? '';
 }
 
 export function readBranchPair(): { base: string; head: string } | undefined {
@@ -35,16 +42,49 @@ export function readBranchPair(): { base: string; head: string } | undefined {
   return { base, head };
 }
 
-/** GitHub's Files-changed tab, whichever markup this page happens to use. */
-export function findFilesChangedTab(): HTMLAnchorElement | undefined {
-  const links = document.querySelectorAll<HTMLAnchorElement>('a[href*="/files"]');
-  for (const link of links) {
-    const href = link.getAttribute('href') ?? '';
-    if (!/\/pull\/\d+\/files(?:$|[?#])/.test(href)) continue;
-    if (link.closest('nav, .tabnav, [role="tablist"]') == null) continue;
-    return link;
+/**
+ * The paths GitHub's Files-changed tab navigates to. The older pull request
+ * page uses `/files`; the React one uses `/changes`.
+ */
+export function filesPaths(ref: PullRequestRef): string[] {
+  const base = `/${ref.owner}/${ref.repo}/pull/${ref.number}`;
+  return [`${base}/files`, `${base}/changes`];
+}
+
+/** Whether a click landed on a link to this pull request's Files-changed tab. */
+export function findFilesChangedLink(target: EventTarget | null, ref: PullRequestRef): HTMLAnchorElement | undefined {
+  const anchor = target instanceof Element ? target.closest('a[href]') : null;
+  if (!(anchor instanceof HTMLAnchorElement)) return undefined;
+  return filesPaths(ref).includes(linkPath(anchor)) ? anchor : undefined;
+}
+
+/**
+ * The Files-changed tab itself. GitHub serves more than one pull request
+ * layout, so this goes by where the link points rather than by the markup
+ * around it, and prefers one that sits in a tab strip.
+ */
+export function findFilesChangedTab(ref: PullRequestRef): HTMLAnchorElement | undefined {
+  const wanted = filesPaths(ref);
+  let fallback: HTMLAnchorElement | undefined;
+
+  for (const link of document.querySelectorAll<HTMLAnchorElement>('a[href]')) {
+    if (!wanted.includes(linkPath(link))) continue;
+    if (link.closest('nav, .tabnav, [role="tablist"]') != null || link.getAttribute('role') === 'tab') {
+      return link;
+    }
+    fallback ??= link;
   }
-  return undefined;
+
+  return fallback;
+}
+
+function linkPath(link: HTMLAnchorElement): string {
+  const href = link.getAttribute('href') ?? '';
+  try {
+    return new URL(href, location.origin).pathname;
+  } catch {
+    return '';
+  }
 }
 
 /**

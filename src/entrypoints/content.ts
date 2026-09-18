@@ -1,10 +1,13 @@
 import { BRIDGE_CHANNEL, isFromViewer, type PageInfo } from '@/bridge';
 import {
+  filesPaths,
+  findFilesChangedLink,
   findFilesChangedTab,
   readBranchPair,
   readHeadSha,
   readPullRequestRef,
   readPullRequestTitle,
+  type PullRequestRef,
 } from '@/github/pr';
 import { readGitHubTheme } from '@/github/theme';
 
@@ -43,9 +46,8 @@ export default defineContentScript({
     // The viewer runs as an extension page rather than in this content script.
     // That gives it the extension's own origin: real module workers, code
     // splitting, and a credentialed fetch to github.com under host permissions.
-    const open = (): void => {
-      const pr = readPullRequestRef();
-      if (pr == null || frame != null) return;
+    const open = (pr: PullRequestRef): void => {
+      if (frame != null) return;
 
       const url = new URL(browser.runtime.getURL('/viewer.html'));
       url.searchParams.set('owner', pr.owner);
@@ -78,25 +80,48 @@ export default defineContentScript({
       close();
     });
 
-    // Taking over the click stops GitHub rendering its own diff at all, which is
-    // most of the cost on a large pull request.
-    const onTabClick = (event: MouseEvent): void => {
-      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      open();
-    };
+    browser.runtime.onMessage.addListener((message: { channel?: string; type?: string }) => {
+      if (message?.channel !== BRIDGE_CHANNEL || message.type !== 'open') return;
+      const pr = readPullRequestRef();
+      if (pr != null) open(pr);
+    });
 
+    // Listening on the document rather than on the tab means a re-render cannot
+    // drop the handler, and it covers every route to the diff -- the tab strip,
+    // the file count in the timeline, the sidebar.
+    document.addEventListener(
+      'click',
+      (event: MouseEvent) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+        const pr = readPullRequestRef();
+        if (pr == null || findFilesChangedLink(event.target, pr) == null) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        open(pr);
+      },
+      true
+    );
+
+    // The marker is drawn with a stylesheet keyed on the link's own href, so
+    // GitHub can re-render the tab strip as often as it likes without losing it.
     const markTab = (): void => {
-      const tab = findFilesChangedTab();
+      const pr = readPullRequestRef();
+      if (pr == null) return;
+
+      const style = document.getElementById(MARKER_ATTRIBUTE) ?? document.createElement('style');
+      style.id = MARKER_ATTRIBUTE;
+      const selectors = filesPaths(pr).flatMap((path) => {
+        const value = path.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+        return [`a[href="${value}"]::after`, `a[href="${GITHUB_ORIGIN_PREFIX}${value}"]::after`];
+      });
+      style.textContent = `${selectors.join(', ')} { content: " ⚡"; }`;
+      document.head.append(style);
+
+      // Kept for the tooltip and so tests have something to click.
+      const tab = findFilesChangedTab(pr);
       if (tab == null || tab.hasAttribute(MARKER_ATTRIBUTE)) return;
       tab.setAttribute(MARKER_ATTRIBUTE, 'true');
       tab.title = 'Opens the DiffsHub viewer. Cmd- or Ctrl-click for GitHub’s own view.';
-      const marker = document.createElement('span');
-      marker.textContent = ' ⚡';
-      marker.setAttribute('aria-hidden', 'true');
-      tab.append(marker);
-      tab.addEventListener('click', onTabClick, true);
     };
 
     markTab();
@@ -111,3 +136,5 @@ export default defineContentScript({
     });
   },
 });
+
+const GITHUB_ORIGIN_PREFIX = 'https://github.com';

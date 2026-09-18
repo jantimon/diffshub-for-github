@@ -11,6 +11,7 @@ export default defineConfig({
     // The viewer is an extension page, so these permissions let it fetch the
     // patch on the user's own session cookie. Nothing else is contacted.
     host_permissions: ['https://github.com/*', 'https://*.githubusercontent.com/*'],
+    action: { default_title: 'Open this pull request in DiffsHub' },
     web_accessible_resources: [
       {
         resources: ['viewer.html'],
