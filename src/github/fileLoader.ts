@@ -1,6 +1,7 @@
 import type { FileDiffContentsLoader, FileDiffLoadedFiles } from '@pierre/diffs';
 
 import { reconstructOldFile } from '@/patch/reconstructOldFile';
+import { githubFetch } from './githubFetch';
 import { GITHUB_ORIGIN, type PullRequestRef } from './pr';
 
 function rawUrl(pr: PullRequestRef, sha: string, path: string): string {
@@ -40,7 +41,7 @@ async function load(
   fileDiff: Parameters<FileDiffContentsLoader>[0]
 ): Promise<FileDiffLoadedFiles> {
   const url = rawUrl(pr, headSha, fileDiff.name);
-  const response = await fetch(url, { credentials: 'include' });
+  const response = await githubFetch(url);
   if (!response.ok) {
     throw new Error(`GitHub answered ${response.status} for ${fileDiff.name}.`);
   }
