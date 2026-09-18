@@ -6,9 +6,7 @@
         "-y",
         "chrome-devtools-mcp@1.9.0",
         "--category-extensions",
-        "--user-data-dir=.chrome-profile",
-        "--chrome-arg=--disable-extensions-except=.output/chrome-mv3",
-        "--chrome-arg=--load-extension=.output/chrome-mv3"
+        "--user-data-dir=.chrome-profile"
       ]
     }
   }

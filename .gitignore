@@ -9,3 +9,4 @@ web-ext-artifacts/
 test/.profile/
 .output/
 test/screenshots/
+.firefox-profile/
