@@ -22,9 +22,12 @@ This extension keeps the viewer and drops the round trip:
 
 ## Status
 
-Early. The repository currently holds the project setup and the research notes
-that the design is based on. See [`docs/analysis.md`](docs/analysis.md) for how
-diffshub.com works today and what that means for the extension.
+Early. The repository holds the project setup, the research it is based on, and
+the design. Nothing is implemented yet.
+
+- [`spec.md`](spec.md) — what v1 is, decided in full
+- [`docs/analysis.md`](docs/analysis.md) — how diffshub.com works today, read
+  from its own source in the submodule
 
 ## Requirements
 
@@ -55,14 +58,27 @@ Both targets are built from one source tree. WXT writes the per-browser
 manifest, so the code does not branch on the browser except where the platforms
 genuinely differ.
 
+## Testing
+
+```sh
+pnpm test          # Playwright, against real github.com
+pnpm test:headed   # the same, with a visible browser
+```
+
+Tests are end-to-end only. They drive a persistent Chrome profile in
+`test/.profile` with the built extension loaded, so they need you to log into
+github.com in that profile once. The session cookie is the whole data path, so
+there is nothing useful to test without it. These do not run in CI.
+
 ## Layout
 
 ```
-entrypoints/     content scripts, background worker, popup, options page
-components/      React components for the dialog and the viewer
+entrypoints/     content scripts, background worker
+components/      React components for the overlay and the viewer
 utils/           GitHub fetching, parsing, storage
 public/          icons and other files copied as-is
-docs/            design notes and the analysis of diffshub.com
+docs/            the analysis of diffshub.com
+test/            Playwright end-to-end tests
 research/pierre  git submodule, read-only reference (see below)
 ```
 

@@ -17,8 +17,9 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",
-    "test": "vitest run",
-    "postinstall": "wxt prepare"
+    "test": "playwright test",
+    "postinstall": "wxt prepare",
+    "test:headed": "playwright test --headed"
   },
   "dependencies": {
     "@pierre/diffs": "^1.4.3",
@@ -26,15 +27,17 @@
     "@pierre/theme": "^2.0.0",
     "@pierre/theming": "^1.0.1",
     "@pierre/trees": "^1.0.0-beta.6",
+    "picomatch": "^4.0.7",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/picomatch": "^4.0.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@wxt-dev/module-react": "^1.2.2",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.1",
     "wxt": "^0.21.4"
   }
 }

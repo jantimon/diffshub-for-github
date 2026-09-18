@@ -204,6 +204,41 @@ and files — that differ only in spacing. No refetch. The result may differ
 slightly from GitHub's own `w=1` on mixed tabs and spaces or a changed trailing
 newline.
 
+### Exclude filter
+
+A second input in the sidebar takes glob patterns and hides the files that match
+them. Generated code and test files are the common cases.
+
+```
+┌────────────────────────────────┐
+│ 🔍 filter files…               │
+│ ⊘ *.generated.ts, **/*.test.*  │
+├────────────────────────────────┤
+│ ▾ src                          │
+│     parser.ts                  │
+│     client.ts                  │
+│   (412 files hidden)           │
+└────────────────────────────────┘
+```
+
+Patterns are comma- or newline-separated and matched with
+[`picomatch`](https://github.com/micromatch/picomatch) — 4.0.7, zero
+dependencies, no node builtins, `sideEffects: false`, and it ships a `posix`
+entry that forces forward-slash semantics, which is what git paths always use.
+Its only reference to `process` is a guarded `typeof process !== 'undefined'`
+check, so it runs in a content script unchanged.
+
+Compile the patterns once per change into a single matcher and apply it in the
+accumulator, so excluded files never reach the tree or the viewer at all rather
+than being rendered and hidden. The header shows how many are hidden, so a
+filter is never silently eating half the diff.
+
+An invalid pattern shows an inline error and filters nothing — it does not throw
+away the view you already have.
+
+Patterns persist in `localStorage` alongside the layout choice. `**/*.test.*` is
+a standing preference, not a per-PR decision.
+
 ### Comments
 
 Existing threads render inline at their line, through the `@pierre/diffs`
@@ -310,7 +345,7 @@ claim can be measured directly and CSP violations can be read off the console.
 
 ## 10. Stack
 
-WXT 0.21, React 19, TypeScript 7, pnpm 10. One source tree; `pnpm build` and
+WXT 0.21, React 19, TypeScript 7, picomatch 4, pnpm 10. One source tree; `pnpm build` and
 `pnpm build:firefox` produce `chrome-mv3` and `firefox-mv3`. Distribution is
 personal and unpacked — no store listing, no privacy policy, no review.
 
