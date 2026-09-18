@@ -529,7 +529,7 @@ body {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--dh-moved, #d29922);
+  color: light-dark(#0969da, #4493f8);
   border: 1px solid currentColor;
   border-radius: 4px;
 }

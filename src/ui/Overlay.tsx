@@ -58,6 +58,7 @@ const TREE_STYLE = {
   '--trees-density-override': 0.9,
   '--trees-padding-inline-override': 0,
   '--trees-item-padding-x-override': 2,
+  '--trees-git-renamed-color-override': 'light-dark(#0969da, #4493f8)',
 } as CSSProperties;
 
 const TREE_CSS = `
@@ -71,9 +72,19 @@ const TREE_CSS = `
 `;
 
 const HEADER_CSS = `
+[data-diffs-header] [data-header-content] {
+  align-items: center;
+}
+
+[data-diffs-header] slot[name='header-prefix'] {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+
 [data-prev-name],
 [data-rename-icon] {
-  color: #d29922;
+  color: light-dark(#0969da, #4493f8);
   font-weight: 600;
   opacity: 1;
 }
@@ -167,7 +178,11 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     return () => clearTimeout(timer);
   }, [includeInput, excludeInput]);
 
-  const pathToItemIdRef = useRef<ReadonlyMap<string, string>>(new Map());
+  const decorationRef = useRef<{
+    viewed: ReadonlySet<string>;
+    folders: ReadonlyMap<string, { total: number; viewed: number }>;
+  }>({ viewed: new Set(), folders: new Map() });
+
   const onSelectionChange = useCallback((selectedPaths: readonly string[]) => {
     if (selectedPaths.length !== 1) return;
     const [path] = selectedPaths;
@@ -190,20 +205,61 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     itemHeight: 24,
     unsafeCSS: TREE_CSS,
     onSelectionChange,
+    renderRowDecoration({ item }) {
+      const { viewed: seen, folders } = decorationRef.current;
+      const pathToItemId = pathToItemIdRef.current;
+      if (item.kind === 'file') {
+        const id = pathToItemId.get(item.path);
+        if (id == null || !seen.has(id)) return null;
+        return { text: '✓', title: 'Viewed' };
+      }
+      const folder = folders.get(item.path);
+      if (folder == null || folder.total === 0 || folder.viewed < folder.total) return null;
+      return { text: '✓', title: `All ${folder.total} files viewed` };
+    },
   });
   const search = useFileTreeSearch(model);
 
-  const { state, items, visibleRef } = usePatchStream({
+  const { state, items, visibleRef, pathToItemIdRef } = usePatchStream({
     url: patchUrl(pr),
     cacheKeyPrefix: `${pr.owner}/${pr.repo}/${pr.number}`,
     include,
     exclude,
     model,
   });
-  pathToItemIdRef.current = state.pathToItemId;
 
   const navigation = useNavigation(viewerRef, visibleRef);
   const { viewed, toggle } = useViewed(`${pr.owner}/${pr.repo}/${pr.number}/${page.headSha ?? 'head'}`);
+
+  // A folder is marked once every file under it has been read.
+  const folders = useMemo(() => {
+    const tally = new Map<string, { total: number; viewed: number }>();
+    for (const [path, id] of state.pathToItemId) {
+      const seen = viewed.has(id);
+      const segments = path.split('/');
+      for (let depth = 1; depth < segments.length; depth += 1) {
+        const folder = segments.slice(0, depth).join('/');
+        const entry = tally.get(folder) ?? { total: 0, viewed: 0 };
+        entry.total += 1;
+        if (seen) entry.viewed += 1;
+        tally.set(folder, entry);
+      }
+    }
+    return tally;
+  }, [state.pathToItemId, viewed]);
+
+  decorationRef.current = { viewed, folders };
+
+  // Decorations are worked out as rows render, so redraw when a file is ticked
+  // off rather than waiting for the next scroll.
+  const firstDraw = useRef(true);
+  useEffect(() => {
+    if (firstDraw.current) {
+      firstDraw.current = false;
+      return;
+    }
+    model.render({});
+  }, [viewed, model]);
 
   // Ticking a file off moves to the next one and puts the keyboard on its tick
   // box, so the whole review is space, read, space.

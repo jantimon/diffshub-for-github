@@ -33,6 +33,8 @@ export interface PatchStream {
   /** The files a filter lets through, in patch order. */
   items: readonly CodeViewItem<undefined>[];
   visibleRef: { current: readonly ParsedFile[] };
+  /** Updated as files are published, ahead of the React commit. */
+  pathToItemIdRef: { current: ReadonlyMap<string, string> };
 }
 
 interface Options {
@@ -56,6 +58,7 @@ export function usePatchStream({ url, cacheKeyPrefix, include, exclude, model }:
 
   const accumulatorRef = useRef<PatchAccumulator>(createAccumulator());
   const visibleRef = useRef<readonly ParsedFile[]>([]);
+  const pathToItemIdRef = useRef<ReadonlyMap<string, string>>(new Map());
   const filter = useMemo(() => compileFilters(include, exclude), [include, exclude]);
   const filterRef = useRef(filter);
   filterRef.current = filter;
@@ -87,6 +90,7 @@ export function usePatchStream({ url, cacheKeyPrefix, include, exclude, model }:
       }
 
       const pathToItemId = new Map(visible.map((file) => [file.path, file.item.id]));
+      pathToItemIdRef.current = pathToItemId;
       setState((current) => ({
         ...current,
         stats: sumStats(visible),
@@ -162,7 +166,7 @@ export function usePatchStream({ url, cacheKeyPrefix, include, exclude, model }:
     publish(true);
   }, [filter, publish]);
 
-  return { state, items, visibleRef };
+  return { state, items, visibleRef, pathToItemIdRef };
 }
 
 function yieldToBrowser(): Promise<void> {

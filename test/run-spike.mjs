@@ -97,6 +97,17 @@ await check('include filter', async () => {
   return only > 0 ? `${only} files match **/*.js` : false;
 });
 
+await check('tree marks viewed files', async () => {
+  const before = await frame.locator('[data-item-section="decoration"]', { hasText: '✓' }).count();
+  await frame.locator('[data-dh-viewed]').first().click();
+  await page.waitForTimeout(1500);
+  const after = await frame.locator('[data-item-section="decoration"]', { hasText: '✓' }).count();
+  await shoot('tree-viewed-marks');
+  await frame.locator('[data-dh-viewed]').first().click();
+  await page.waitForTimeout(800);
+  return after > before ? `${before} -> ${after} marks` : false;
+});
+
 await check('mark viewed advances', async () => {
   const box = frame.locator('[data-dh-viewed]').first();
   const id = await box.getAttribute('data-dh-viewed');
