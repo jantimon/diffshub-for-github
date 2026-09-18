@@ -1,8 +1,10 @@
 import { processFile, type CodeViewItem } from '@pierre/diffs';
 import type { GitStatusEntry } from '@pierre/trees';
 
+import type { ReviewThread } from '@/bridge';
+
 export interface ParsedFile {
-  item: CodeViewItem<undefined>;
+  item: CodeViewItem<ReviewThread>;
   path: string;
   status?: GitStatusEntry['status'];
   addedLines: number;

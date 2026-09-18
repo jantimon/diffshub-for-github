@@ -23,7 +23,8 @@
     "test:login": "node test/login.mjs",
     "postinstall": "wxt prepare",
     "test:fps": "node test/measure-fps.mjs",
-    "test:units": "node test/reconstruct-old-file.mjs && node test/pull-request-paths.mjs"
+    "test:units": "node test/reconstruct-old-file.mjs && node test/pull-request-paths.mjs",
+    "test:review": "node test/review.mjs"
   },
   "dependencies": {
     "@pierre/diffs": "^1.4.3",

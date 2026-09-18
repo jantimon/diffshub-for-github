@@ -1,4 +1,6 @@
 import type { CodeViewHandle } from '@pierre/diffs/react';
+
+import type { ReviewThread } from '@/bridge';
 import { useCallback } from 'react';
 
 import type { ParsedFile } from '@/patch/accumulator';
@@ -11,7 +13,7 @@ import type { ParsedFile } from '@/patch/accumulator';
  * you are actually looking at.
  */
 export function useNavigation(
-  viewerRef: { current: CodeViewHandle<undefined, undefined> | null },
+  viewerRef: { current: CodeViewHandle<ReviewThread, undefined> | null },
   visibleRef: { current: readonly ParsedFile[] }
 ) {
   const currentIndex = useCallback((): number => {

@@ -26,14 +26,6 @@ const page = context.pages()[0] ?? (await context.newPage());
 const noise = [];
 page.on('pageerror', (e) => noise.push(`gh pageerror: ${e.message.slice(0, 160)}`));
 
-// Marking a file viewed is a real write to GitHub; remember what we touch.
-const reviewed = [];
-page.on('response', (r) => {
-  if (!r.url().includes('/file_review')) return;
-  const body = r.request().postData();
-  reviewed.push({ status: r.status(), path: body == null ? null : JSON.parse(body).path });
-});
-
 await page.goto(url, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(3500);
 await shoot('github-page');
@@ -126,89 +118,6 @@ await check('include filter', async () => {
   return only > 0 ? `${only} files match **/*.js` : false;
 });
 
-await check('tree marks viewed files', async () => {
-  const before = await frame.locator('[data-item-section="decoration"]', { hasText: '✓' }).count();
-  await frame.locator('[data-dh-viewed]').first().click();
-  await page.waitForTimeout(1500);
-  const after = await frame.locator('[data-item-section="decoration"]', { hasText: '✓' }).count();
-  await shoot('tree-viewed-marks');
-  await frame.locator('[data-dh-viewed]').first().click();
-  await page.waitForTimeout(800);
-  return after > before ? `${before} -> ${after} marks` : false;
-});
-
-await check('viewed state reaches GitHub', async () => {
-  const before = reviewed.length;
-  const eye = frame.locator('[data-dh-viewed]').first();
-  await eye.click();
-  await page.waitForTimeout(2500);
-  const sent = reviewed.slice(before);
-  if (sent.length === 0) return false;
-  const bad = sent.find((entry) => entry.status !== 200);
-  if (bad != null) { console.log(`      GitHub answered ${bad.status}`); return false; }
-  await eye.click();
-  await page.waitForTimeout(2000);
-  return `${sent[0].path} accepted`;
-});
-
-await check('mark viewed advances', async () => {
-  const box = frame.locator('[data-dh-viewed]').first();
-  const id = await box.getAttribute('data-dh-viewed');
-  await box.click();
-  await page.waitForTimeout(1200);
-  const focused = await frame.evaluate(() => document.activeElement?.getAttribute('data-dh-viewed') ?? null);
-  await shoot('viewed');
-  return focused != null && focused !== id ? `focus moved to ${focused}` : false;
-});
-
-await check('unmarking stays put', async () => {
-  const first = frame.locator('[data-dh-viewed]').first();
-  const id = await first.getAttribute('data-dh-viewed');
-
-  // Make sure it is marked, then come back to it through the tree so its eye is
-  // on screen again.
-  if ((await first.getAttribute('aria-pressed')) !== 'true') {
-    await first.click();
-    await page.waitForTimeout(1200);
-  }
-  await frame.locator(`[data-item-path="${id}"]`).first().click();
-  await page.waitForTimeout(1500);
-
-  const eye = frame.locator(`[data-dh-viewed="${id}"]`);
-  const before = await frame.evaluate(() => Math.round(document.querySelector('.dh-code')?.scrollTop ?? -1));
-  await eye.click();
-  await page.waitForTimeout(1500);
-  const after = await frame.evaluate(() => Math.round(document.querySelector('.dh-code')?.scrollTop ?? -1));
-  const pressed = await eye.getAttribute('aria-pressed');
-  await shoot('unmarked-in-place');
-
-  if (pressed !== 'false') { console.log(`      still marked: aria-pressed=${pressed}`); return false; }
-  if (Math.abs(after - before) > 4) { console.log(`      moved ${before} -> ${after}`); return false; }
-  return `held at ${after}px`;
-});
-
-await check('viewed count follows the filter', async () => {
-  const eye = frame.locator('[data-dh-viewed]').first();
-  const id = await eye.getAttribute('data-dh-viewed');
-  if ((await eye.getAttribute('aria-pressed')) !== 'true') {
-    await eye.click();
-    await page.waitForTimeout(1200);
-  }
-  const readCount = async () => {
-    const text = (await frame.locator('.dh-stats span').first().textContent())?.trim() ?? '';
-    return Number(text.split('/')[0].replace(/[^0-9]/g, ''));
-  };
-  const before = await readCount();
-  // Hide the file that was just marked; the tally should drop with it.
-  await frame.locator('.dh-field input').nth(1).fill(id);
-  await page.waitForTimeout(2500);
-  const after = await readCount();
-  await frame.locator('.dh-field input').nth(1).fill('');
-  await page.waitForTimeout(2000);
-  if (!(before > 0 && after === before - 1)) { console.log(`      ${before} -> ${after}`); return false; }
-  return `${before} -> ${after} viewed`;
-});
-
 await check('hunk expansion', async () => {
   const label = frame.locator('[data-unmodified-lines]').first();
   const before = (await label.textContent())?.trim() ?? '';
@@ -263,29 +172,6 @@ await check('separator bar expands', async () => {
 await frame.locator('.dh-icon-button').first().click();
 await page.waitForTimeout(500);
 await shoot('sidebar-hidden');
-
-// Leave the pull request as we found it.
-const touched = [...new Set(reviewed.map((entry) => entry.path).filter(Boolean))];
-if (touched.length > 0) {
-  const cleaned = await page.evaluate(async ({ paths, url }) => {
-    const results = [];
-    for (const path of paths) {
-      const res = await fetch(url, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'content-type': 'application/json',
-          'x-requested-with': 'XMLHttpRequest',
-          'github-verified-fetch': 'true',
-        },
-        body: JSON.stringify({ path, viewed: 'unviewed' }),
-      });
-      results.push(res.status);
-    }
-    return results;
-  }, { paths: touched, url: `${new URL(url).pathname}/file_review` });
-  console.log(`\nunmarked ${touched.length} file(s) on GitHub: ${cleaned.join(', ')}`);
-}
 
 console.log(`\nscreenshots: ${shots}`);
 if (noise.length > 0) console.log('\nconsole noise:\n' + [...new Set(noise)].slice(0, 8).join('\n'));

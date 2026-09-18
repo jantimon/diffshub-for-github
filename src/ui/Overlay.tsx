@@ -23,13 +23,16 @@ import {
 } from '@pierre/icons';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 
+import type { ReviewThread } from '@/bridge';
 import { createFileLoader } from '@/github/fileLoader';
 import { blameUrl, blobUrl, copyPath, type FileRefs } from '@/github/fileLinks';
 import { filesUrl, patchUrl, type PullRequestRef } from '@/github/pr';
 import type { DiffStats } from '@/patch/accumulator';
 import { usePatchStream } from '@/patch/usePatchStream';
 import { BinaryCompare, isImagePath } from './BinaryCompare';
+import { requestThreads } from './requestThreads';
 import { ShortcutHelp } from './ShortcutHelp';
+import { Thread } from './Thread';
 import { ToastStack, useToasts } from './Toast';
 import { closeViewer, usePageInfo } from './usePageInfo';
 import { useNavigation } from './useNavigation';
@@ -153,7 +156,7 @@ function DiffStatsPanel({ stats }: { stats: DiffStats }) {
 function Viewer({ pr }: { pr: PullRequestRef }) {
   const page = usePageInfo();
   const toasts = useToasts();
-  const viewerRef = useRef<CodeViewHandle<undefined, undefined> | null>(null);
+  const viewerRef = useRef<CodeViewHandle<ReviewThread, undefined> | null>(null);
 
   const [diffStyle, setDiffStyle] = useState<'split' | 'unified'>(() =>
     readSetting('layout', 'split') === 'unified' ? 'unified' : 'split'
@@ -330,6 +333,49 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     close: closeViewer,
   });
 
+  const [threads, setThreads] = useState<readonly ReviewThread[]>([]);
+  const askedForThreads = useRef(false);
+  const pushToast = toasts.push;
+  useEffect(() => {
+    if (askedForThreads.current) return;
+    askedForThreads.current = true;
+    void requestThreads().then((result) => {
+      setThreads(result.threads);
+      if (result.error != null) pushToast(`Comments: ${result.error}`);
+    });
+  }, [pushToast]);
+
+  // Annotations live on the item, so hang each thread on the file it belongs to.
+  const itemsWithThreads = useMemo(() => {
+    if (threads.length === 0) return items;
+    const byPath = new Map<string, ReviewThread[]>();
+    for (const thread of threads) {
+      const list = byPath.get(thread.path);
+      if (list == null) byPath.set(thread.path, [thread]);
+      else list.push(thread);
+    }
+    return items.map((item) => {
+      if (item.type !== 'diff') return item;
+      const list = byPath.get(item.fileDiff.name);
+      if (list == null) return item;
+      return {
+        ...item,
+        annotations: list.map((thread) => ({
+          side: thread.side,
+          lineNumber: thread.line,
+          metadata: thread,
+        })),
+        version: (item.version ?? 0) + 1,
+      };
+    });
+  }, [items, threads]);
+
+  const renderAnnotation = useCallback(
+    (annotation: { metadata?: ReviewThread }) =>
+      annotation.metadata == null ? null : <Thread thread={annotation.metadata} />,
+    []
+  );
+
   const reportedError = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (state.phase !== 'error' || state.error == null) return;
@@ -355,7 +401,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   // than a tick box, so space works on it the same way and reviewing a pull
   // request is space, read, space.
   const renderHeaderPrefix = useCallback(
-    (item: CodeViewItem<undefined>) => {
+    (item: CodeViewItem<ReviewThread>) => {
       const isViewed = viewed.has(item.id);
       return (
         <button
@@ -374,7 +420,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   );
 
   const renderHeaderMetadata = useCallback(
-    (item: CodeViewItem<undefined>) => {
+    (item: CodeViewItem<ReviewThread>) => {
       if (item.type !== 'diff') return null;
       const path = item.fileDiff.name;
       const moved = item.fileDiff.type === 'rename-pure' || item.fileDiff.type === 'rename-changed';
@@ -413,7 +459,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     [refs, toasts]
   );
 
-  const options = useMemo<CodeViewReactOptions<undefined, undefined>>(
+  const options = useMemo<CodeViewReactOptions<ReviewThread, undefined>>(
     () => ({
       layout: { paddingTop: 0, gap: 1, paddingBottom: 0 },
       diffStyle,
@@ -561,11 +607,12 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
             onPointerDown={startResize}
           />
         )}
-        <CodeView<undefined, undefined>
+        <CodeView<ReviewThread, undefined>
           ref={viewerRef}
           className="dh-code"
-          items={items}
+          items={itemsWithThreads}
           options={options}
+          renderAnnotation={renderAnnotation}
           renderHeaderPrefix={renderHeaderPrefix}
           renderHeaderMetadata={renderHeaderMetadata}
         />

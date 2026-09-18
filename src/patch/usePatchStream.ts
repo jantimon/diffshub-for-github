@@ -1,5 +1,7 @@
 import type { CodeViewItem } from '@pierre/diffs';
 import type { FileTree } from '@pierre/trees';
+
+import type { ReviewThread } from '@/bridge';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { compileFilters } from './filters';
@@ -31,7 +33,7 @@ export interface PatchStreamState {
 export interface PatchStream {
   state: PatchStreamState;
   /** The files a filter lets through, in patch order. */
-  items: readonly CodeViewItem<undefined>[];
+  items: readonly CodeViewItem<ReviewThread>[];
   visibleRef: { current: readonly ParsedFile[] };
   /** Updated as files are published, ahead of the React commit. */
   pathToItemIdRef: { current: ReadonlyMap<string, string> };
@@ -48,7 +50,7 @@ interface Options {
 const EMPTY_STATS: DiffStats = { addedLines: 0, deletedLines: 0, fileCount: 0, totalLines: 0 };
 
 export function usePatchStream({ url, cacheKeyPrefix, include, exclude, model }: Options): PatchStream {
-  const [items, setItems] = useState<readonly CodeViewItem<undefined>[]>([]);
+  const [items, setItems] = useState<readonly CodeViewItem<ReviewThread>[]>([]);
   const [state, setState] = useState<PatchStreamState>({
     phase: 'loading',
     stats: EMPTY_STATS,

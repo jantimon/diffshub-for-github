@@ -9,6 +9,7 @@ import {
   readPullRequestTitle,
   type PullRequestRef,
 } from '@/github/pr';
+import { readThreads } from '@/github/readThreads';
 import { readGitHubTheme } from '@/github/theme';
 
 const MARKER_ATTRIBUTE = 'data-diffshub-marked';
@@ -75,6 +76,22 @@ export default defineContentScript({
         void reviewFile(path, viewed).then((status) => {
           frame?.contentWindow?.postMessage(
             { channel: BRIDGE_CHANNEL, type: 'file-review-result', id, ok: status === 200, status },
+            '*'
+          );
+        });
+        return;
+      }
+
+      if (event.data.type === 'threads') {
+        const { id } = event.data;
+        const pr = readPullRequestRef();
+        const request =
+          pr == null
+            ? Promise.resolve({ threads: [], error: 'Not a pull request page.' })
+            : readThreads(pr.owner, pr.repo, pr.number);
+        void request.then((result) => {
+          frame?.contentWindow?.postMessage(
+            { channel: BRIDGE_CHANNEL, type: 'threads-result', id, ...result },
             '*'
           );
         });
