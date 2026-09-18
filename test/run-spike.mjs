@@ -57,6 +57,27 @@ frame = page.frames().find((f) => f.url().startsWith('chrome-extension://'));
 await check('patch streamed', async () => (await frame.locator('.dh-stats').textContent())?.trim());
 await check('file tree populated', async () => `${await frame.locator('[data-item-type="file"]').count()} files`);
 await check('diff stats panel', async () => (await frame.locator('.dh-diffstats').isVisible()) && 'visible');
+// Reaching into the viewer's nested shadow roots directly: a plain locator
+// does not resolve the separator reliably while files are still settling.
+const inViewer = (action) =>
+  frame.evaluate((what) => {
+    const find = (root, depth) => {
+      if (depth > 6) return null;
+      const hit = root.querySelector('[data-unmodified-lines]');
+      if (hit != null) return hit;
+      for (const el of root.querySelectorAll('*')) {
+        if (el.shadowRoot == null) continue;
+        const found = find(el.shadowRoot, depth + 1);
+        if (found != null) return found;
+      }
+      return null;
+    };
+    const label = find(document, 0);
+    if (label == null) return null;
+    if (what === 'click') label.click();
+    return label.textContent?.trim() ?? '';
+  }, action);
+
 await check('per-file links', async () => `${await frame.locator('.dh-file-links').count()} headers`);
 await check('viewed toggles', async () => `${await frame.locator('[data-dh-viewed]').count()} eyes`);
 
@@ -144,6 +165,28 @@ await check('unmarking stays put', async () => {
   return `held at ${after}px`;
 });
 
+await check('viewed count follows the filter', async () => {
+  const eye = frame.locator('[data-dh-viewed]').first();
+  const id = await eye.getAttribute('data-dh-viewed');
+  if ((await eye.getAttribute('aria-pressed')) !== 'true') {
+    await eye.click();
+    await page.waitForTimeout(1200);
+  }
+  const readCount = async () => {
+    const text = (await frame.locator('.dh-stats span').first().textContent())?.trim() ?? '';
+    return Number(text.split('/')[0].replace(/[^0-9]/g, ''));
+  };
+  const before = await readCount();
+  // Hide the file that was just marked; the tally should drop with it.
+  await frame.locator('.dh-field input').nth(1).fill(id);
+  await page.waitForTimeout(2500);
+  const after = await readCount();
+  await frame.locator('.dh-field input').nth(1).fill('');
+  await page.waitForTimeout(2000);
+  if (!(before > 0 && after === before - 1)) { console.log(`      ${before} -> ${after}`); return false; }
+  return `${before} -> ${after} viewed`;
+});
+
 await check('hunk expansion', async () => {
   const label = frame.locator('[data-unmodified-lines]').first();
   const before = (await label.textContent())?.trim() ?? '';
@@ -183,6 +226,16 @@ await check('j moves to next file', async () => {
   await page.keyboard.press('j');
   await page.waitForTimeout(800);
   return true;
+});
+
+await check('separator bar expands', async () => {
+  const before = await inViewer('read');
+  if (before == null) return false;
+  await inViewer('click');
+  await page.waitForTimeout(3500);
+  const after = await inViewer('read');
+  await shoot('separator-clicked');
+  return before !== after ? `${before} -> ${after}` : false;
 });
 
 await frame.locator('.dh-icon-button').first().click();

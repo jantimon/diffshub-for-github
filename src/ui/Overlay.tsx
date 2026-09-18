@@ -71,6 +71,32 @@ const TREE_CSS = `
 }
 `;
 
+/*
+ * The bar reads as a heading rather than a control: a bare chevron and a count.
+ * Clicking the label already reveals the whole gap, while the chevrons step
+ * through it, so the label is marked as clickable and given a verb. Nothing
+ * here may change a row's height -- the viewer measures them.
+ */
+const SEPARATOR_CSS = `
+[data-unmodified-lines] {
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+[data-unmodified-lines]:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  text-decoration: underline;
+}
+
+[data-separator]:hover [data-expand-button] {
+  opacity: 1;
+}
+
+[data-unmodified-lines]::before {
+  content: 'Show ';
+}
+`;
+
 const HEADER_CSS = `
 [data-diffs-header] [data-header-content] {
   align-items: center;
@@ -249,6 +275,12 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     return tally;
   }, [state.pathToItemId, viewed]);
 
+  const viewedOnShow = useMemo(() => {
+    let count = 0;
+    for (const id of state.pathToItemId.values()) if (viewed.has(id)) count += 1;
+    return count;
+  }, [state.pathToItemId, viewed]);
+
   decorationRef.current = { viewed, folders };
   viewedRef.current = viewed;
 
@@ -388,7 +420,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       overflow: 'scroll',
       lineHoverHighlight: 'number',
       enableLineSelection: true,
-      unsafeCSS: HEADER_CSS,
+      unsafeCSS: `${HEADER_CSS}\n${SEPARATOR_CSS}`,
       loadDiffFiles,
     }),
     [diffStyle, themeChoice, page.themeType, page.lightTheme, page.darkTheme, loadDiffFiles]
@@ -442,7 +474,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         </div>
         <div className="dh-stats">
           <span>
-            {viewed.size.toLocaleString()} / {stats.fileCount.toLocaleString()} viewed
+            {viewedOnShow.toLocaleString()} / {stats.fileCount.toLocaleString()} viewed
           </span>
           <span className="dh-add">+{stats.addedLines.toLocaleString()}</span>
           <span className="dh-del">−{stats.deletedLines.toLocaleString()}</span>
