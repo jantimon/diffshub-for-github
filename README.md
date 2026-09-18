@@ -104,5 +104,9 @@ git submodule update --init --depth 1
 
 ## Licence
 
-MIT. `@pierre/diffs` and the rest of the Pierre packages are Apache-2.0 and stay
-under their own licence.
+MIT, Copyright (c) 2026 Jan Nicklas — see [LICENSE](LICENSE).
+
+The build bundles the Pierre packages (`@pierre/diffs`, `@pierre/trees`,
+`@pierre/icons`, `@pierre/theme`, `@pierre/theming`), which are Copyright 2025
+Pierre Computer Company under the Apache License, Version 2.0. Their terms and
+the full licence text are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
