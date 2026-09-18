@@ -1,12 +1,11 @@
 # DiffsHub for GitHub
 
-A Chrome and Firefox extension that adds a second diff viewer to GitHub pull
-requests. You press a button on the PR page, a dialog opens, and the diff
-renders in Pierre's virtualized [`@pierre/diffs`](https://diffs.com) components —
-the same components behind [diffshub.com](https://diffshub.com).
+A Chrome and Firefox extension that opens GitHub pull request diffs in a fast,
+virtualized viewer. Click the "Files changed" tab and the diff renders in
+Pierre's [`@pierre/diffs`](https://diffs.com) components — the same components
+behind [diffshub.com](https://diffshub.com) — in a fullscreen overlay.
 
-GitHub's own "Files changed" tab stays where it is. This extension does not
-replace it; it sits next to it.
+Cmd- or Ctrl-click the tab for GitHub's own view.
 
 ## Why
 
@@ -17,15 +16,24 @@ private repository you also paste a GitHub token into that site.
 This extension keeps the viewer and drops the round trip:
 
 - The viewer runs inside the GitHub tab, so there is no URL to rewrite.
-- Every request goes to github.com or api.github.com from your own browser, with
-  your own session. No diff content and no token reaches any other host.
+- Every request goes to github.com from your own browser on your own session
+  cookie. No token is stored, no third-party host is contacted, and no diff
+  content leaves the machine.
+
+Scrolling `nodejs/node#59805` — 3,420 files, 1.95M lines — over 180 frames:
+
+| | Median frame | p95 | Worst | Frames over 50 ms |
+| --- | --- | --- | --- | --- |
+| This viewer | 8.3 ms (120 fps) | 10.2 ms | 20 ms | 0 / 180 |
+| GitHub's Files changed | 81.5 ms (12 fps) | 201.7 ms | 842 ms | 150 / 180 |
 
 ## Status
 
-Early. The repository holds the project setup, the research it is based on, and
-the design. Nothing is implemented yet.
+Working. The overlay streams the patch, renders the diff and the file tree,
+expands collapsed context, filters files by glob, and follows GitHub's theme.
+Viewed state, comments and the ignore-whitespace toggle are not built yet.
 
-- [`spec.md`](spec.md) — what v1 is, decided in full
+- [`spec.md`](spec.md) — what v1 is, and what is built
 - [`docs/analysis.md`](docs/analysis.md) — how diffshub.com works today, read
   from its own source in the submodule
 
@@ -60,26 +68,37 @@ genuinely differ.
 
 ## Testing
 
+Everything is driven through a real browser against real github.com.
+
 ```sh
-pnpm test          # Playwright, against real github.com
-pnpm test:headed   # the same, with a visible browser
+pnpm test            # the overlay, end to end
+pnpm test:fps        # frame times, against GitHub's own view
+pnpm test:units      # rebuilding the old side of a file, against real git diffs
 ```
 
-Tests are end-to-end only. They drive a persistent Chrome profile in
-`test/.profile` with the built extension loaded, so they need you to log into
-github.com in that profile once. The session cookie is the whole data path, so
-there is nothing useful to test without it. These do not run in CI.
+The browser tests launch Chromium with the unpacked extension and the persistent
+profile in `test/.profile`, which is gitignored. Sign in to github.com there once
+and private repositories, viewed state and comments become testable too. None of
+this runs in CI.
+
+Build first — the tests load `.output/chrome-mv3`:
+
+```sh
+pnpm build && pnpm test
+```
 
 ## Layout
 
 ```
-entrypoints/     content scripts, background worker
-components/      React components for the overlay and the viewer
-utils/           GitHub fetching, parsing, storage
-public/          icons and other files copied as-is
-docs/            the analysis of diffshub.com
-test/            Playwright end-to-end tests
-research/pierre  git submodule, read-only reference (see below)
+src/entrypoints/content.ts    marks the tab, takes over its click, mounts the viewer
+src/entrypoints/viewer/       the viewer, an extension page
+src/github/                   reading github.com: the page, its theme, its files
+src/patch/                    streaming the patch, parsing it, filtering it
+src/ui/                       the overlay and its parts
+public/                       files copied as-is
+docs/                         the analysis of diffshub.com
+test/                         browser tests and the reconstruction check
+research/pierre               git submodule, read-only reference (see below)
 ```
 
 ## Research submodule

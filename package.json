@@ -18,9 +18,10 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",
-    "test": "playwright test",
+    "test": "node test/run-spike.mjs",
     "postinstall": "wxt prepare",
-    "test:headed": "playwright test --headed"
+    "test:fps": "node test/measure-fps.mjs",
+    "test:units": "node test/reconstruct-old-file.mjs"
   },
   "dependencies": {
     "@pierre/diffs": "^1.4.3",

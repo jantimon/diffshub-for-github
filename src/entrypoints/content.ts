@@ -1,5 +1,11 @@
 import { BRIDGE_CHANNEL, isFromViewer, type PageInfo } from '@/bridge';
-import { findFilesChangedTab, readBranchPair, readPullRequestRef, readPullRequestTitle } from '@/github/pr';
+import {
+  findFilesChangedTab,
+  readBranchPair,
+  readHeadSha,
+  readPullRequestRef,
+  readPullRequestTitle,
+} from '@/github/pr';
 import { readGitHubTheme } from '@/github/theme';
 
 const MARKER_ATTRIBUTE = 'data-diffshub-marked';
@@ -30,6 +36,7 @@ export default defineContentScript({
         darkTheme: theme.theme.dark,
         base: branches?.base,
         head: branches?.head,
+        headSha: readHeadSha(),
       };
     };
 

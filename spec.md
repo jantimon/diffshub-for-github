@@ -53,28 +53,38 @@ reload.
 
 ## 4. Architecture
 
-A content script runs on `github.com/*/*/pull/*`. It mounts one shadow root that
-we own; React and the Pierre components render inside it.
+A content script runs on `github.com/*/*/pull/*`. It marks the Files-changed
+tab, takes over its click, and mounts a fullscreen iframe holding the viewer.
+The viewer itself is an extension page.
 
 ```
 github.com page
-  └─ <div id="diffshub-root">
-       └─ #shadow-root (ours, one)
-            └─ React overlay
-                 └─ <pierre-file-diff>
-                      └─ #shadow-root (library's, per file)
+  └─ <iframe src="chrome-extension://…/viewer.html?owner=…&repo=…&number=…">
+       └─ React viewer
+            ├─ <diffs-container>    #shadow-root, one per rendered file
+            └─ <file-tree-container> #shadow-root
 ```
 
-`@pierre/diffs` registers a custom element that attaches an open shadow root per
-rendered file (`packages/diffs/src/components/web-components.ts:21`), and its
-virtualizer queries through those roots. We cannot have a single root and still
-use the library. The virtualizer recycles those elements, so their count tracks
-the viewport, not the file count.
+The viewer needs the extension's own origin. github.com's CSP is
+`worker-src github.githubassets.com …`, which blocks a `blob:` worker, and a
+page cannot construct a worker from a `chrome-extension:` URL because that is
+cross-origin. An extension page has neither problem: its workers are
+same-origin and the extension's own CSP applies. It also gets code splitting,
+so Shiki's grammars load as separate chunks instead of an 11 MB content script.
 
-**Fetching happens in the content script, never the background worker.** MV3
-message passing cannot carry a `ReadableStream`, and losing the stream loses the
-speed. A same-origin `fetch` from the content script sends the session cookie
-automatically and returns a stream we can parse as it arrives.
+The page and the viewer talk over `postMessage`. The GitHub page owns what only
+it knows -- the pull request title, the active theme, the head commit sha -- and
+sends it across when the viewer reports itself ready. The viewer sends back one
+message, to close.
+
+`@pierre/diffs` attaches an open shadow root per rendered file and its
+virtualizer queries through those roots. The virtualizer recycles the elements,
+so their count tracks the viewport, not the file count.
+
+Fetching happens in the viewer, on the extension origin with host permissions
+for `github.com` and `*.githubusercontent.com`. `fetch` there is credentialed
+and CORS-exempt, and it returns a stream, which is what makes rendering start
+before the download finishes.
 
 ## 5. Data
 
@@ -84,7 +94,7 @@ Everything comes from `github.com` on the existing session cookie. No token, no
 | What | Request |
 | --- | --- |
 | The patch | `GET /{owner}/{repo}/pull/{n}.diff` |
-| Hunk expansion | `GET /{owner}/{repo}/raw/{sha}/{path}` |
+| Hunk expansion | `GET /{owner}/{repo}/raw/{headSha}/{path}`, old side derived from the patch |
 | Existing comments | Read from the PR page DOM and GitHub's partials |
 | Post a comment | `POST` to GitHub's web endpoint with the `authenticity_token` scraped from the page |
 | Viewed state | Read and write GitHub's own state |
@@ -286,62 +296,64 @@ Always try. Always stream. Never cap and never ask first. The virtualizer and
 the streaming parser are the answer; if a browser dies on a two-million-line
 diff, that was the user's call.
 
-## 8. Build order
+## 8. State
 
-Two spikes first, because either can change the design.
+**Built.** Tab marking and click interception; the overlay; the streaming patch
+reader and accumulator; the file tree with search; the glob exclude filter;
+hunk expansion; split and unified; theme matching; per-file copy-path, file and
+blame links; the diff stats panel; keyboard navigation and the shortcut help;
+toasts for failures.
 
-**Spike 1 — worker and CSP.** Mount a bare `CodeView` in a shadow root on a real
-github.com PR with one hardcoded file and create the Shiki worker from an
-extension URL listed in `web_accessible_resources`. Watch the console for a CSP
-violation. This is the only question that can invalidate the architecture, so it
-goes first. If it fails, revisit the extension-origin iframe and main-thread
-highlighting before building anything else.
+Measured on `nodejs/node#59805`, scrolling 180 frames:
 
-**Spike 2 — fetch and stream.** Fetch `node#59805`'s `.diff` from a content
-script on the session cookie and stream-parse it, logging files as they arrive.
-No UI. This proves the no-credentials claim and settles the streaming question.
+| | Median frame | p95 | Worst | Frames over 50 ms |
+| --- | --- | --- | --- | --- |
+| This viewer | 8.3 ms (120 fps) | 10.2 ms | 20 ms | 0 / 180 |
+| GitHub's Files changed | 81.5 ms (12 fps) | 201.7 ms | 842 ms | 150 / 180 |
 
-Streaming ships from the start if the spike shows it is straightforward —
-diffshub's `usePatchLoader` is in the submodule to read from. If it is not, fall
-back to a skeleton-then-render path and add streaming after, accepting that the
-benchmark PR will not work until it lands.
+**Not built yet.** Viewed state, reading and writing comments, the
+ignore-whitespace toggle, the file-tree status filter, and the before side of a
+binary comparison. The first three need a signed-in session to build against;
+the last needs a base revision, which the pull request page does not carry.
 
-Then: overlay shell and tab interception → file tree → hunk expansion → viewed
-state → whitespace filter → comments read → comments write → binary and image
-handling.
+### Deriving the old side
+
+Expanding collapsed context needs both versions of a file in full, and GitHub
+serves raw files only by commit sha. The pull request page gives the head sha.
+The commit the diff was taken against is not addressable from the page, so the
+old side is rebuilt from the new file and the patch: a patch records every
+changed line on both sides, and the lines between hunks are identical in both
+versions, which makes the result exact rather than approximate.
 
 ## 9. Testing
 
-E2E only.
+Driven through a real browser against real github.com.
 
 > The more your tests resemble the way your software is used, the more confidence
 > they can give you. Tests only break when your app breaks, not implementation
 > details. Interact with your app the same way as your users.
 
-Playwright, launching a persistent Chrome profile with the unpacked extension
-loaded, driving real github.com.
+`test/run-spike.mjs` launches Chromium with the unpacked extension and a
+persistent profile, opens a pull request, clicks the marked tab and checks the
+overlay: the patch streams, the tree fills, expansion pulls in more context, the
+shortcut dialog opens, `j` moves between files.
+
+`test/measure-fps.mjs` scrolls the overlay and GitHub's own view for 180 frames
+each and prints the frame times behind the table above.
+
+`test/reconstruct-old-file.mjs` builds real commits in a temporary git
+repository, takes `git diff` as the input, and checks the rebuilt old file
+against the real one across six shapes: a change in the middle, two hunks, an
+insertion at the top, a deletion at the end, a file with no trailing newline,
+and a hunk that both grows and shrinks.
 
 ```
 test/.profile/     gitignored, logged into github.com once
-
-launchPersistentContext('test/.profile', {
-  args: [`--disable-extensions-except=${dist}`,
-         `--load-extension=${dist}`],
-})
 ```
 
-This cannot run in CI and a test can break when a real PR changes. Both are
-accepted: the session-cookie path, private repos, viewed-state writes and posting
-a comment are only provable against a real GitHub.
-
-### Manual and agent-driven testing
-
-`pnpm dev` launches Chrome with the extension loaded and hot reload.
-`pnpm dev:firefox` does the same through `web-ext`.
-
-A project-scoped `.mcp.json` configures chrome-devtools-mcp to launch Chrome with
-the built extension and a persistent profile, so the frame timings behind the FPS
-claim can be measured directly and CSP violations can be read off the console.
+None of this runs in CI, and a test can break when a real pull request changes.
+Both are accepted: the session-cookie path, private repos, viewed-state writes
+and posting a comment are only provable against a real GitHub.
 
 ## 10. Stack
 
@@ -357,7 +369,7 @@ depends on the published npm packages, not the submodule.
 
 | Risk | Impact | Response |
 | --- | --- | --- |
-| github.com CSP blocks the Shiki worker | Architecture changes | Spike 1, before anything else |
+| github.com CSP blocks the Shiki worker | Would stop the viewer rendering | Settled: the viewer is an extension page, so the page CSP does not apply |
 | Scraped web endpoints change | Comments, viewed state, expansion break | Degrade loudly per feature; the diff keeps working |
 | Turbo click interception breaks on a GitHub redesign | Overlay stops opening | Cmd-click and the real `/files` page always work |
 | Client-side whitespace filter diverges from GitHub | Wrong lines shown or hidden | Commenting is disabled where anchoring is uncertain |

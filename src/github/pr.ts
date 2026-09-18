@@ -11,7 +11,8 @@ const PULL_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/|$)/;
 export function readPullRequestRef(pathname = location.pathname): PullRequestRef | undefined {
   const match = PULL_PATH.exec(pathname);
   if (match == null) return undefined;
-  return { owner: match[1], repo: match[2], number: Number(match[3]) };
+  const [, owner = '', repo = '', number = '0'] = match;
+  return { owner, repo, number: Number(number) };
 }
 
 export function patchUrl(ref: PullRequestRef): string {
@@ -42,6 +43,21 @@ export function findFilesChangedTab(): HTMLAnchorElement | undefined {
     if (!/\/pull\/\d+\/files(?:$|[?#])/.test(href)) continue;
     if (link.closest('nav, .tabnav, [role="tablist"]') == null) continue;
     return link;
+  }
+  return undefined;
+}
+
+/**
+ * The head commit sha, read from the JSON the pull request page embeds for its
+ * own React app. Expanding collapsed context needs it; without it that feature
+ * stays off rather than guessing a revision.
+ */
+export function readHeadSha(): string | undefined {
+  for (const script of document.querySelectorAll('script[type="application/json"]')) {
+    const text = script.textContent ?? '';
+    if (!text.includes('headSha')) continue;
+    const match = /"headSha"\s*:\s*"([0-9a-f]{40})"/.exec(text);
+    if (match?.[1] != null) return match[1];
   }
   return undefined;
 }

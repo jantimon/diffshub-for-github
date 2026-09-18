@@ -38,20 +38,26 @@ interface Options {
 
 const EMPTY_STATS: DiffStats = { addedLines: 0, deletedLines: 0, fileCount: 0, totalLines: 0 };
 
+export interface PatchStream {
+  state: PatchStreamState;
+  /** The files parsed so far, for navigation and per-file actions. */
+  accumulatorRef: { current: PatchAccumulator };
+}
+
 export function usePatchStream({
   url,
   cacheKeyPrefix,
   excludePatterns,
   viewerRef,
   model,
-}: Options): PatchStreamState {
+}: Options): PatchStream {
   const [state, setState] = useState<PatchStreamState>({
     phase: 'loading',
     stats: EMPTY_STATS,
     hiddenCount: 0,
     pathToItemId: new Map(),
   });
-  const accumulatorRef = useRef<PatchAccumulator | undefined>(undefined);
+  const accumulatorRef = useRef<PatchAccumulator>(createAccumulator());
 
   useEffect(() => {
     const controller = new AbortController();
@@ -135,7 +141,7 @@ export function usePatchStream({
     return () => controller.abort();
   }, [url, cacheKeyPrefix, excludePatterns, model, viewerRef]);
 
-  return state;
+  return { state, accumulatorRef };
 }
 
 function yieldToBrowser(): Promise<void> {

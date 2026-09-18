@@ -12,7 +12,8 @@ export async function streamPatchFiles(
   onFile: (fileText: string) => void | Promise<void>,
   signal?: AbortSignal
 ): Promise<void> {
-  const reader = body.pipeThrough(new TextDecoderStream()).getReader();
+  const decoder = new TextDecoderStream() as unknown as ReadableWritablePair<string, Uint8Array>;
+  const reader = body.pipeThrough(decoder).getReader();
   let buffer = '';
   let searchFrom = 0;
 

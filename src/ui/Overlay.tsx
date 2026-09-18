@@ -7,18 +7,26 @@ import {
   type WorkerInitializationRenderOptions,
   type WorkerPoolOptions,
 } from '@pierre/diffs/react';
-import { FileTree, useFileTree } from '@pierre/trees/react';
+import { FileTree, useFileTree, useFileTreeSearch } from '@pierre/trees/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { createFileLoader } from '@/github/fileLoader';
+import { blameUrl, blobUrl, copyPath, type FileRefs } from '@/github/fileLinks';
 import { filesUrl, patchUrl, type PullRequestRef } from '@/github/pr';
 import { usePatchStream } from '@/patch/usePatchStream';
+import { BinaryCompare, isImagePath } from './BinaryCompare';
+import { ShortcutHelp } from './ShortcutHelp';
+import { ToastStack, useToasts } from './Toast';
 import { closeViewer, usePageInfo } from './usePageInfo';
+import { useNavigation } from './useNavigation';
+import { useShortcuts } from './useShortcuts';
 import { readSetting, writeSetting } from './storage';
 
 const POOL_OPTIONS: WorkerPoolOptions = {
   poolSize: Math.min(Math.max(1, (navigator.hardwareConcurrency ?? 1) - 1), 3),
   totalASTLRUCacheSize: 100,
-  workerFactory: () => new Worker(new URL('@pierre/diffs/worker/worker.js', import.meta.url), { type: 'module' }),
+  workerFactory: () =>
+    new Worker(new URL('@pierre/diffs/worker/worker.js', import.meta.url), { type: 'module' }),
 };
 
 const HIGHLIGHTER_OPTIONS: WorkerInitializationRenderOptions = {
@@ -38,12 +46,15 @@ export function Overlay({ pr }: { pr: PullRequestRef }) {
 
 function Viewer({ pr }: { pr: PullRequestRef }) {
   const page = usePageInfo();
+  const toasts = useToasts();
   const viewerRef = useRef<CodeViewHandle<undefined, undefined> | null>(null);
   const [diffStyle, setDiffStyle] = useState<'split' | 'unified'>(() =>
     readSetting('layout', 'split') === 'unified' ? 'unified' : 'split'
   );
   const [excludeInput, setExcludeInput] = useState(() => readSetting('excludes', ''));
   const [excludePatterns, setExcludePatterns] = useState(excludeInput);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [comparing, setComparing] = useState<string | undefined>(undefined);
 
   // Re-reading the patch is the price of filtering in the accumulator, so wait
   // until typing stops.
@@ -55,11 +66,13 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     return () => clearTimeout(timer);
   }, [excludeInput]);
 
-  const stateRef = useRef<{ pathToItemId: ReadonlyMap<string, string> }>({ pathToItemId: new Map() });
+  const pathToItemIdRef = useRef<ReadonlyMap<string, string>>(new Map());
 
   const onSelectionChange = useCallback((selectedPaths: readonly string[]) => {
     if (selectedPaths.length !== 1) return;
-    const itemId = stateRef.current.pathToItemId.get(selectedPaths[0]);
+    const [path] = selectedPaths;
+    if (path == null) return;
+    const itemId = pathToItemIdRef.current.get(path);
     if (itemId == null) return;
     viewerRef.current?.scrollTo({ type: 'item', id: itemId, align: 'start', behavior: 'smooth' });
   }, []);
@@ -77,15 +90,81 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     itemHeight: 24,
     onSelectionChange,
   });
+  const search = useFileTreeSearch(model);
 
-  const state = usePatchStream({
+  const { state, accumulatorRef } = usePatchStream({
     url: patchUrl(pr),
     cacheKeyPrefix: `${pr.owner}/${pr.repo}/${pr.number}`,
     excludePatterns,
     viewerRef,
     model,
   });
-  stateRef.current = state;
+  pathToItemIdRef.current = state.pathToItemId;
+
+  const navigation = useNavigation(viewerRef, accumulatorRef);
+
+  useShortcuts({
+    ...navigation,
+    focusFilter: useCallback(() => search.open(), [search]),
+    toggleHelp: useCallback(() => setHelpOpen((open) => !open), []),
+    close: closeViewer,
+  });
+
+  // A fetch that never got off the ground deserves a reason, not an empty view.
+  const reportedError = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (state.phase !== 'error' || state.error == null) return;
+    if (reportedError.current === state.error) return;
+    reportedError.current = state.error;
+    toasts.push(state.error, { label: 'Open on GitHub', href: filesUrl(pr) });
+  }, [state.phase, state.error, toasts, pr]);
+
+  const refs = useMemo<FileRefs | undefined>(
+    () =>
+      page.headSha == null
+        ? undefined
+        : { owner: pr.owner, repo: pr.repo, baseSha: page.headSha, headSha: page.headSha },
+    [page.headSha, pr.owner, pr.repo]
+  );
+
+  const loadDiffFiles = useMemo(
+    () => (page.headSha == null ? undefined : createFileLoader(pr, page.headSha)),
+    [page.headSha, pr]
+  );
+
+  const renderHeaderMetadata = useCallback(
+    (item: CodeViewItem<undefined>) => {
+      if (refs == null || item.type !== 'diff') return null;
+      const path = item.fileDiff.name;
+      const isBinary = item.fileDiff.hunks.length === 0;
+      return (
+        <span className="dh-file-links">
+          {isBinary && isImagePath(path) && (
+            <button type="button" onClick={() => setComparing(path)}>
+              Compare
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              void copyPath(path).then((copied) => {
+                toasts.push(copied ? 'Path copied.' : 'The clipboard is blocked here.');
+              });
+            }}
+          >
+            Copy path
+          </button>
+          <a href={blobUrl(refs, path, 'head')} target="_top">
+            File
+          </a>
+          <a href={blameUrl(refs, path)} target="_top">
+            Blame
+          </a>
+        </span>
+      );
+    },
+    [refs, toasts]
+  );
 
   const options = useMemo<CodeViewReactOptions<undefined, undefined>>(
     () => ({
@@ -97,8 +176,9 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       overflow: 'scroll',
       lineHoverHighlight: 'number',
       enableLineSelection: true,
+      loadDiffFiles,
     }),
-    [diffStyle, page.themeType, page.lightTheme, page.darkTheme]
+    [diffStyle, page.themeType, page.lightTheme, page.darkTheme, loadDiffFiles]
   );
 
   const toggleLayout = useCallback(() => {
@@ -107,16 +187,6 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       writeSetting('layout', next);
       return next;
     });
-  }, []);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      closeViewer();
-    };
-    addEventListener('keydown', onKeyDown);
-    return () => removeEventListener('keydown', onKeyDown);
   }, []);
 
   const { stats } = state;
@@ -140,6 +210,9 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           <button type="button" onClick={toggleLayout} title="Toggle split and unified">
             {diffStyle === 'split' ? 'Split' : 'Unified'}
           </button>
+          <button type="button" onClick={() => setHelpOpen(true)} title="Keyboard shortcuts (?)">
+            ?
+          </button>
           <a href={filesUrl(pr)} target="_top" title="Open GitHub's own Files changed view">
             GitHub
           </a>
@@ -148,12 +221,6 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           </button>
         </div>
       </header>
-
-      {state.phase === 'error' && (
-        <div className="dh-error" role="alert">
-          {state.error} <a href={filesUrl(pr)} target="_top">Open on GitHub</a>
-        </div>
-      )}
 
       <div className="dh-body">
         <aside className="dh-sidebar">
@@ -169,14 +236,31 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
             <p className="dh-hidden">{state.hiddenCount.toLocaleString()} files hidden</p>
           )}
           <FileTree className="dh-tree" model={model} />
+          <dl className="dh-diffstats">
+            <dt>Files</dt>
+            <dd>{stats.fileCount.toLocaleString()}</dd>
+            <dt>Additions</dt>
+            <dd>{stats.addedLines.toLocaleString()}</dd>
+            <dt>Deletions</dt>
+            <dd>{stats.deletedLines.toLocaleString()}</dd>
+            <dt>Lines</dt>
+            <dd>{stats.totalLines.toLocaleString()}</dd>
+          </dl>
         </aside>
         <CodeView<undefined, undefined>
           ref={viewerRef}
           className="dh-code"
           initialItems={NO_ITEMS}
           options={options}
+          renderHeaderMetadata={renderHeaderMetadata}
         />
       </div>
+
+      {helpOpen && <ShortcutHelp onClose={() => setHelpOpen(false)} />}
+      {comparing != null && refs != null && (
+        <BinaryCompare refs={refs} path={comparing} onClose={() => setComparing(undefined)} />
+      )}
+      <ToastStack toasts={toasts.toasts} onDismiss={toasts.dismiss} />
     </div>
   );
 }

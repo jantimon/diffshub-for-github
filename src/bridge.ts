@@ -8,6 +8,7 @@ export interface PageInfo {
   darkTheme: string;
   base?: string;
   head?: string;
+  headSha?: string;
 }
 
 export type ToViewer = { channel: typeof BRIDGE_CHANNEL; type: 'page-info'; info: PageInfo };

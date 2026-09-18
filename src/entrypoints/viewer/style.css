@@ -149,3 +149,303 @@ body:has(.dh-overlay[data-theme='dark']) {
   overflow-y: auto;
   contain: strict;
 }
+
+.dh-binary {
+  width: min(1100px, 92vw);
+  max-height: 88vh;
+  padding: 0;
+  overflow: auto;
+  font: inherit;
+  color: #1f2328;
+  background: #ffffff;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 10px;
+}
+
+.dh-binary::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.dh-overlay[data-theme='dark'] .dh-binary {
+  color: #e6edf3;
+  background: #0d1117;
+}
+
+.dh-binary-header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.dh-binary-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-binary-close {
+  padding: 4px 10px;
+  margin-left: auto;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 6px;
+}
+
+.dh-binary-close:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.dh-binary-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px;
+}
+
+.dh-binary-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 8px;
+}
+
+.dh-binary-label {
+  margin: 0;
+  font-size: inherit;
+}
+
+.dh-binary-sha {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  opacity: 0.7;
+}
+
+.dh-binary-image {
+  max-width: 100%;
+  max-height: 46vh;
+  background-color: #ffffff;
+  background-image: conic-gradient(
+    color-mix(in srgb, currentColor 12%, transparent) 0 25%,
+    transparent 0 50%,
+    color-mix(in srgb, currentColor 12%, transparent) 0 75%,
+    transparent 0
+  );
+  background-size: 16px 16px;
+  border-radius: 4px;
+}
+
+.dh-overlay[data-theme='dark'] .dh-binary-image {
+  background-color: #0d1117;
+}
+
+.dh-binary-link {
+  padding: 4px 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 6px;
+}
+
+.dh-binary-link:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.dh-binary-absent {
+  margin: 0;
+  text-align: center;
+  opacity: 0.6;
+}
+
+.dh-binary-meta {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.dh-toast-stack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(380px, calc(100vw - 32px));
+}
+
+.dh-toast {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 9px 10px 9px 12px;
+  color: #1f2328;
+  background: #ffffff;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px color-mix(in srgb, #000000 18%, transparent);
+}
+
+.dh-toast-message {
+  flex: 1;
+  min-width: 0;
+}
+
+.dh-toast-action {
+  color: #0969da;
+  white-space: nowrap;
+}
+
+.dh-toast-close {
+  padding: 0 2px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  opacity: 0.6;
+}
+
+.dh-toast-close:hover {
+  opacity: 1;
+}
+
+.dh-overlay[data-theme='dark'] .dh-toast {
+  color: #e6edf3;
+  background: #161b22;
+}
+
+.dh-overlay[data-theme='dark'] .dh-toast-action {
+  color: #4493f8;
+}
+
+.dh-help {
+  width: min(420px, 92vw);
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+}
+
+.dh-help::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.dh-help-panel {
+  padding: 14px 16px 16px;
+  color: #1f2328;
+  background: #ffffff;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px color-mix(in srgb, #000000 28%, transparent);
+}
+
+.dh-help-header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.dh-help-close {
+  padding: 0 2px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  opacity: 0.6;
+}
+
+.dh-help-close:hover {
+  opacity: 1;
+}
+
+.dh-help-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dh-help-table td {
+  padding: 4px 0;
+  vertical-align: baseline;
+}
+
+.dh-help-keys {
+  width: 90px;
+  white-space: nowrap;
+}
+
+.dh-help-keys kbd {
+  padding: 2px 6px;
+  font: inherit;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 5px;
+}
+
+.dh-help-action {
+  opacity: 0.85;
+}
+
+.dh-overlay[data-theme='dark'] .dh-help-panel {
+  color: #e6edf3;
+  background: #161b22;
+}
+
+.dh-file-links {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dh-file-links button,
+.dh-file-links a {
+  padding: 0;
+  font: inherit;
+  font-size: 11px;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  opacity: 0.6;
+}
+
+.dh-file-links button:hover,
+.dh-file-links a:hover {
+  text-decoration: underline;
+  opacity: 1;
+}
+
+.dh-diffstats {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.dh-diffstats dt {
+  opacity: 0.6;
+}
+
+.dh-diffstats dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

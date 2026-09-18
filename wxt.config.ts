@@ -3,6 +3,7 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   srcDir: 'src',
+  manifestVersion: 3,
   manifest: {
     name: 'DiffsHub for GitHub',
     description:
