@@ -1,0 +1,3 @@
+[submodule "research/pierre"]
+	path = research/pierre
+	url = https://github.com/pierrecomputer/pierre.git
