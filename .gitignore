@@ -5,3 +5,6 @@ dist/
 .env
 .env.*
 web-ext-artifacts/
+.chrome-profile/
+test/.profile/
+.output/
