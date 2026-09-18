@@ -16,7 +16,13 @@ const MARKER_ATTRIBUTE = 'data-diffshub-marked';
 const FRAME_ID = 'diffshub-for-github-viewer';
 
 export default defineContentScript({
-  matches: ['https://github.com/*/*/pull/*'],
+  // Every github.com page, not just pull requests. GitHub routes client side, so
+  // arriving at a pull request from the list, the dashboard or a notification is
+  // a history navigation with no document load: a `/pull/*` match pattern would
+  // never inject on any of them, and the tab would only be marked after a
+  // reload. Everything below is a no-op off a pull request, and the extension
+  // already holds `https://github.com/*`, so this asks for nothing new.
+  matches: ['https://github.com/*'],
   runAt: 'document_idle',
 
   main(ctx) {
@@ -186,6 +192,16 @@ export default defineContentScript({
     };
 
     markTab();
+
+    // An overlay open over one pull request has no business surviving a route
+    // change to another, or to anywhere that is not a pull request at all.
+    let markedPath = readPullRequestRef()?.number;
+    ctx.addEventListener(window, 'wxt:locationchange', () => {
+      const next = readPullRequestRef()?.number;
+      if (next !== markedPath) close();
+      markedPath = next;
+      markTab();
+    });
 
     // GitHub swaps the page body on client-side navigation, so the tab has to be
     // found again each time.
