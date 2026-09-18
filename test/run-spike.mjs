@@ -118,6 +118,32 @@ await check('mark viewed advances', async () => {
   return focused != null && focused !== id ? `focus moved to ${focused}` : false;
 });
 
+await check('unmarking stays put', async () => {
+  const first = frame.locator('[data-dh-viewed]').first();
+  const id = await first.getAttribute('data-dh-viewed');
+
+  // Make sure it is marked, then come back to it through the tree so its eye is
+  // on screen again.
+  if ((await first.getAttribute('aria-pressed')) !== 'true') {
+    await first.click();
+    await page.waitForTimeout(1200);
+  }
+  await frame.locator(`[data-item-path="${id}"]`).first().click();
+  await page.waitForTimeout(1500);
+
+  const eye = frame.locator(`[data-dh-viewed="${id}"]`);
+  const before = await frame.evaluate(() => Math.round(document.querySelector('.dh-code')?.scrollTop ?? -1));
+  await eye.click();
+  await page.waitForTimeout(1500);
+  const after = await frame.evaluate(() => Math.round(document.querySelector('.dh-code')?.scrollTop ?? -1));
+  const pressed = await eye.getAttribute('aria-pressed');
+  await shoot('unmarked-in-place');
+
+  if (pressed !== 'false') { console.log(`      still marked: aria-pressed=${pressed}`); return false; }
+  if (Math.abs(after - before) > 4) { console.log(`      moved ${before} -> ${after}`); return false; }
+  return `held at ${after}px`;
+});
+
 await check('hunk expansion', async () => {
   const label = frame.locator('[data-unmodified-lines]').first();
   const before = (await label.textContent())?.trim() ?? '';

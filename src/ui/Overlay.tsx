@@ -178,6 +178,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     return () => clearTimeout(timer);
   }, [includeInput, excludeInput]);
 
+  const viewedRef = useRef<ReadonlySet<string>>(new Set());
   const decorationRef = useRef<{
     viewed: ReadonlySet<string>;
     folders: ReadonlyMap<string, { total: number; viewed: number }>;
@@ -249,6 +250,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   }, [state.pathToItemId, viewed]);
 
   decorationRef.current = { viewed, folders };
+  viewedRef.current = viewed;
 
   // Decorations are worked out as rows render, so redraw when a file is ticked
   // off rather than waiting for the next scroll.
@@ -261,11 +263,16 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     model.render({});
   }, [viewed, model]);
 
-  // Ticking a file off moves to the next one and puts the keyboard on its tick
-  // box, so the whole review is space, read, space.
+  // Ticking a file off moves to the next one and puts the keyboard on its eye,
+  // so the whole review is space, read, space. Unticking one leaves you on it,
+  // because you went back to it on purpose.
   const markViewed = useCallback(
     (id: string) => {
+      // Read through a ref: the header this button lives in is rendered by the
+      // viewer and can hold an older copy of this callback.
+      const wasViewed = viewedRef.current.has(id);
       toggle(id);
+      if (wasViewed) return;
       const files = visibleRef.current;
       const next = files[files.findIndex((file) => file.item.id === id) + 1];
       if (next == null) return;
@@ -274,7 +281,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         document.querySelector<HTMLInputElement>(`[data-dh-viewed="${CSS.escape(next.item.id)}"]`)?.focus();
       }, 350);
     },
-    [toggle, visibleRef]
+    [toggle, viewedRef, visibleRef]
   );
 
   useShortcuts({
