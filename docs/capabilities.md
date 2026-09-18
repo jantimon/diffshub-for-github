@@ -109,7 +109,7 @@ Worth building once the rest holds.
 | # | Capability | Status | Note |
 | --- | --- | :---: | --- |
 | 18 | Ignore whitespace | 🟡 | Hides files that changed only in spacing. Hiding individual lines would renumber the rest and move every comment anchor, so a file mixing spacing with real edits shows both |
-| 19 | Filter files by name, glob or regular expression | ✅ | Include and exclude, remembered along with the case and regex switches on each. A pattern written like a glob stays a glob; anything else matches anywhere in the path |
+| 19 | Filter files by name, glob or regular expression | ✅ | Include and exclude, remembered along with the case and regex switches on each. A pattern written like a glob stays a glob; anything else matches anywhere in the path. A clear button inside the box, and `Esc`, empty a field |
 | 20 | Diff statistics | ✅ | With the split between additions and deletions |
 | 21 | Follow GitHub's theme, with an override | ✅ | Light and dark, no automatic third state |
 | 22 | Per-file actions | ✅ | Copy path, open the file, blame |

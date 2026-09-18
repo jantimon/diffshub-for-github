@@ -9,28 +9,52 @@
  */
 
 import { FileTree } from '@pierre/trees/react';
-import type { CSSProperties, JSX } from 'react';
+import { IconX } from '@pierre/icons';
+import type { CSSProperties, JSX, KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 import type { DiffStats } from '@/patch/accumulator';
 import { TREE_STYLE } from '@/viewer/diff/codeViewStyles';
 
 /**
- * The two switches a search box is expected to carry, drawn as VS Code draws
- * them. Whole-word is deliberately absent: a path has no words to bound.
+ * What sits inside the box: a clear button that appears only when there is
+ * something to clear, then the two switches a search box is expected to carry.
+ * Whole-word is deliberately absent, since a path has no words to bound.
+ *
+ * Clear is an icon and the switches are labels, it is separated by a rule, and
+ * it is missing whenever the field is empty -- three reasons it cannot be read
+ * as a third mode.
  */
-function MatchToggles({
+function FieldControls({
+  value,
+  onClear,
   caseSensitive,
   onCase,
   regex,
   onRegex,
 }: {
+  value: string;
+  onClear: () => void;
   caseSensitive: boolean;
   onCase: () => void;
   regex: boolean;
   onRegex: () => void;
 }) {
   return (
-    <div className="dh-field-toggles">
+    <div className="dh-field-controls">
+      {value !== '' && (
+        <>
+          <button
+            type="button"
+            className="dh-icon-button dh-clear"
+            onClick={onClear}
+            title="Clear (Esc)"
+            aria-label="Clear"
+          >
+            <IconX size={12} />
+          </button>
+          <span className="dh-field-rule" />
+        </>
+      )}
       <button
         type="button"
         className="dh-icon-button dh-toggle"
@@ -79,6 +103,17 @@ function DiffStatsPanel({ stats }: { stats: DiffStats }) {
       </div>
     </section>
   );
+}
+
+/**
+ * `Esc` in a filter field clears it, and in an empty one gives the key back to
+ * the overlay by blurring, so a second press closes the viewer as it always did
+ */
+function clearOnEscape(event: ReactKeyboardEvent<HTMLInputElement>, clear: () => void): void {
+  if (event.key !== 'Escape') return;
+  if (event.currentTarget.value === '') return event.currentTarget.blur();
+  event.preventDefault();
+  clear();
 }
 
 export function Sidebar({
@@ -139,9 +174,12 @@ export function Sidebar({
               value={include}
               placeholder="e.g. config, src/**"
               onChange={(event) => onIncludeChange(event.target.value)}
+              onKeyDown={(event) => clearOnEscape(event, () => onIncludeChange(''))}
               spellCheck={false}
             />
-            <MatchToggles
+            <FieldControls
+              value={include}
+              onClear={() => onIncludeChange('')}
               caseSensitive={includeCase}
               onCase={onIncludeCase}
               regex={includeRegex}
@@ -160,9 +198,12 @@ export function Sidebar({
               value={exclude}
               placeholder="e.g. *.test.*, *.snap"
               onChange={(event) => onExcludeChange(event.target.value)}
+              onKeyDown={(event) => clearOnEscape(event, () => onExcludeChange(''))}
               spellCheck={false}
             />
-            <MatchToggles
+            <FieldControls
+              value={exclude}
+              onClear={() => onExcludeChange('')}
               caseSensitive={excludeCase}
               onCase={onExcludeCase}
               regex={excludeRegex}

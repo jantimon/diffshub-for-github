@@ -64,7 +64,7 @@ page tracks the window, not the 3,420 files.
 
 **A file tree you can cut down.** Two fields, one to include and one to exclude, with a count of what they hide. Generated code and snapshots stop getting in the way. The viewer remembers the patterns for the next pull request.
 
-Each field reads what you type the way you meant it. Plain words match anywhere in the path, so `config` finds `src/ConfigFile.ts`; anything written like a glob stays a glob, so `src/**` and `*.test.*` mean what they always have. Two switches on the field, as in a code editor: **Aa** for case, **.*** for regular expressions.
+Each field reads what you type the way you meant it. Plain words match anywhere in the path, so `config` finds `src/ConfigFile.ts`; anything written like a glob stays a glob, so `src/**` and `*.test.*` mean what they always have. Two switches on the field, as in a code editor: **Aa** for case, **.*** for regular expressions. A clear button appears next to them once there is something to clear, and `Esc` does the same.
 
 <img src="docs/images/exclude-filter.png" width="440" alt="The file tree with an exclude filter on, and the count of hidden files">
 

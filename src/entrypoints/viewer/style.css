@@ -175,28 +175,51 @@ body {
   opacity: 0.55;
 }
 
-/* The toggles sit inside the box, so the input reserves room for them. */
+/* The box carries the chrome and the input is bare inside it, so the controls
+   can come and go without the input reserving room for a button that is not
+   there. */
 .dh-field-box {
-  position: relative;
   display: flex;
   align-items: center;
-}
-
-.dh-field input {
-  width: 100%;
-  padding: 4px 52px 4px 8px;
-  font: inherit;
-  color: inherit;
+  gap: 1px;
+  padding-right: 3px;
   background: color-mix(in srgb, currentColor 7%, transparent);
   border: 1px solid transparent;
   border-radius: 6px;
 }
 
-.dh-field-toggles {
-  position: absolute;
-  right: 3px;
+.dh-field-box:focus-within {
+  border-color: color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.dh-field input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+}
+
+.dh-field-controls {
   display: flex;
+  align-items: center;
   gap: 1px;
+}
+
+/* Clear is not a mode, so it is kept on the far side of a rule. */
+.dh-field-rule {
+  width: 1px;
+  height: 14px;
+  margin: 0 3px;
+  background: color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.dh-clear {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
 }
 
 .dh-toggle {
@@ -214,7 +237,6 @@ body {
 }
 
 .dh-field input:focus {
-  border-color: color-mix(in srgb, currentColor 35%, transparent);
   outline: none;
 }
 
