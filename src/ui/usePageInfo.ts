@@ -19,6 +19,7 @@ export function usePageInfo(): PageInfo {
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.source !== parent || !isToViewer(event.data)) return;
+      if (event.data.type !== 'page-info') return;
       setInfo(event.data.info);
     };
     addEventListener('message', onMessage);

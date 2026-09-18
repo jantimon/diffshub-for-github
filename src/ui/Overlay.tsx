@@ -256,7 +256,10 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   });
 
   const navigation = useNavigation(viewerRef, visibleRef);
-  const { viewed, toggle } = useViewed(`${pr.owner}/${pr.repo}/${pr.number}/${page.headSha ?? 'head'}`);
+  const { viewed, toggle } = useViewed(
+    `${pr.owner}/${pr.repo}/${pr.number}/${page.headSha ?? 'head'}`,
+    useCallback((message: string) => toasts.push(message), [toasts])
+  );
 
   // A folder is marked once every file under it has been read.
   const folders = useMemo(() => {
@@ -303,9 +306,9 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       // Read through a ref: the header this button lives in is rendered by the
       // viewer and can hold an older copy of this callback.
       const wasViewed = viewedRef.current.has(id);
-      toggle(id);
-      if (wasViewed) return;
       const files = visibleRef.current;
+      toggle(id, files.find((file) => file.item.id === id)?.path ?? id);
+      if (wasViewed) return;
       const next = files[files.findIndex((file) => file.item.id === id) + 1];
       if (next == null) return;
       viewerRef.current?.scrollTo({ type: 'item', id: next.item.id, align: 'start', behavior: 'smooth' });

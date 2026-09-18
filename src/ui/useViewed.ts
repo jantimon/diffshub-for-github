@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { requestFileReview } from './reviewFile';
 import { readSetting, writeSetting } from './storage';
 
 /**
- * Which files have been ticked off, kept per pull request revision so a push
- * clears them the way GitHub does.
+ * Which files have been ticked off.
  *
- * This lives in the browser and is not written back to GitHub, so GitHub's own
- * Files-changed tab does not see it.
+ * The tick goes to GitHub, so its own Files-changed tab agrees. It is also kept
+ * in this browser under the head commit, which is what the overlay shows while
+ * it is open -- GitHub offers no way to read the existing state back.
  */
-export function useViewed(key: string) {
+export function useViewed(key: string, onFailure: (message: string) => void) {
   const [viewed, setViewed] = useState<ReadonlySet<string>>(new Set());
   const loadedFor = useRef<string | undefined>(undefined);
 
@@ -24,16 +25,35 @@ export function useViewed(key: string) {
     }
   }, [key]);
 
-  const toggle = useCallback(
-    (id: string) => {
+  const apply = useCallback(
+    (id: string, next: boolean) => {
       setViewed((current) => {
-        const next = new Set(current);
-        if (!next.delete(id)) next.add(id);
-        writeSetting(`viewed.${key}`, JSON.stringify([...next]));
-        return next;
+        const updated = new Set(current);
+        if (next) updated.add(id);
+        else updated.delete(id);
+        writeSetting(`viewed.${key}`, JSON.stringify([...updated]));
+        return updated;
       });
     },
     [key]
+  );
+
+  const viewedRef = useRef(viewed);
+  viewedRef.current = viewed;
+
+  // The tick lands at once and is taken back if GitHub refuses it, so the two
+  // never quietly disagree.
+  const toggle = useCallback(
+    (id: string, path: string) => {
+      const next = !viewedRef.current.has(id);
+      apply(id, next);
+      void requestFileReview(path, next).then((ok) => {
+        if (ok) return;
+        apply(id, !next);
+        onFailure(`GitHub did not record ${path} as ${next ? 'viewed' : 'not viewed'}.`);
+      });
+    },
+    [apply, onFailure]
   );
 
   return { viewed, toggle };

@@ -26,6 +26,14 @@ const page = context.pages()[0] ?? (await context.newPage());
 const noise = [];
 page.on('pageerror', (e) => noise.push(`gh pageerror: ${e.message.slice(0, 160)}`));
 
+// Marking a file viewed is a real write to GitHub; remember what we touch.
+const reviewed = [];
+page.on('response', (r) => {
+  if (!r.url().includes('/file_review')) return;
+  const body = r.request().postData();
+  reviewed.push({ status: r.status(), path: body == null ? null : JSON.parse(body).path });
+});
+
 await page.goto(url, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(3500);
 await shoot('github-page');
@@ -127,6 +135,20 @@ await check('tree marks viewed files', async () => {
   await frame.locator('[data-dh-viewed]').first().click();
   await page.waitForTimeout(800);
   return after > before ? `${before} -> ${after} marks` : false;
+});
+
+await check('viewed state reaches GitHub', async () => {
+  const before = reviewed.length;
+  const eye = frame.locator('[data-dh-viewed]').first();
+  await eye.click();
+  await page.waitForTimeout(2500);
+  const sent = reviewed.slice(before);
+  if (sent.length === 0) return false;
+  const bad = sent.find((entry) => entry.status !== 200);
+  if (bad != null) { console.log(`      GitHub answered ${bad.status}`); return false; }
+  await eye.click();
+  await page.waitForTimeout(2000);
+  return `${sent[0].path} accepted`;
 });
 
 await check('mark viewed advances', async () => {
@@ -241,6 +263,29 @@ await check('separator bar expands', async () => {
 await frame.locator('.dh-icon-button').first().click();
 await page.waitForTimeout(500);
 await shoot('sidebar-hidden');
+
+// Leave the pull request as we found it.
+const touched = [...new Set(reviewed.map((entry) => entry.path).filter(Boolean))];
+if (touched.length > 0) {
+  const cleaned = await page.evaluate(async ({ paths, url }) => {
+    const results = [];
+    for (const path of paths) {
+      const res = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'content-type': 'application/json',
+          'x-requested-with': 'XMLHttpRequest',
+          'github-verified-fetch': 'true',
+        },
+        body: JSON.stringify({ path, viewed: 'unviewed' }),
+      });
+      results.push(res.status);
+    }
+    return results;
+  }, { paths: touched, url: `${new URL(url).pathname}/file_review` });
+  console.log(`\nunmarked ${touched.length} file(s) on GitHub: ${cleaned.join(', ')}`);
+}
 
 console.log(`\nscreenshots: ${shots}`);
 if (noise.length > 0) console.log('\nconsole noise:\n' + [...new Set(noise)].slice(0, 8).join('\n'));

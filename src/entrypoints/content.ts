@@ -70,6 +70,17 @@ export default defineContentScript({
       if (frame == null || event.source !== frame.contentWindow) return;
       if (!isFromViewer(event.data)) return;
 
+      if (event.data.type === 'file-review') {
+        const { id, path, viewed } = event.data;
+        void reviewFile(path, viewed).then((status) => {
+          frame?.contentWindow?.postMessage(
+            { channel: BRIDGE_CHANNEL, type: 'file-review-result', id, ok: status === 200, status },
+            '*'
+          );
+        });
+        return;
+      }
+
       if (event.data.type === 'ready') {
         frame.contentWindow?.postMessage(
           { channel: BRIDGE_CHANNEL, type: 'page-info', info: collectPageInfo() },
@@ -85,6 +96,28 @@ export default defineContentScript({
       const pr = readPullRequestRef();
       if (pr != null) open(pr);
     });
+
+    // GitHub refuses a write that does not come from its own origin, so the
+    // viewer asks this script to make it.
+    const reviewFile = async (path: string, viewed: boolean): Promise<number> => {
+      const pr = readPullRequestRef();
+      if (pr == null) return 0;
+      try {
+        const response = await fetch(`/${pr.owner}/${pr.repo}/pull/${pr.number}/file_review`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'content-type': 'application/json',
+            'x-requested-with': 'XMLHttpRequest',
+            'github-verified-fetch': 'true',
+          },
+          body: JSON.stringify({ path, viewed: viewed ? 'viewed' : 'unviewed' }),
+        });
+        return response.status;
+      } catch {
+        return 0;
+      }
+    };
 
     // Listening on the document rather than on the tab means a re-render cannot
     // drop the handler, and it covers every route to the diff -- the tab strip,
