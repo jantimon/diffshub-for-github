@@ -14,7 +14,7 @@ export default defineConfig({
     action: { default_title: 'Open this pull request in DiffsHub' },
     web_accessible_resources: [
       {
-        resources: ['viewer.html'],
+        resources: ['viewer.html', 'icon/*'],
         matches: ['https://github.com/*'],
       },
     ],

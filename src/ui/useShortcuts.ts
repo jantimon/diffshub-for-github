@@ -5,6 +5,7 @@ export interface ShortcutHandlers {
   previousFile(): void;
   nextHunk(): void;
   previousHunk(): void;
+  toggleViewed(): void;
   focusFilter(): void;
   toggleHelp(): void;
   close(): void;
@@ -51,6 +52,9 @@ export function useShortcuts(handlers: ShortcutHandlers): void {
           break;
         case 'p':
           current.previousHunk();
+          break;
+        case 'v':
+          current.toggleViewed();
           break;
         case '/':
           event.preventDefault();

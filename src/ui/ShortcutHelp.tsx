@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, type JSX, type KeyboardEvent, type Mous
 export const SHORTCUTS: readonly { keys: string; action: string }[] = [
   { keys: 'j / k', action: 'Next / previous file' },
   { keys: 'n / p', action: 'Next / previous hunk' },
+  { keys: 'v', action: 'Mark viewed and go to the next file' },
+  { keys: 'space', action: 'Same, when the tick box has focus' },
   { keys: '/', action: 'Focus the file-tree filter' },
   { keys: '?', action: 'Shortcut help' },
   { keys: 'Esc', action: 'Close the overlay' },

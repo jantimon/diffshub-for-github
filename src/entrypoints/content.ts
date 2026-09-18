@@ -114,7 +114,18 @@ export default defineContentScript({
         const value = path.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
         return [`a[href="${value}"]::after`, `a[href="${GITHUB_ORIGIN_PREFIX}${value}"]::after`];
       });
-      style.textContent = `${selectors.join(', ')} { content: " ⚡"; }`;
+      const badge = browser.runtime.getURL('/icon/32.png');
+      style.textContent = `${selectors.join(', ')} {
+        content: "";
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        margin-left: 6px;
+        vertical-align: -3px;
+        background-image: url("${badge}");
+        background-size: contain;
+        background-repeat: no-repeat;
+      }`;
       document.head.append(style);
 
       // Kept for the tooltip and so tests have something to click.

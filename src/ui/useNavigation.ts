@@ -1,97 +1,92 @@
 import type { CodeViewHandle } from '@pierre/diffs/react';
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 
-import type { PatchAccumulator } from '@/patch/accumulator';
-
-interface Target {
-  id: string;
-  lineNumber?: number;
-}
+import type { ParsedFile } from '@/patch/accumulator';
 
 /**
  * Walks the diff file by file and hunk by hunk.
  *
- * Positions are read from the items the viewer already holds, so nothing has to
- * be mirrored while the patch is still streaming in.
+ * Where you are is read from what the viewer has on screen rather than from a
+ * counter, so scrolling by hand and then pressing a key carries on from what
+ * you are actually looking at.
  */
 export function useNavigation(
   viewerRef: { current: CodeViewHandle<undefined, undefined> | null },
-  itemsRef: { current: Pick<PatchAccumulator, 'items'> }
+  visibleRef: { current: readonly ParsedFile[] }
 ) {
-  const fileIndex = useRef(-1);
-  const hunkIndex = useRef(-1);
+  const currentIndex = useCallback((): number => {
+    const files = visibleRef.current;
+    const rendered = viewerRef.current?.getInstance()?.getRenderedItems() ?? [];
 
-  const go = useCallback(
-    (target: Target | undefined) => {
-      if (target == null) return;
-      const viewer = viewerRef.current;
-      if (viewer == null) return;
-      viewer.scrollTo(
-        target.lineNumber == null
-          ? { type: 'item', id: target.id, align: 'start', behavior: 'smooth' }
-          : {
-              type: 'line',
-              id: target.id,
-              lineNumber: target.lineNumber,
-              side: 'additions',
-              align: 'start',
-              behavior: 'smooth',
-            }
-      );
-    },
-    [viewerRef]
-  );
+    let topId: string | undefined;
+    let topEdge = Number.POSITIVE_INFINITY;
+    for (const entry of rendered) {
+      const { bottom, top } = entry.element.getBoundingClientRect();
+      if (bottom <= 0) continue;
+      if (top < topEdge) {
+        topEdge = top;
+        topId = entry.id;
+      }
+    }
 
-  const step = useCallback(
-    (delta: number) => {
-      const items = itemsRef.current.items;
-      if (items.length === 0) return;
-      fileIndex.current = clamp(fileIndex.current + delta, items.length);
-      hunkIndex.current = -1;
-      go({ id: items[fileIndex.current]!.id });
+    if (topId == null) return 0;
+    const index = files.findIndex((file) => file.item.id === topId);
+    return index < 0 ? 0 : index;
+  }, [viewerRef, visibleRef]);
+
+  const goToFile = useCallback(
+    (index: number) => {
+      const files = visibleRef.current;
+      const file = files[Math.min(Math.max(index, 0), files.length - 1)];
+      if (file == null) return;
+      viewerRef.current?.scrollTo({ type: 'item', id: file.item.id, align: 'start', behavior: 'smooth' });
     },
-    [go, itemsRef]
+    [viewerRef, visibleRef]
   );
 
   const stepHunk = useCallback(
     (delta: number) => {
-      const items = itemsRef.current.items;
-      if (items.length === 0) return;
-      if (fileIndex.current < 0) fileIndex.current = 0;
+      const files = visibleRef.current;
+      const index = currentIndex();
+      const file = files[index];
+      if (file == null) return;
 
-      const item = items[fileIndex.current];
-      const hunks = item != null && item.type === 'diff' ? item.fileDiff.hunks : [];
-      const next = hunkIndex.current + delta;
+      const hunks = file.item.type === 'diff' ? file.item.fileDiff.hunks : [];
+      const viewer = viewerRef.current;
+      if (viewer == null) return;
+
+      // The hunk nearest the top of the viewport is the one to step from.
+      const rendered = viewer.getInstance()?.getRenderedItems() ?? [];
+      const element = rendered.find((entry) => entry.id === file.item.id)?.element;
+      const offset = element == null ? 0 : -element.getBoundingClientRect().top;
+      const height = element == null ? 1 : element.getBoundingClientRect().height;
+      const progress = height === 0 ? 0 : offset / height;
+      const near = Math.round(progress * Math.max(hunks.length - 1, 0));
+      const next = near + delta;
 
       if (next >= 0 && next < hunks.length) {
-        hunkIndex.current = next;
-        go({ id: item!.id, lineNumber: hunks[next]!.additionStart });
+        viewer.scrollTo({
+          type: 'line',
+          id: file.item.id,
+          lineNumber: hunks[next]!.additionStart,
+          side: 'additions',
+          align: 'start',
+          behavior: 'smooth',
+        });
         return;
       }
 
-      // Past either end of this file's hunks, carry on into the neighbour.
-      const neighbour = fileIndex.current + (delta > 0 ? 1 : -1);
-      if (neighbour < 0 || neighbour >= items.length) return;
-      fileIndex.current = neighbour;
-      const neighbourItem = items[neighbour]!;
-      const neighbourHunks = neighbourItem.type === 'diff' ? neighbourItem.fileDiff.hunks : [];
-      hunkIndex.current = delta > 0 ? 0 : neighbourHunks.length - 1;
-      const hunk = neighbourHunks[hunkIndex.current];
-      go({ id: neighbourItem.id, lineNumber: hunk?.additionStart });
+      goToFile(index + (delta > 0 ? 1 : -1));
     },
-    [go, itemsRef]
+    [currentIndex, goToFile, viewerRef, visibleRef]
   );
 
   return {
-    nextFile: useCallback(() => step(1), [step]),
-    previousFile: useCallback(() => step(-1), [step]),
+    currentIndex,
+    goToFile,
+    nextFile: useCallback(() => goToFile(currentIndex() + 1), [currentIndex, goToFile]),
+    previousFile: useCallback(() => goToFile(currentIndex() - 1), [currentIndex, goToFile]),
     nextHunk: useCallback(() => stepHunk(1), [stepHunk]),
     previousHunk: useCallback(() => stepHunk(-1), [stepHunk]),
   };
-}
-
-function clamp(value: number, length: number): number {
-  if (value < 0) return 0;
-  if (value >= length) return length - 1;
-  return value;
 }

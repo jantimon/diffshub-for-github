@@ -1,15 +1,15 @@
-import type { CodeViewHandle } from '@pierre/diffs/react';
+import type { CodeViewItem } from '@pierre/diffs';
 import type { FileTree } from '@pierre/trees';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { compileExcludes } from './exclude';
+import { compileFilters } from './filters';
 import { streamPatchFiles } from './stream';
 import {
   appendFile,
   createAccumulator,
-  takePendingItems,
-  takePendingPaths,
+  sumStats,
   type DiffStats,
+  type ParsedFile,
   type PatchAccumulator,
 } from './accumulator';
 
@@ -23,99 +23,110 @@ export interface PatchStreamState {
   error?: string;
   stats: DiffStats;
   hiddenCount: number;
-  patternError?: string;
-  /** Maps a tree path back to the viewer item it came from. */
+  includeError?: string;
+  excludeError?: string;
   pathToItemId: ReadonlyMap<string, string>;
+}
+
+export interface PatchStream {
+  state: PatchStreamState;
+  /** The files a filter lets through, in patch order. */
+  items: readonly CodeViewItem<undefined>[];
+  visibleRef: { current: readonly ParsedFile[] };
 }
 
 interface Options {
   url: string;
   cacheKeyPrefix: string;
-  excludePatterns: string;
-  viewerRef: { current: CodeViewHandle<undefined, undefined> | null };
+  include: string;
+  exclude: string;
   model: FileTree;
 }
 
 const EMPTY_STATS: DiffStats = { addedLines: 0, deletedLines: 0, fileCount: 0, totalLines: 0 };
 
-export interface PatchStream {
-  state: PatchStreamState;
-  /** The files parsed so far, for navigation and per-file actions. */
-  accumulatorRef: { current: PatchAccumulator };
-}
-
-export function usePatchStream({
-  url,
-  cacheKeyPrefix,
-  excludePatterns,
-  viewerRef,
-  model,
-}: Options): PatchStream {
+export function usePatchStream({ url, cacheKeyPrefix, include, exclude, model }: Options): PatchStream {
+  const [items, setItems] = useState<readonly CodeViewItem<undefined>[]>([]);
   const [state, setState] = useState<PatchStreamState>({
     phase: 'loading',
     stats: EMPTY_STATS,
     hiddenCount: 0,
     pathToItemId: new Map(),
   });
+
   const accumulatorRef = useRef<PatchAccumulator>(createAccumulator());
+  const visibleRef = useRef<readonly ParsedFile[]>([]);
+  const filter = useMemo(() => compileFilters(include, exclude), [include, exclude]);
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
+
+  // The whole patch stays parsed in memory, so changing a filter is a
+  // recalculation rather than another 20 MB download.
+  const publish = useCallback(
+    (resetTree: boolean) => {
+      const accumulator = accumulatorRef.current;
+      const { isVisible } = filterRef.current;
+      const previous = visibleRef.current;
+      const visible = accumulator.files.filter((file) => isVisible(file.path));
+      visibleRef.current = visible;
+
+      setItems(visible.map((file) => file.item));
+
+      if (resetTree || visible.length < previous.length) {
+        model.resetPaths(visible.map((file) => file.path));
+        model.setGitStatus(visible.flatMap((file) => (file.status == null ? [] : [{ path: file.path, status: file.status }])));
+      } else {
+        const added = visible.slice(previous.length);
+        if (added.length > 0) {
+          model.batch(added.map((file) => ({ type: 'add' as const, path: file.path })));
+          const statuses = added.flatMap((file) =>
+            file.status == null ? [] : [{ path: file.path, status: file.status }]
+          );
+          if (statuses.length > 0) model.applyGitStatusPatch({ set: statuses });
+        }
+      }
+
+      const pathToItemId = new Map(visible.map((file) => [file.path, file.item.id]));
+      setState((current) => ({
+        ...current,
+        stats: sumStats(visible),
+        hiddenCount: accumulator.files.length - visible.length,
+        includeError: filterRef.current.includeError,
+        excludeError: filterRef.current.excludeError,
+        pathToItemId,
+      }));
+    },
+    [model]
+  );
 
   useEffect(() => {
     const controller = new AbortController();
-    const { isExcluded, error: patternError } = compileExcludes(excludePatterns);
-    const accumulator = createAccumulator();
-    accumulatorRef.current = accumulator;
-
-    // A filter change re-reads the patch so excluded files never reach the tree
-    // or the viewer. The response comes from the HTTP cache, not the network.
+    accumulatorRef.current = createAccumulator();
+    visibleRef.current = [];
     model.resetPaths([]);
     model.setGitStatus([]);
+    setItems([]);
 
-    let publishedStatuses = 0;
-    let lastPublishedAt = 0;
     let sincePublish = 0;
-
-    const publish = (): void => {
-      const items = takePendingItems(accumulator);
-      if (items.length > 0) viewerRef.current?.addItems(items);
-
-      const paths = takePendingPaths(accumulator);
-      if (paths.length > 0) {
-        model.batch(paths.map((path) => ({ type: 'add' as const, path })));
-        const statuses = accumulator.gitStatus.slice(publishedStatuses);
-        publishedStatuses = accumulator.gitStatus.length;
-        if (statuses.length > 0) model.applyGitStatusPatch({ set: statuses });
-      }
-
-      lastPublishedAt = performance.now();
-      sincePublish = 0;
-      setState((previous) => ({
-        ...previous,
-        stats: { ...accumulator.stats },
-        hiddenCount: accumulator.hiddenCount,
-        pathToItemId: accumulator.pathToItemId,
-        patternError,
-      }));
-    };
+    let lastPublishedAt = 0;
 
     const run = async (): Promise<void> => {
       const response = await fetch(url, { credentials: 'include', signal: controller.signal });
-      if (!response.ok) {
-        throw new Error(`GitHub answered ${response.status} for this patch.`);
-      }
-      if (response.body == null) {
-        throw new Error('GitHub returned no patch body.');
-      }
+      if (!response.ok) throw new Error(`GitHub answered ${response.status} for this patch.`);
+      if (response.body == null) throw new Error('GitHub returned no patch body.');
 
       let turnStartedAt = performance.now();
       await streamPatchFiles(
         response.body,
         async (fileText) => {
-          appendFile(accumulator, fileText, cacheKeyPrefix, isExcluded);
+          appendFile(accumulatorRef.current, fileText, cacheKeyPrefix);
           sincePublish += 1;
 
           const now = performance.now();
           if (sincePublish >= PUBLISH_FILE_COUNT || now - lastPublishedAt >= PUBLISH_INTERVAL_MS) {
-            publish();
+            publish(false);
+            sincePublish = 0;
+            lastPublishedAt = now;
           }
           if (now - turnStartedAt >= WORK_BUDGET_MS) {
             await yieldToBrowser();
@@ -125,23 +136,33 @@ export function usePatchStream({
         controller.signal
       );
 
-      publish();
-      setState((previous) => ({ ...previous, phase: 'ready' }));
+      publish(false);
+      setState((current) => ({ ...current, phase: 'ready' }));
     };
 
     run().catch((error: unknown) => {
       if (controller.signal.aborted) return;
-      setState((previous) => ({
-        ...previous,
+      setState((current) => ({
+        ...current,
         phase: 'error',
         error: error instanceof Error ? error.message : String(error),
       }));
     });
 
     return () => controller.abort();
-  }, [url, cacheKeyPrefix, excludePatterns, model, viewerRef]);
+  }, [url, cacheKeyPrefix, model, publish]);
 
-  return { state, accumulatorRef };
+  // A filter change only changes which of the parsed files are on show.
+  const firstFilter = useRef(true);
+  useEffect(() => {
+    if (firstFilter.current) {
+      firstFilter.current = false;
+      return;
+    }
+    publish(true);
+  }, [filter, publish]);
+
+  return { state, items, visibleRef };
 }
 
 function yieldToBrowser(): Promise<void> {

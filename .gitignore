@@ -8,3 +8,4 @@ web-ext-artifacts/
 .chrome-profile/
 test/.profile/
 .output/
+test/screenshots/

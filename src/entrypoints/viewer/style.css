@@ -2,6 +2,17 @@
   box-sizing: border-box;
 }
 
+/* Filled in from the resolved diff theme, so the chrome matches the diff. */
+:root {
+  --dh-bg: #ffffff;
+  --dh-fg: #1f2328;
+  --dh-chrome: #ffffff;
+  --dh-sidebar: #ffffff;
+  --dh-border: rgb(0 0 0 / 12%);
+  --dh-added: #1a7f37;
+  --dh-deleted: #cf222e;
+}
+
 html,
 body {
   height: 100%;
@@ -12,13 +23,8 @@ body {
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
   font-size: 13px;
-  color: #1f2328;
-  background: #ffffff;
-}
-
-body:has(.dh-overlay[data-theme='dark']) {
-  color: #e6edf3;
-  background: #0d1117;
+  color: var(--dh-fg);
+  background: var(--dh-bg);
 }
 
 #root {
@@ -29,21 +35,18 @@ body:has(.dh-overlay[data-theme='dark']) {
   display: flex;
   flex-direction: column;
   height: 100%;
-  color: #1f2328;
-  background: #ffffff;
-}
-
-.dh-overlay[data-theme='dark'] {
-  color: #e6edf3;
-  background: #0d1117;
+  color: var(--dh-fg);
+  background: var(--dh-bg);
 }
 
 .dh-header {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
-  padding: 8px 12px;
-  border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  padding: 6px 10px;
+  color: var(--dh-fg);
+  background: var(--dh-chrome);
+  border-bottom: 1px solid var(--dh-border);
 }
 
 .dh-identity {
@@ -57,7 +60,7 @@ body:has(.dh-overlay[data-theme='dark']) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
 .dh-stats {
@@ -67,32 +70,45 @@ body:has(.dh-overlay[data-theme='dark']) {
   font-variant-numeric: tabular-nums;
 }
 
-.dh-add { color: #1a7f37; }
-.dh-del { color: #cf222e; }
-.dh-overlay[data-theme='dark'] .dh-add { color: #3fb950; }
-.dh-overlay[data-theme='dark'] .dh-del { color: #f85149; }
-.dh-loading { opacity: 0.6; }
+.dh-add { color: var(--dh-added); }
+.dh-del { color: var(--dh-deleted); }
+.dh-loading { opacity: 0.55; }
 
 .dh-actions {
   display: flex;
-  gap: 6px;
+  gap: 2px;
 }
 
-.dh-actions button,
-.dh-actions a {
-  padding: 4px 10px;
-  font: inherit;
+/* One shape for every toolbar control, icon-only, so the strip reads as a row
+   of glyphs rather than a row of words. */
+.dh-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   color: inherit;
   text-decoration: none;
   cursor: pointer;
   background: transparent;
-  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border: 0;
   border-radius: 6px;
+  opacity: 0.7;
 }
 
-.dh-actions button:hover,
-.dh-actions a:hover {
-  background: color-mix(in srgb, currentColor 8%, transparent);
+.dh-icon-button:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  opacity: 1;
+}
+
+.dh-icon-button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+
+.dh-icon-button[aria-pressed='false'] {
+  opacity: 0.4;
 }
 
 .dh-error {
@@ -111,20 +127,53 @@ body:has(.dh-overlay[data-theme='dark']) {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 300px;
-  min-width: 180px;
-  padding: 8px;
+  min-width: 160px;
+  padding: 8px 8px 10px;
   overflow: hidden;
-  border-right: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  background: var(--dh-sidebar);
+  border-right: 1px solid var(--dh-border);
 }
 
-.dh-exclude {
-  padding: 5px 8px;
+.dh-sidebar[hidden] {
+  display: none;
+}
+
+.dh-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Label above the box, the way a search panel reads. */
+.dh-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dh-field span {
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+.dh-field input {
+  width: 100%;
+  padding: 4px 8px;
   font: inherit;
   color: inherit;
-  background: transparent;
-  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  border: 1px solid transparent;
   border-radius: 6px;
+}
+
+.dh-field input:focus {
+  border-color: color-mix(in srgb, currentColor 35%, transparent);
+  outline: none;
+}
+
+.dh-field input::placeholder {
+  color: inherit;
+  opacity: 0.4;
 }
 
 .dh-pattern-error {
@@ -156,19 +205,14 @@ body:has(.dh-overlay[data-theme='dark']) {
   padding: 0;
   overflow: auto;
   font: inherit;
-  color: #1f2328;
-  background: #ffffff;
-  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  color: var(--dh-fg);
+  background: var(--dh-chrome);
+  border: 1px solid var(--dh-border);
   border-radius: 10px;
 }
 
 .dh-binary::backdrop {
   background: rgb(0 0 0 / 45%);
-}
-
-.dh-overlay[data-theme='dark'] .dh-binary {
-  color: #e6edf3;
-  background: #0d1117;
 }
 
 .dh-binary-header {
@@ -231,7 +275,7 @@ body:has(.dh-overlay[data-theme='dark']) {
 .dh-binary-image {
   max-width: 100%;
   max-height: 46vh;
-  background-color: #ffffff;
+  background-color: var(--dh-bg);
   background-image: conic-gradient(
     color-mix(in srgb, currentColor 12%, transparent) 0 25%,
     transparent 0 50%,
@@ -240,10 +284,6 @@ body:has(.dh-overlay[data-theme='dark']) {
   );
   background-size: 16px 16px;
   border-radius: 4px;
-}
-
-.dh-overlay[data-theme='dark'] .dh-binary-image {
-  background-color: #0d1117;
 }
 
 .dh-binary-link {
@@ -289,9 +329,9 @@ body:has(.dh-overlay[data-theme='dark']) {
   gap: 10px;
   align-items: baseline;
   padding: 9px 10px 9px 12px;
-  color: #1f2328;
-  background: #ffffff;
-  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  color: var(--dh-fg);
+  background: var(--dh-chrome);
+  border: 1px solid var(--dh-border);
   border-radius: 8px;
   box-shadow: 0 6px 20px color-mix(in srgb, #000000 18%, transparent);
 }
@@ -302,7 +342,7 @@ body:has(.dh-overlay[data-theme='dark']) {
 }
 
 .dh-toast-action {
-  color: #0969da;
+  color: currentColor;
   white-space: nowrap;
 }
 
@@ -320,15 +360,6 @@ body:has(.dh-overlay[data-theme='dark']) {
   opacity: 1;
 }
 
-.dh-overlay[data-theme='dark'] .dh-toast {
-  color: #e6edf3;
-  background: #161b22;
-}
-
-.dh-overlay[data-theme='dark'] .dh-toast-action {
-  color: #4493f8;
-}
-
 .dh-help {
   width: min(420px, 92vw);
   padding: 0;
@@ -343,9 +374,9 @@ body:has(.dh-overlay[data-theme='dark']) {
 
 .dh-help-panel {
   padding: 14px 16px 16px;
-  color: #1f2328;
-  background: #ffffff;
-  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  color: var(--dh-fg);
+  background: var(--dh-chrome);
+  border: 1px solid var(--dh-border);
   border-radius: 10px;
   box-shadow: 0 12px 32px color-mix(in srgb, #000000 28%, transparent);
 }
@@ -401,11 +432,6 @@ body:has(.dh-overlay[data-theme='dark']) {
   opacity: 0.85;
 }
 
-.dh-overlay[data-theme='dark'] .dh-help-panel {
-  color: #e6edf3;
-  background: #161b22;
-}
-
 .dh-file-links {
   display: inline-flex;
   gap: 8px;
@@ -432,20 +458,92 @@ body:has(.dh-overlay[data-theme='dark']) {
 }
 
 .dh-diffstats {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 2px 8px;
-  margin: 0;
-  padding-top: 8px;
-  border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--dh-border);
 }
 
-.dh-diffstats dt {
-  opacity: 0.6;
+.dh-diffstats-bar {
+  display: flex;
+  height: 6px;
+  overflow: hidden;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  border-radius: 3px;
 }
 
-.dh-diffstats dd {
-  margin: 0;
-  text-align: right;
+.dh-diffstats-added { background: var(--dh-added); }
+.dh-diffstats-deleted { background: var(--dh-deleted); }
+
+.dh-diffstats-figures {
+  display: flex;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+.dh-diffstats-totals {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Header extras: the viewed toggle and the move badge. */
+.dh-viewed {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  opacity: 0.45;
+}
+
+.dh-viewed:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  opacity: 1;
+}
+
+.dh-viewed:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -1px;
+  opacity: 1;
+}
+
+.dh-viewed[aria-pressed='true'] {
+  color: var(--dh-added);
+  opacity: 1;
+}
+
+.dh-moved {
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--dh-moved, #d29922);
+  border: 1px solid currentColor;
+  border-radius: 4px;
+}
+
+/* Drag anywhere on the seam between the tree and the diff. */
+.dh-resize {
+  flex: 0 0 5px;
+  margin-inline: -2px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 1;
+}
+
+.dh-resize:hover,
+.dh-resize:active {
+  background: color-mix(in srgb, currentColor 25%, transparent);
 }
