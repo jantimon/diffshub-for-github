@@ -5,7 +5,7 @@ import type { ReviewThread } from '@/bridge';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { githubFetch } from '@/viewer/files/githubFetch';
-import { compileFilters } from './filters';
+import { compileFilters, type MatchOptions } from './filters';
 import { streamPatchFiles } from './stream';
 import {
   appendFile,
@@ -48,6 +48,8 @@ interface Options {
   cacheKeyPrefix: string;
   include: string;
   exclude: string;
+  includeOptions: MatchOptions;
+  excludeOptions: MatchOptions;
   ignoreWhitespace: boolean;
   model: FileTree;
   /** Filled in as files are published, and read by the tree to draw its ticks */
@@ -61,6 +63,8 @@ export function usePatchStream({
   cacheKeyPrefix,
   include,
   exclude,
+  includeOptions,
+  excludeOptions,
   ignoreWhitespace,
   model,
   pathToItemIdRef,
@@ -76,7 +80,10 @@ export function usePatchStream({
 
   const accumulatorRef = useRef<PatchAccumulator>(createAccumulator());
   const visibleRef = useRef<readonly ParsedFile[]>([]);
-  const filter = useMemo(() => compileFilters(include, exclude), [include, exclude]);
+  const filter = useMemo(
+    () => compileFilters(include, exclude, { include: includeOptions, exclude: excludeOptions }),
+    [include, exclude, includeOptions, excludeOptions],
+  );
   const filterRef = useRef(filter);
   const ignoreWhitespaceRef = useRef(ignoreWhitespace);
 

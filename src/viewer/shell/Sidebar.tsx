@@ -2,9 +2,10 @@
  * The panel down the left: which files to show, the tree of them, and how big
  * the change is overall.
  *
- * The two filters are glob patterns rather than a search box because a review
- * is usually narrowed by shape -- everything under `src`, nothing that is a
- * test -- and that is a thing you say once, not a thing you retype.
+ * A review is usually narrowed by shape -- everything under `src`, nothing
+ * that is a test -- so the two filters keep their globs, and that is a thing
+ * you say once rather than retype. They also read plain words and regular
+ * expressions, so narrowing by name costs no ceremony either.
  */
 
 import { FileTree } from '@pierre/trees/react';
@@ -12,6 +13,45 @@ import type { CSSProperties, JSX } from 'react';
 
 import type { DiffStats } from '@/patch/accumulator';
 import { TREE_STYLE } from '@/viewer/diff/codeViewStyles';
+
+/**
+ * The two switches a search box is expected to carry, drawn as VS Code draws
+ * them. Whole-word is deliberately absent: a path has no words to bound.
+ */
+function MatchToggles({
+  caseSensitive,
+  onCase,
+  regex,
+  onRegex,
+}: {
+  caseSensitive: boolean;
+  onCase: () => void;
+  regex: boolean;
+  onRegex: () => void;
+}) {
+  return (
+    <div className="dh-field-toggles">
+      <button
+        type="button"
+        className="dh-icon-button dh-toggle"
+        aria-pressed={caseSensitive}
+        onClick={onCase}
+        title="Match case"
+      >
+        Aa
+      </button>
+      <button
+        type="button"
+        className="dh-icon-button dh-toggle"
+        aria-pressed={regex}
+        onClick={onRegex}
+        title="Use a regular expression"
+      >
+        .*
+      </button>
+    </div>
+  );
+}
 
 /**
  * How big the change is overall.
@@ -53,8 +93,16 @@ export function Sidebar({
   excludeError,
   hiddenCount,
   spacingOnlyCount,
+  includeCase,
+  includeRegex,
+  excludeCase,
+  excludeRegex,
   onIncludeChange,
   onExcludeChange,
+  onIncludeCase,
+  onIncludeRegex,
+  onExcludeCase,
+  onExcludeRegex,
 }: {
   open: boolean;
   width: number;
@@ -67,31 +115,61 @@ export function Sidebar({
   excludeError?: string;
   hiddenCount: number;
   spacingOnlyCount: number;
+  includeCase: boolean;
+  includeRegex: boolean;
+  excludeCase: boolean;
+  excludeRegex: boolean;
   onIncludeChange: (next: string) => void;
   onExcludeChange: (next: string) => void;
+  onIncludeCase: () => void;
+  onIncludeRegex: () => void;
+  onExcludeCase: () => void;
+  onExcludeRegex: () => void;
 }): JSX.Element {
   return (
     <aside className="dh-sidebar" hidden={!open} style={{ width }}>
       <div className="dh-filters">
-        <label className="dh-field">
-          <span>files to include</span>
-          <input
-            value={include}
-            placeholder="e.g. src/**"
-            onChange={(event) => onIncludeChange(event.target.value)}
-            spellCheck={false}
-          />
-        </label>
+        <div className="dh-field">
+          <label className="dh-field-label" htmlFor="dh-include">
+            files to include
+          </label>
+          <div className="dh-field-box">
+            <input
+              id="dh-include"
+              value={include}
+              placeholder="e.g. config, src/**"
+              onChange={(event) => onIncludeChange(event.target.value)}
+              spellCheck={false}
+            />
+            <MatchToggles
+              caseSensitive={includeCase}
+              onCase={onIncludeCase}
+              regex={includeRegex}
+              onRegex={onIncludeRegex}
+            />
+          </div>
+        </div>
         {includeError != null && <p className="dh-pattern-error">{includeError}</p>}
-        <label className="dh-field">
-          <span>files to exclude</span>
-          <input
-            value={exclude}
-            placeholder="e.g. *.test.*, *.snap"
-            onChange={(event) => onExcludeChange(event.target.value)}
-            spellCheck={false}
-          />
-        </label>
+        <div className="dh-field">
+          <label className="dh-field-label" htmlFor="dh-exclude">
+            files to exclude
+          </label>
+          <div className="dh-field-box">
+            <input
+              id="dh-exclude"
+              value={exclude}
+              placeholder="e.g. *.test.*, *.snap"
+              onChange={(event) => onExcludeChange(event.target.value)}
+              spellCheck={false}
+            />
+            <MatchToggles
+              caseSensitive={excludeCase}
+              onCase={onExcludeCase}
+              regex={excludeRegex}
+              onRegex={onExcludeRegex}
+            />
+          </div>
+        </div>
         {excludeError != null && <p className="dh-pattern-error">{excludeError}</p>}
         {hiddenCount > 0 && <p className="dh-hidden">{hiddenCount.toLocaleString()} files hidden</p>}
         {spacingOnlyCount > 0 && (

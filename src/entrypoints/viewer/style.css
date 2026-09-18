@@ -170,19 +170,47 @@ body {
   gap: 3px;
 }
 
-.dh-field span {
+.dh-field-label {
   font-size: 11px;
   opacity: 0.55;
 }
 
+/* The toggles sit inside the box, so the input reserves room for them. */
+.dh-field-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
 .dh-field input {
   width: 100%;
-  padding: 4px 8px;
+  padding: 4px 52px 4px 8px;
   font: inherit;
   color: inherit;
   background: color-mix(in srgb, currentColor 7%, transparent);
   border: 1px solid transparent;
   border-radius: 6px;
+}
+
+.dh-field-toggles {
+  position: absolute;
+  right: 3px;
+  display: flex;
+  gap: 1px;
+}
+
+.dh-toggle {
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.dh-toggle[aria-pressed='true'] {
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  opacity: 1;
 }
 
 .dh-field input:focus {

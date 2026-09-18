@@ -103,6 +103,28 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
 
   const [include, setInclude] = useState(includeInput);
   const [exclude, setExclude] = useState(excludeInput);
+  const [includeCase, setIncludeCase] = useState(() => readSetting('includeCase', '') === 'on');
+  const [includeRegex, setIncludeRegex] = useState(() => readSetting('includeRegex', '') === 'on');
+  const [excludeCase, setExcludeCase] = useState(() => readSetting('excludeCase', '') === 'on');
+  const [excludeRegex, setExcludeRegex] = useState(() => readSetting('excludeRegex', '') === 'on');
+
+  // Memoised on the flags themselves: a fresh object every render would look
+  // like a filter change and republish the whole view on every keystroke
+  const includeOptions = useMemo(
+    () => ({ caseSensitive: includeCase, regex: includeRegex }),
+    [includeCase, includeRegex],
+  );
+  const excludeOptions = useMemo(
+    () => ({ caseSensitive: excludeCase, regex: excludeRegex }),
+    [excludeCase, excludeRegex],
+  );
+
+  useEffect(() => {
+    writeSetting('includeCase', includeCase ? 'on' : '');
+    writeSetting('includeRegex', includeRegex ? 'on' : '');
+    writeSetting('excludeCase', excludeCase ? 'on' : '');
+    writeSetting('excludeRegex', excludeRegex ? 'on' : '');
+  }, [includeCase, includeRegex, excludeCase, excludeRegex]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -171,6 +193,8 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     cacheKeyPrefix: `${pr.owner}/${pr.repo}/${pr.number}`,
     include,
     exclude,
+    includeOptions,
+    excludeOptions,
     ignoreWhitespace,
     model,
     pathToItemIdRef,
@@ -460,8 +484,16 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           excludeError={state.excludeError}
           hiddenCount={state.hiddenCount}
           spacingOnlyCount={state.spacingOnlyCount}
+          includeCase={includeCase}
+          includeRegex={includeRegex}
+          excludeCase={excludeCase}
+          excludeRegex={excludeRegex}
           onIncludeChange={setIncludeInput}
           onExcludeChange={setExcludeInput}
+          onIncludeCase={() => setIncludeCase((on) => !on)}
+          onIncludeRegex={() => setIncludeRegex((on) => !on)}
+          onExcludeCase={() => setExcludeCase((on) => !on)}
+          onExcludeRegex={() => setExcludeRegex((on) => !on)}
         />
         {sidebarOpen && (
           <div
