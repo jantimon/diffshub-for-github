@@ -7,7 +7,7 @@ import path from 'node:path';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(root, '../.output/chrome-mv3');
 
-const context = await chromium.launchPersistentContext(path.resolve(root, '.profile'), {
+const context = await chromium.launchPersistentContext(process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'), {
   channel: 'chromium',
   headless: false,
   viewport: null,

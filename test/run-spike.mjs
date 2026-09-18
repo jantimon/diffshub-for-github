@@ -15,7 +15,7 @@ let shotIndex = 0;
 const shoot = async (name) =>
   page.screenshot({ path: path.join(shots, `${String(++shotIndex).padStart(2, '0')}-${name}.png`) });
 
-const context = await chromium.launchPersistentContext(path.resolve(root, '.profile'), {
+const context = await chromium.launchPersistentContext(process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'), {
   channel: 'chromium',
   headless: false,
   viewport: { width: 1600, height: 1000 },
@@ -115,6 +115,18 @@ await check('hunk expansion', async () => {
   const after = (await label.textContent())?.trim() ?? '';
   await shoot('hunk-expanded');
   return before !== after ? `${before} -> ${after}` : false;
+});
+
+await check('theme switch', async () => {
+  const before = await frame.locator('.dh-overlay').getAttribute('data-theme');
+  const button = frame.locator('.dh-actions .dh-icon-button').nth(1);
+  await button.click();
+  await page.waitForTimeout(1500);
+  const after = await frame.locator('.dh-overlay').getAttribute('data-theme');
+  await shoot('theme-switched');
+  await button.click();
+  await page.waitForTimeout(1000);
+  return after !== before ? `${before} -> ${after}` : false;
 });
 
 await check('shortcut help', async () => {

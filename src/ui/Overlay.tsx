@@ -11,6 +11,8 @@ import {
 import { FileTree, useFileTree, useFileTreeSearch } from '@pierre/trees/react';
 import {
   IconBrandGithub,
+  IconColorDark,
+  IconColorLight,
   IconDiffSplit,
   IconDiffUnified,
   IconEye,
@@ -142,6 +144,12 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     addEventListener('pointerup', onUp);
   }, []);
   const [helpOpen, setHelpOpen] = useState(false);
+  // Reading code in light while GitHub sits in dark is a fair preference, so
+  // once this is set it wins over the page. Light or dark, nothing automatic.
+  const [themeChoice, setThemeChoice] = useState<'light' | 'dark' | undefined>(() => {
+    const stored = readSetting('theme', '');
+    return stored === 'light' || stored === 'dark' ? stored : undefined;
+  });
   const [comparing, setComparing] = useState<string | undefined>(undefined);
 
   const [includeInput, setIncludeInput] = useState(() => readSetting('include', ''));
@@ -311,7 +319,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     () => ({
       layout: { paddingTop: 0, gap: 1, paddingBottom: 0 },
       diffStyle,
-      themeType: page.themeType,
+      themeType: themeChoice ?? page.themeType,
       theme: { light: page.lightTheme, dark: page.darkTheme },
       stickyHeaders: true,
       overflow: 'scroll',
@@ -320,7 +328,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       unsafeCSS: HEADER_CSS,
       loadDiffFiles,
     }),
-    [diffStyle, page.themeType, page.lightTheme, page.darkTheme, loadDiffFiles]
+    [diffStyle, themeChoice, page.themeType, page.lightTheme, page.darkTheme, loadDiffFiles]
   );
 
   const toggleLayout = useCallback(() => {
@@ -338,12 +346,21 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     });
   }, []);
 
-  const themeName = page.themeType === 'dark' ? page.darkTheme : page.lightTheme;
+  const themeType = themeChoice ?? page.themeType;
+  const themeName = themeType === 'dark' ? page.darkTheme : page.lightTheme;
   const surfaces = useThemeSurfaces(themeName);
+
+  const toggleTheme = useCallback(() => {
+    setThemeChoice((current) => {
+      const next = (current ?? page.themeType) === 'dark' ? 'light' : 'dark';
+      writeSetting('theme', next);
+      return next;
+    });
+  }, [page.themeType]);
   const { stats } = state;
 
   return (
-    <div className="dh-overlay" data-theme={page.themeType} style={surfaces.overlay}>
+    <div className="dh-overlay" data-theme={themeType} style={surfaces.overlay}>
       <header className="dh-header">
         <button
           type="button"
@@ -376,6 +393,14 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
             title={diffStyle === 'split' ? 'Split view — switch to unified' : 'Unified view — switch to split'}
           >
             {diffStyle === 'split' ? <IconDiffSplit size={16} /> : <IconDiffUnified size={16} />}
+          </button>
+          <button
+            type="button"
+            className="dh-icon-button"
+            onClick={toggleTheme}
+            title={themeType === 'dark' ? 'Switch to light' : 'Switch to dark'}
+          >
+            {themeType === 'dark' ? <IconColorLight size={16} /> : <IconColorDark size={16} />}
           </button>
           <button
             type="button"
