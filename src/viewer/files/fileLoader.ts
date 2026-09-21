@@ -1,9 +1,9 @@
 import type { FileDiffContentsLoader, FileDiffLoadedFiles } from '@pierre/diffs';
 
-import { githubFetch } from './githubFetch';
+import { githubFetch } from '@/viewer/files/githubFetch';
 import { reconstructOldFile } from '@/patch/reconstructOldFile';
-import { rawFileUrl } from './fileLinks';
-import type { PullRequestRef } from './pr';
+import { rawFileUrl } from '@/viewer/files/fileLinks';
+import type { PullRequestRef } from '@/pullRequest';
 
 /**
  * Supplies both sides of a file so collapsed context can be expanded.

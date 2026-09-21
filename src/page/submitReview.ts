@@ -1,6 +1,6 @@
 import type { Result, ReviewEvent } from '@/bridge';
-import { pullPath, type PullRequestRef } from './pr';
-import { WRITE_JSON } from './requests';
+import { pullPath, type PullRequestRef } from '@/pullRequest';
+import { WRITE_JSON } from '@/page/requests';
 
 /**
  * Submits a review: a verdict and a covering note.

@@ -5,50 +5,45 @@ import {
   type CodeViewItem,
   type CodeViewReactOptions,
 } from '@pierre/diffs/react';
-import { FileTree, useFileTree, useFileTreeSearch } from '@pierre/trees/react';
+import { useFileTree, useFileTreeSearch } from '@pierre/trees/react';
+import { IconEye, IconEyeSlash } from '@pierre/icons';
 import {
-  IconBrandGithub,
-  IconColorDark,
-  IconColorLight,
-  IconDiffSplit,
-  IconParagraph,
-  IconDiffUnified,
-  IconEye,
-  IconEyeSlash,
-  IconCheck,
-  IconQuestion,
-  IconSidebarLeft,
-  IconX,
-} from '@pierre/icons';
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 
 import type { ReviewThread } from '@/bridge';
-import { createFileLoader } from '@/github/fileLoader';
-import { blameUrl, blobUrl, copyPath, type FileRefs } from '@/github/fileLinks';
-import { filesUrl, patchUrl, GITHUB_ORIGIN, type PullRequestRef } from '@/github/pr';
-import type { DiffStats } from '@/patch/accumulator';
+import { createFileLoader } from '@/viewer/files/fileLoader';
+import { blameUrl, blobUrl, copyPath, type FileRefs } from '@/viewer/files/fileLinks';
+import { filesUrl, patchUrl, GITHUB_ORIGIN, type PullRequestRef } from '@/pullRequest';
 import { usePatchStream } from '@/patch/usePatchStream';
-import { ask } from './ask';
-import { BinaryCompare, isImagePath } from './BinaryCompare';
-import { CommentComposer } from './CommentComposer';
-import { ReviewDialog } from './ReviewDialog';
-import { ShortcutHelp } from './ShortcutHelp';
-import { Thread } from './Thread';
-import { ToastStack, useToasts } from './Toast';
-import { closeViewer, usePageInfo } from './usePageInfo';
-import { useNavigation } from './useNavigation';
-import { useThemeSurfaces } from './useThemeSurfaces';
-import { useShortcuts } from './useShortcuts';
-import { useViewed } from './useViewed';
-import { readSetting, writeSetting } from './storage';
+import { ask } from '@/viewer/ask';
+import { BinaryCompare, isImagePath } from '@/viewer/files/BinaryCompare';
+import { CommentComposer } from '@/viewer/comments/CommentComposer';
+import { ReviewDialog } from '@/viewer/review/ReviewDialog';
+import { ShortcutHelp } from '@/viewer/shell/ShortcutHelp';
+import { Sidebar } from '@/viewer/shell/Sidebar';
+import { Thread } from '@/viewer/comments/Thread';
+import { Toolbar } from '@/viewer/shell/Toolbar';
+import { useThreads } from '@/viewer/comments/useThreads';
+import { ToastStack, useToasts } from '@/viewer/shell/Toast';
+import { closeViewer, usePageInfo } from '@/viewer/shell/usePageInfo';
+import { useNavigation } from '@/viewer/diff/useNavigation';
+import { useThemeSurfaces } from '@/viewer/shell/useThemeSurfaces';
+import { useShortcuts } from '@/viewer/shell/useShortcuts';
+import { useViewed } from '@/viewer/review/useViewed';
+import { readSetting, useChoice, writeSetting } from '@/viewer/settings';
 import {
   HEADER_CSS,
   HIGHLIGHTER_OPTIONS,
   POOL_OPTIONS,
   SEPARATOR_CSS,
   TREE_CSS,
-  TREE_STYLE,
-} from './codeViewStyles';
+} from '@/viewer/diff/codeViewStyles';
 
 
 export function Overlay({ pr }: { pr: PullRequestRef }) {
@@ -59,38 +54,18 @@ export function Overlay({ pr }: { pr: PullRequestRef }) {
   );
 }
 
-function DiffStatsPanel({ stats }: { stats: DiffStats }) {
-  const churn = stats.addedLines + stats.deletedLines;
-  const addedShare = churn === 0 ? 0 : Math.round((stats.addedLines / churn) * 100);
-
-  return (
-    <section className="dh-diffstats">
-      <div className="dh-diffstats-bar" role="img" aria-label={`${addedShare}% of changed lines are additions`}>
-        <span className="dh-diffstats-added" style={{ width: `${addedShare}%` }} />
-        <span className="dh-diffstats-deleted" style={{ width: `${100 - addedShare}%` }} />
-      </div>
-      <div className="dh-diffstats-figures">
-        <span className="dh-add">+{stats.addedLines.toLocaleString()}</span>
-        <span className="dh-del">−{stats.deletedLines.toLocaleString()}</span>
-      </div>
-      <div className="dh-diffstats-totals">
-        <span>{stats.fileCount.toLocaleString()} files</span>
-        <span>{stats.totalLines.toLocaleString()} lines</span>
-      </div>
-    </section>
-  );
-}
 
 function Viewer({ pr }: { pr: PullRequestRef }) {
   const page = usePageInfo();
   const toasts = useToasts();
   const viewerRef = useRef<CodeViewHandle<ReviewThread, undefined> | null>(null);
 
-  const [diffStyle, setDiffStyle] = useState<'split' | 'unified'>(() =>
-    readSetting('layout', 'split') === 'unified' ? 'unified' : 'split'
-  );
-  const [sidebarOpen, setSidebarOpen] = useState(() => readSetting('sidebar', 'open') !== 'closed');
-  const [ignoreWhitespace, setIgnoreWhitespace] = useState(() => readSetting('whitespace', 'show') === 'ignore');
+  const [layout = 'split', setLayout] = useChoice('layout', ['split', 'unified'] as const, 'split');
+  const [sidebar = 'open', setSidebar] = useChoice('sidebar', ['open', 'closed'] as const, 'open');
+  const [whitespace = 'show', setWhitespace] = useChoice('whitespace', ['show', 'ignore'] as const, 'show');
+  const diffStyle = layout;
+  const sidebarOpen = sidebar === 'open';
+  const ignoreWhitespace = whitespace === 'ignore';
 
   const [sidebarWidth, setSidebarWidth] = useState(() => Number(readSetting('sidebarWidth', '280')) || 280);
   const sidebarWidthRef = useRef(sidebarWidth);
@@ -116,15 +91,14 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   // Reading code in light while GitHub sits in dark is a fair preference, so
-  // once this is set it wins over the page. Light or dark, nothing automatic.
-  const [themeChoice, setThemeChoice] = useState<'light' | 'dark' | undefined>(() => {
-    const stored = readSetting('theme', '');
-    return stored === 'light' || stored === 'dark' ? stored : undefined;
-  });
+  // once this is set it wins over the page. Light or dark, nothing automatic:
+  // no stored choice means the page decides.
+  const [themeChoice, setThemeChoice] = useChoice('theme', ['light', 'dark'] as const, undefined);
   const [comparing, setComparing] = useState<string | undefined>(undefined);
 
   const [includeInput, setIncludeInput] = useState(() => readSetting('include', ''));
   const [excludeInput, setExcludeInput] = useState(() => readSetting('exclude', ''));
+
   const [include, setInclude] = useState(includeInput);
   const [exclude, setExclude] = useState(excludeInput);
 
@@ -276,111 +250,34 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     close: closeViewer,
   });
 
-  const [threads, setThreads] = useState<readonly ReviewThread[]>([]);
-  const [draft, setDraft] = useState<ReviewThread | undefined>(undefined);
-  const askedForThreads = useRef(false);
   const pushToast = toasts.push;
-  useEffect(() => {
-    if (askedForThreads.current) return;
-    askedForThreads.current = true;
-    void ask('threads').then((result) => {
-      setThreads(result.threads);
-      if (result.error != null) pushToast(`Comments: ${result.error}`);
-      else if (result.truncated) {
-        pushToast('GitHub returned only the most recent comments on this pull request.');
-      }
-    });
-  }, [pushToast]);
-
-  // The viewer ignores an item whose version it has already seen, and the
-  // version is worked out from the item the stream produced, so it has to
-  // count up by itself rather than from what that item carries.
-  const annotationRevision = useRef(0);
-
-  // Annotations live on the item, so hang each thread on the file it belongs to.
-  const itemsWithThreads = useMemo(() => {
-    annotationRevision.current += 1;
-    const all = draft == null ? threads : [...threads, draft];
-    if (all.length === 0) return items;
-    const byPath = new Map<string, ReviewThread[]>();
-    for (const thread of all) {
-      const list = byPath.get(thread.path);
-      if (list == null) byPath.set(thread.path, [thread]);
-      else list.push(thread);
-    }
-    return items.map((item) => {
-      if (item.type !== 'diff') return item;
-      const list = byPath.get(item.fileDiff.name);
-      if (list == null) return item;
-      return {
-        ...item,
-        annotations: list
-          .map((thread) => ({
-            side: thread.side,
-            // A comment on the file, or one whose lines have since changed,
-            // goes to the top of the file rather than to a line it no longer
-            // fits.
-            lineNumber: thread.isOutdated || thread.line == null ? 0 : thread.line,
-            metadata: thread,
-          }))
-          .sort((a, b) => a.lineNumber - b.lineNumber),
-        version: (item.version ?? 0) + annotationRevision.current,
-      };
-    });
-  }, [draft, items, threads]);
-
-  const reloadThreads = useCallback(() => {
-    void ask('threads').then((result) => setThreads(result.threads));
-  }, []);
+  const comments = useThreads(items, pushToast);
 
   const renderAnnotation = useCallback(
     (annotation: { metadata?: ReviewThread }) => {
       const thread = annotation.metadata;
       if (thread == null) return null;
-      if (thread.isDraft !== true) {
+      if (thread.isDraft === true) {
         return (
-          <Thread
-            thread={thread}
-            onReply={async (body) => {
-              // A reply answers the first comment in the thread, which is what
-              // GitHub's own reply form names.
-              const inReplyTo = thread.comments[0]?.databaseId ?? '';
-              const result = await ask('reply', { inReplyTo, body });
-              if (!result.ok) return result.error ?? 'GitHub refused the reply.';
-              reloadThreads();
-              return undefined;
-            }}
-            onResolve={async () => {
-              const result = await ask('resolve', { threadId: thread.id });
-              if (!result.ok) return result.error ?? 'GitHub refused that.';
-              reloadThreads();
-              return undefined;
+          <CommentComposer
+            onCancel={comments.closeDraft}
+            onSubmit={async (text) => {
+              const failed = await comments.post(thread, text);
+              if (failed != null) pushToast(failed);
+              return failed == null;
             }}
           />
         );
       }
       return (
-        <CommentComposer
-          onCancel={() => setDraft(undefined)}
-          onSubmit={async (text) => {
-            const result = await ask('comment', {
-              path: thread.path,
-              line: thread.line ?? 0,
-              side: thread.side,
-              text,
-            });
-            if (!result.ok) {
-              toasts.push(result.error ?? 'GitHub refused the comment.');
-              return false;
-            }
-            setDraft(undefined);
-            reloadThreads();
-            return true;
-          }}
+        <Thread
+          thread={thread}
+          onReply={(body) => comments.reply(thread, body)}
+          onResolve={() => comments.resolve(thread)}
         />
       );
     },
-    [reloadThreads, toasts]
+    [comments, pushToast]
   );
 
   const reportedError = useRef<string | undefined>(undefined);
@@ -481,16 +378,11 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       onGutterUtilityClick(range: { start: number; side?: string }, context: { item: CodeViewItem<ReviewThread> }) {
         const item = context.item;
         if (item.type !== 'diff') return;
-        setDraft({
-          id: 'draft',
-          path: item.fileDiff.name,
-          line: range.start,
-          side: range.side === 'deletions' ? 'deletions' : 'additions',
-          isResolved: false,
-          isOutdated: false,
-          isDraft: true,
-          comments: [],
-        });
+        comments.openDraft(
+          item.fileDiff.name,
+          range.start,
+          range.side === 'deletions' ? 'deletions' : 'additions'
+        );
       },
       unsafeCSS: `${HEADER_CSS}\n${SEPARATOR_CSS}`,
       loadDiffFiles,
@@ -498,185 +390,68 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     [diffStyle, themeChoice, page.themeType, page.lightTheme, page.darkTheme, loadDiffFiles]
   );
 
-  const toggleLayout = useCallback(() => {
-    setDiffStyle((previous) => {
-      const next = previous === 'split' ? 'unified' : 'split';
-      writeSetting('layout', next);
-      return next;
-    });
-  }, []);
+  const toggleLayout = useCallback(
+    () => setLayout(layout === 'split' ? 'unified' : 'split'),
+    [layout, setLayout]
+  );
 
-  const toggleSidebar = useCallback(() => {
-    setSidebarOpen((open) => {
-      writeSetting('sidebar', open ? 'closed' : 'open');
-      return !open;
-    });
-  }, []);
+  const toggleSidebar = useCallback(
+    () => setSidebar(sidebarOpen ? 'closed' : 'open'),
+    [sidebarOpen, setSidebar]
+  );
+
+  const toggleWhitespace = useCallback(
+    () => setWhitespace(ignoreWhitespace ? 'show' : 'ignore'),
+    [ignoreWhitespace, setWhitespace]
+  );
 
   const themeType = themeChoice ?? page.themeType;
   const themeName = themeType === 'dark' ? page.darkTheme : page.lightTheme;
   const surfaces = useThemeSurfaces(themeName);
 
-  const toggleTheme = useCallback(() => {
-    setThemeChoice((current) => {
-      const next = (current ?? page.themeType) === 'dark' ? 'light' : 'dark';
-      writeSetting('theme', next);
-      return next;
-    });
-  }, [page.themeType]);
+  const toggleTheme = useCallback(
+    () => setThemeChoice(themeType === 'dark' ? 'light' : 'dark'),
+    [setThemeChoice, themeType]
+  );
   const { stats } = state;
 
   return (
     <div className="dh-overlay" data-theme={themeType} style={surfaces.overlay}>
-      <header className="dh-header">
-        <button
-          type="button"
-          className="dh-icon-button"
-          data-dh-action="sidebar"
-            onClick={toggleSidebar}
-          aria-pressed={sidebarOpen}
-          title={sidebarOpen ? 'Hide the file tree' : 'Show the file tree'}
-        >
-          <IconSidebarLeft size={16} />
-        </button>
-        <div className="dh-identity">
-          {page.author != null && (
-            <a
-              className="dh-author"
-              href={`${GITHUB_ORIGIN}/${page.author}`}
-              target="_top"
-              title={`Opened by ${page.author} — open their profile`}
-            >
-              <img src={`${GITHUB_ORIGIN}/${page.author}.png?size=64`} alt={`Opened by ${page.author}`} />
-            </a>
-          )}
-          <strong>
-            {pr.owner}/{pr.repo} #{pr.number}
-          </strong>
-          <span className="dh-title">{page.title}</span>
-        </div>
-        <div className="dh-stats">
-          <span>
-            {viewedOnShow.toLocaleString()} / {stats.fileCount.toLocaleString()} viewed
-          </span>
-          <span className="dh-add">+{stats.addedLines.toLocaleString()}</span>
-          <span className="dh-del">−{stats.deletedLines.toLocaleString()}</span>
-          {state.phase === 'loading' && <span className="dh-loading">loading…</span>}
-        </div>
-        <div className="dh-actions">
-          <button
-            type="button"
-            className="dh-primary"
-            data-dh-action="review"
-            onClick={() => setReviewOpen(true)}
-            title="Finish your review"
-          >
-            <IconCheck size={15} />
-            Finish review
-          </button>
-          <span className="dh-actions-divider" aria-hidden="true" />
-          <button
-            type="button"
-            className="dh-icon-button"
-            data-dh-action="whitespace"
-            aria-pressed={ignoreWhitespace}
-            onClick={() =>
-              setIgnoreWhitespace((on) => {
-                writeSetting('whitespace', on ? 'show' : 'ignore');
-                return !on;
-              })
-            }
-            title={
-              ignoreWhitespace
-                ? 'Ignoring files that changed only in spacing — click to show them'
-                : 'Hide files that changed only in spacing'
-            }
-          >
-            <IconParagraph size={16} />
-          </button>
-          <button
-            type="button"
-            className="dh-icon-button"
-            data-dh-action="layout"
-            onClick={toggleLayout}
-            title={diffStyle === 'split' ? 'Split view — switch to unified' : 'Unified view — switch to split'}
-          >
-            {diffStyle === 'split' ? <IconDiffSplit size={16} /> : <IconDiffUnified size={16} />}
-          </button>
-          <button
-            type="button"
-            className="dh-icon-button"
-            data-dh-action="theme"
-            onClick={toggleTheme}
-            title={themeType === 'dark' ? 'Switch to light' : 'Switch to dark'}
-          >
-            {themeType === 'dark' ? <IconColorLight size={16} /> : <IconColorDark size={16} />}
-          </button>
-          <button
-            type="button"
-            className="dh-icon-button"
-            data-dh-action="help"
-            onClick={() => setHelpOpen(true)}
-            title="Keyboard shortcuts (?)"
-          >
-            <IconQuestion size={16} />
-          </button>
-          <a
-            className="dh-icon-button"
-            data-dh-action="github"
-            href={filesUrl(pr)}
-            target="_top"
-            title="Open GitHub's own Files changed view"
-          >
-            <IconBrandGithub size={16} />
-          </a>
-          <button
-            type="button"
-            className="dh-icon-button"
-            data-dh-action="close"
-            onClick={closeViewer}
-            title="Close (Esc)"
-          >
-            <IconX size={16} />
-          </button>
-        </div>
-      </header>
+      <Toolbar
+        pr={pr}
+        page={page}
+        stats={stats}
+        viewedOnShow={viewedOnShow}
+        loading={state.phase === 'loading'}
+        sidebarOpen={sidebarOpen}
+        diffStyle={diffStyle}
+        themeType={themeType}
+        ignoreWhitespace={ignoreWhitespace}
+        onToggleSidebar={toggleSidebar}
+        onToggleWhitespace={toggleWhitespace}
+        onToggleLayout={toggleLayout}
+        onToggleTheme={toggleTheme}
+        onFinishReview={() => setReviewOpen(true)}
+        onShowHelp={() => setHelpOpen(true)}
+        onClose={closeViewer}
+      />
 
       <div className="dh-body">
-        <aside className="dh-sidebar" hidden={!sidebarOpen} style={{ width: sidebarWidth }}>
-          <div className="dh-filters">
-            <label className="dh-field">
-              <span>files to include</span>
-              <input
-                value={includeInput}
-                placeholder="e.g. src/**"
-                onChange={(event) => setIncludeInput(event.target.value)}
-                spellCheck={false}
-              />
-            </label>
-            {state.includeError != null && <p className="dh-pattern-error">{state.includeError}</p>}
-            <label className="dh-field">
-              <span>files to exclude</span>
-              <input
-                value={excludeInput}
-                placeholder="e.g. *.test.*, *.snap"
-                onChange={(event) => setExcludeInput(event.target.value)}
-                spellCheck={false}
-              />
-            </label>
-            {state.excludeError != null && <p className="dh-pattern-error">{state.excludeError}</p>}
-            {state.hiddenCount > 0 && (
-              <p className="dh-hidden">{state.hiddenCount.toLocaleString()} files hidden</p>
-            )}
-            {state.spacingOnlyCount > 0 && (
-              <p className="dh-hidden">
-                {state.spacingOnlyCount.toLocaleString()} changed only in spacing
-              </p>
-            )}
-          </div>
-          <FileTree className="dh-tree" model={model} style={{ ...surfaces.tree, ...TREE_STYLE }} />
-          <DiffStatsPanel stats={stats} />
-        </aside>
+        <Sidebar
+          open={sidebarOpen}
+          width={sidebarWidth}
+          model={model}
+          treeSurface={surfaces.tree}
+          stats={stats}
+          include={includeInput}
+          exclude={excludeInput}
+          includeError={state.includeError}
+          excludeError={state.excludeError}
+          hiddenCount={state.hiddenCount}
+          spacingOnlyCount={state.spacingOnlyCount}
+          onIncludeChange={setIncludeInput}
+          onExcludeChange={setExcludeInput}
+        />
         {sidebarOpen && (
           <div
             className="dh-resize"
@@ -689,7 +464,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         <CodeView<ReviewThread, undefined>
           ref={viewerRef}
           className="dh-code"
-          items={itemsWithThreads}
+          items={comments.items}
           options={options}
           renderAnnotation={renderAnnotation}
           renderHeaderPrefix={renderHeaderPrefix}
@@ -717,7 +492,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
             const result = await ask('review', { event: verdict, body });
             if (!result.ok) return result.error ?? 'GitHub refused the review.';
             toasts.push('Review submitted.');
-            reloadThreads();
+            void comments.reload();
             return undefined;
           }}
         />

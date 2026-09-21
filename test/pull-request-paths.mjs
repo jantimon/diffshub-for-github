@@ -1,4 +1,4 @@
-import { filesPaths, readPullRequestRef } from '../src/github/pr.ts';
+import { filesPaths, readPullRequestRef } from '../src/pullRequest.ts';
 
 // GitHub serves two pull request layouts. The older one links its Files-changed
 // tab at /files, the React one at /changes, and both have to open the viewer.

@@ -1,5 +1,5 @@
 import { BRIDGE_CHANNEL } from '@/bridge';
-import { serveGithubFetch } from '@/github/githubFetch';
+import { serveGithubFetch } from '@/viewer/files/githubFetch';
 
 const GITHUB_ORIGINS = ['https://github.com/*', 'https://*.githubusercontent.com/*'];
 

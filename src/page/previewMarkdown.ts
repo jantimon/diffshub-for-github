@@ -12,7 +12,7 @@
  * looks, from its published source `behaviors/commenting/preview.ts`.
  */
 
-import { POST_FORM } from './requests';
+import { POST_FORM } from '@/page/requests';
 
 export async function previewMarkdown(text: string): Promise<{ html?: string; error?: string }> {
   const host = document.querySelector<HTMLElement>('[data-preview-url]');

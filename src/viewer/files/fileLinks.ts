@@ -1,4 +1,4 @@
-import { GITHUB_ORIGIN } from './pr';
+import { GITHUB_ORIGIN } from '@/pullRequest';
 
 export interface FileRefs {
   owner: string;

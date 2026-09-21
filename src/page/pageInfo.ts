@@ -1,32 +1,13 @@
-export const GITHUB_ORIGIN = 'https://github.com';
+/**
+ * Reading the pull request out of the page.
+ *
+ * All of this runs in the content script, on github.com's origin, and depends
+ * on GitHub's own markup. GitHub serves more than one pull request layout, so
+ * each reader goes by something stable -- where a link points, the JSON the
+ * page embeds for its own React app -- rather than by the classes around it.
+ */
 
-export interface PullRequestRef {
-  owner: string;
-  repo: string;
-  number: number;
-}
-
-const PULL_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/|$)/;
-
-/** Where the pull request lives, which every one of its routes hangs off. */
-export function pullPath(ref: PullRequestRef): string {
-  return `/${ref.owner}/${ref.repo}/pull/${ref.number}`;
-}
-
-export function readPullRequestRef(pathname = location.pathname): PullRequestRef | undefined {
-  const match = PULL_PATH.exec(pathname);
-  if (match == null) return undefined;
-  const [, owner = '', repo = '', number = '0'] = match;
-  return { owner, repo, number: Number(number) };
-}
-
-export function patchUrl(ref: PullRequestRef): string {
-  return `${GITHUB_ORIGIN}${pullPath(ref)}.diff`;
-}
-
-export function filesUrl(ref: PullRequestRef): string {
-  return `${GITHUB_ORIGIN}${pullPath(ref)}/files`;
-}
+import { filesPaths, type PullRequestRef } from '@/pullRequest';
 
 /** The PR title, from the page if it exposes one and from the tab title if not. */
 export function readPullRequestTitle(): string {
@@ -45,15 +26,6 @@ export function readBranchPair(): { base: string; head: string } | undefined {
   const head = document.querySelector('.head-ref, [data-testid="head-ref"]')?.textContent?.trim();
   if (base == null || head == null) return undefined;
   return { base, head };
-}
-
-/**
- * The paths GitHub's Files-changed tab navigates to. The older pull request
- * page uses `/files`; the React one uses `/changes`.
- */
-export function filesPaths(ref: PullRequestRef): string[] {
-  const base = pullPath(ref);
-  return [`${base}/files`, `${base}/changes`];
 }
 
 /** Whether a click landed on a link to this pull request's Files-changed tab. */

@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 
-import { Overlay } from '@/ui/Overlay';
-import type { PullRequestRef } from '@/github/pr';
+import { Overlay } from '@/viewer/Overlay';
+import type { PullRequestRef } from '@/pullRequest';
 import './style.css';
 
 const params = new URLSearchParams(location.search);

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { MarkdownEditor } from './MarkdownEditor';
+import { MarkdownEditor } from '@/viewer/comments/MarkdownEditor';
 
 /** The box for writing one comment, shown at the line it will be left on. */
 export function CommentComposer({

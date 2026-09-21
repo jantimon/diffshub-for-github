@@ -1,6 +1,6 @@
 import type { Result } from '@/bridge';
-import { findAnyForm, findForm, findFormEndingWith, submitForm } from './formActions';
-import { pullPath, type PullRequestRef } from './pr';
+import { findAnyForm, findForm, findFormEndingWith, submitForm } from '@/page/forms';
+import { pullPath, type PullRequestRef } from '@/pullRequest';
 
 /**
  * Replying to a comment and resolving a conversation.

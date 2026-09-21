@@ -6,8 +6,8 @@
  */
 
 import type { Result } from '@/bridge';
-import { pullPath, type PullRequestRef } from './pr';
-import { WRITE_JSON } from './requests';
+import { pullPath, type PullRequestRef } from '@/pullRequest';
+import { WRITE_JSON } from '@/page/requests';
 
 export async function writeViewed(ref: PullRequestRef, path: string, viewed: boolean): Promise<Result> {
   try {

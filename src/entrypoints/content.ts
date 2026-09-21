@@ -6,26 +6,23 @@ import {
   type Reply,
   type RequestName,
 } from '@/bridge';
+import { filesPaths, readPullRequestRef, GITHUB_ORIGIN, type PullRequestRef } from '@/pullRequest';
 import {
-  filesPaths,
   findFilesChangedLink,
   findFilesChangedTab,
-  readBranchPair,
   readAuthor,
+  readBranchPair,
   readHeadSha,
-  readPullRequestRef,
   readPullRequestTitle,
-  GITHUB_ORIGIN,
-  type PullRequestRef,
-} from '@/github/pr';
-import { readThreads } from '@/github/readThreads';
-import { previewMarkdown } from '@/github/previewMarkdown';
-import { readViewed } from '@/github/readViewed';
-import { replyToComment, resolveThread } from '@/github/threadActions';
-import { submitReview } from '@/github/submitReview';
-import { writeComment } from '@/github/writeComment';
-import { writeViewed } from '@/github/writeViewed';
-import { readGitHubTheme } from '@/github/theme';
+} from '@/page/pageInfo';
+import { readThreads } from '@/page/readThreads';
+import { previewMarkdown } from '@/page/previewMarkdown';
+import { readViewed } from '@/page/readViewed';
+import { replyToComment, resolveThread } from '@/page/threadActions';
+import { submitReview } from '@/page/submitReview';
+import { writeComment } from '@/page/writeComment';
+import { writeViewed } from '@/page/writeViewed';
+import { readGitHubTheme } from '@/page/theme';
 
 const MARKER_ATTRIBUTE = 'data-diffshub-marked';
 const FRAME_ID = 'diffshub-for-github-viewer';

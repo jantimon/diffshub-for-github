@@ -3,7 +3,7 @@ import type { ComponentType } from 'react';
 import { useEffect, useRef, useState, type JSX } from 'react';
 
 import type { ReviewEvent } from '@/bridge';
-import { MarkdownEditor } from './MarkdownEditor';
+import { MarkdownEditor } from '@/viewer/comments/MarkdownEditor';
 
 const VERDICTS: {
   value: ReviewEvent;

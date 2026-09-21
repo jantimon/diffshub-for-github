@@ -1,8 +1,8 @@
 /** GitHub serves forty threads a page and will not serve more than this many. */
 
 import type { ReviewComment, ReviewThread } from '@/bridge';
-import { pullPath, type PullRequestRef } from './pr';
-import { READ_JSON } from './requests';
+import { pullPath, type PullRequestRef } from '@/pullRequest';
+import { READ_JSON } from '@/page/requests';
 
 const PAGE_LIMIT = 40;
 const MAX_PAGES = 20;

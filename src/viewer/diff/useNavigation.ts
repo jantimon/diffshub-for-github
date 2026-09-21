@@ -4,7 +4,7 @@ import type { ReviewThread } from '@/bridge';
 import { useCallback } from 'react';
 
 import type { ParsedFile } from '@/patch/accumulator';
-import { FILE_GAP } from './codeViewStyles';
+import { FILE_GAP } from '@/viewer/diff/codeViewStyles';
 
 /**
  * How far below the top of the pane a file may start and still count as the one

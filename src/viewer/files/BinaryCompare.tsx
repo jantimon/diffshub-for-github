@@ -8,8 +8,8 @@ import {
   type SyntheticEvent,
 } from 'react';
 
-import { blobUrl, rawUrl, type FileRefs } from '@/github/fileLinks';
-import { githubFetch } from '@/github/githubFetch';
+import { blobUrl, rawUrl, type FileRefs } from '@/viewer/files/fileLinks';
+import { githubFetch } from '@/viewer/files/githubFetch';
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg', 'ico', 'bmp']);
 

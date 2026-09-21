@@ -4,7 +4,7 @@ import type { FileTree } from '@pierre/trees';
 import type { ReviewThread } from '@/bridge';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { githubFetch } from '@/github/githubFetch';
+import { githubFetch } from '@/viewer/files/githubFetch';
 import { compileFilters } from './filters';
 import { streamPatchFiles } from './stream';
 import {

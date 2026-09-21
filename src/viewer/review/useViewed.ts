@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { ask } from './ask';
-import { readSetting, writeSetting } from './storage';
+import { ask } from '@/viewer/ask';
+import { readSetting, writeSetting } from '@/viewer/settings';
 
 interface Stored {
   sha?: string;

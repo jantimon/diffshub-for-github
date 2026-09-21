@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { MarkdownEditor } from './MarkdownEditor';
+import { MarkdownEditor } from '@/viewer/comments/MarkdownEditor';
 
 import type { ReviewThread } from '@/bridge';
 

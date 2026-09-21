@@ -73,7 +73,7 @@
  * state, which is what our own copy becomes the moment we change it.
  */
 
-import { POST_FORM } from './requests';
+import { POST_FORM } from '@/page/requests';
 
 /**
  * Finds a form GitHub has already rendered, by any of the actions it might
