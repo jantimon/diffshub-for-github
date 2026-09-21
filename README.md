@@ -86,10 +86,12 @@ broke, while the diff keeps rendering.
 
 ## What is not built
 
-- **Comments.** The viewer neither shows nor posts them. Use GitHub's tab.
-- **Viewed state is browser-local.** Ticks live in `localStorage`, keyed by pull
-  request and head commit. GitHub does not see them, and GitHub's own ticks do
-  not show up here.
+- **Writing anything.** Existing comments are shown at the line they were left
+  on, but you cannot write one, reply, resolve a conversation or submit a
+  review. Finish a review on GitHub's own tab.
+- **Reading viewed state back.** A tick is sent to GitHub, so its Files-changed
+  tab agrees. The reverse does not work: files ticked on GitHub do not show as
+  ticked here.
 - **Ignore whitespace.** GitHub's `.diff` endpoint takes no `?w=1`, and the
   client-side comparison to replace it is not written.
 - **Filtering the tree by status.** Added, modified and deleted are shown, not
@@ -97,8 +99,11 @@ broke, while the diff keeps rendering.
 - **The before side of a binary comparison**, which needs a base revision the
   pull request page does not carry.
 
-[`spec.md`](spec.md) has the full plan. [`docs/analysis.md`](docs/analysis.md)
-records how diffshub.com works, read from its own source in the submodule.
+[`docs/capabilities.md`](docs/capabilities.md) lists everything it takes to
+replace GitHub's review page and where each piece stands.
+[`spec.md`](spec.md) has the full plan, and
+[`docs/analysis.md`](docs/analysis.md) records how diffshub.com works, read
+from its own source in the submodule.
 
 ## Requirements
 
