@@ -1203,3 +1203,22 @@ body {
   margin: 0 6px;
   background: var(--dh-border);
 }
+
+/* Whose work this is, at a glance. */
+.dh-author {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.dh-author img {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.dh-author:hover img {
+  outline: 2px solid color-mix(in srgb, currentColor 35%, transparent);
+  outline-offset: 1px;
+}

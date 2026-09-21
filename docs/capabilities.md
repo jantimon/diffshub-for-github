@@ -135,7 +135,7 @@ Worth building once the rest holds.
 | 36 | Remember where you were | ❌ |
 | 37 | Image comparison modes | ❌ |
 | 38 | Jump to a definition | ❌ |
-| 39 | The author's avatar in the header | ❌ |
+| 39 | The author's avatar in the header | ✅ |
 
 ### Count
 
@@ -143,8 +143,8 @@ Worth building once the rest holds.
 | --- | :---: | :---: | :---: | :---: |
 | Must have | 16 | 1 | 0 | 17 |
 | Should have | 5 | 2 | 4 | 11 |
-| Nice to have | 0 | 0 | 11 | 11 |
-| **All** | **21** | **3** | **15** | **39** |
+| Nice to have | 1 | 0 | 10 | 11 |
+| **All** | **22** | **3** | **14** | **39** |
 
 ### Resolving depends on GitHub's page
 

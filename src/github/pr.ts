@@ -101,3 +101,20 @@ export function readHeadSha(): string | undefined {
   }
   return undefined;
 }
+
+/**
+ * Who opened the pull request.
+ *
+ * Taken from the JSON the page embeds for its own React app, under the pull
+ * request itself: the first author link in the document belongs to whoever
+ * acted last, which is often somebody else.
+ */
+export function readAuthor(): string | undefined {
+  for (const script of document.querySelectorAll('script[type="application/json"]')) {
+    const text = script.textContent ?? '';
+    if (!text.includes('"pullRequest"')) continue;
+    const match = /"pullRequest"\s*:\s*\{[\s\S]{0,4000}?"author"\s*:\s*\{[^}]*?"login"\s*:\s*"([^"]+)"/.exec(text);
+    if (match?.[1] != null) return match[1];
+  }
+  return undefined;
+}

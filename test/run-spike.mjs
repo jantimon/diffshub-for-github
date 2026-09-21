@@ -78,6 +78,14 @@ const inViewer = (action) =>
     return label.textContent?.trim() ?? '';
   }, action);
 
+await check('the author is shown', async () => {
+  const avatar = frame.locator('.dh-author img');
+  if ((await avatar.count()) === 0) return false;
+  const loaded = await avatar.evaluate((img) => img.complete && img.naturalWidth > 0);
+  const who = await frame.locator('.dh-author').getAttribute('title');
+  return loaded ? who : false;
+});
+
 await check('per-file links', async () => `${await frame.locator('.dh-file-links').count()} headers`);
 await check('viewed toggles', async () => `${await frame.locator('[data-dh-viewed]').count()} eyes`);
 

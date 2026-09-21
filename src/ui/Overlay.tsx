@@ -608,6 +608,16 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           <IconSidebarLeft size={16} />
         </button>
         <div className="dh-identity">
+          {page.author != null && (
+            <a
+              className="dh-author"
+              href={`${GITHUB_ORIGIN}/${page.author}`}
+              target="_top"
+              title={`Opened by ${page.author} — open their profile`}
+            >
+              <img src={`${GITHUB_ORIGIN}/${page.author}.png?size=64`} alt={`Opened by ${page.author}`} />
+            </a>
+          )}
           <strong>
             {pr.owner}/{pr.repo} #{pr.number}
           </strong>

@@ -9,6 +9,8 @@ export interface PageInfo {
   base?: string;
   head?: string;
   headSha?: string;
+  /** The login of whoever opened the pull request. */
+  author?: string;
 }
 
 export interface ReviewComment {

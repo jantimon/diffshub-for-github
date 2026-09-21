@@ -4,6 +4,7 @@ import {
   findFilesChangedLink,
   findFilesChangedTab,
   readBranchPair,
+  readAuthor,
   readHeadSha,
   readPullRequestRef,
   readPullRequestTitle,
@@ -52,6 +53,7 @@ export default defineContentScript({
         base: branches?.base,
         head: branches?.head,
         headSha: readHeadSha(),
+        author: readAuthor(),
       };
     };
 
