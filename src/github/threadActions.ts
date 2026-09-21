@@ -73,7 +73,10 @@ export async function resolveThread(
     // state goes stale the moment we change it.
     const form = findAnyForm([`${base}/resolve`, `${base}/unresolve`]);
     if (form == null) {
-      return { ok: false, error: 'GitHub is not offering to resolve that conversation here.' };
+      return {
+        ok: false,
+        error: 'GitHub has not loaded that conversation on this page, so it cannot be resolved from here yet.',
+      };
     }
 
     const result = await submitForm(form);

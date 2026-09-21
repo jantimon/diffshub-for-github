@@ -101,7 +101,7 @@ Worth building once the rest holds.
 | 12 | Read existing review comments | ✅ | Inline, with outdated and resolved marked. GitHub stops at 350 threads |
 | 13 | Write a review comment | ✅ | From the gutter control, posted at once, shown at its line |
 | 14 | Reply to a comment | ✅ | Submits GitHub's own reply form, so no token is invented |
-| 15 | Resolve a conversation | ✅ | And reopen one |
+| 15 | Resolve a conversation | 🟡 | And reopen one, for conversations GitHub has loaded on the page behind the overlay; it renders the form for no others |
 | 16 | Submit a review | ✅ | Comment, approve or request changes, from the toolbar |
 | 17 | Mark a file viewed | ✅ | Both ways: what GitHub has is read on open, and every tick is sent back |
 
@@ -141,10 +141,19 @@ Worth building once the rest holds.
 
 | Group | ✅ | 🟡 | ❌ | Total |
 | --- | :---: | :---: | :---: | :---: |
-| Must have | 17 | 0 | 0 | 17 |
+| Must have | 16 | 1 | 0 | 17 |
 | Should have | 5 | 2 | 4 | 11 |
 | Nice to have | 0 | 0 | 11 | 11 |
-| **All** | **22** | **2** | **15** | **39** |
+| **All** | **21** | **3** | **15** | **39** |
+
+### Resolving depends on GitHub's page
+
+Resolving posts to a conversation's own address, and its token is good for that
+address alone -- a token from anywhere else is refused. The only source is the
+form GitHub rendered for that conversation, and it renders them for the
+conversations it has loaded, not for all of them. When the form is missing the
+reader is told so and pointed at GitHub. Replying does not have this problem:
+every reply posts to one shared action, so any reply form on the page serves.
 
 ## What to build next
 

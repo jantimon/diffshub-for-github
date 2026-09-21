@@ -78,6 +78,10 @@ const TREE_CSS = `
 [data-file-tree-virtualized-scroll='true'] {
   padding-inline-start: 0;
 }
+
+[data-item-type='directory'] [data-item-section='decoration'] {
+  opacity: 0.45;
+}
 `;
 
 /*
@@ -620,21 +624,23 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         <div className="dh-actions">
           <button
             type="button"
+            className="dh-primary"
+            data-dh-action="review"
+            onClick={() => setReviewOpen(true)}
+            title="Finish your review"
+          >
+            <IconCheck size={15} />
+            Finish review
+          </button>
+          <span className="dh-actions-divider" aria-hidden="true" />
+          <button
+            type="button"
             className="dh-icon-button"
             data-dh-action="layout"
             onClick={toggleLayout}
             title={diffStyle === 'split' ? 'Split view — switch to unified' : 'Unified view — switch to split'}
           >
             {diffStyle === 'split' ? <IconDiffSplit size={16} /> : <IconDiffUnified size={16} />}
-          </button>
-          <button
-            type="button"
-            className="dh-icon-button"
-            data-dh-action="review"
-            onClick={() => setReviewOpen(true)}
-            title="Finish your review"
-          >
-            <IconCheck size={16} />
           </button>
           <button
             type="button"

@@ -10,6 +10,7 @@ import {
   type PullRequestRef,
 } from '@/github/pr';
 import { readThreads } from '@/github/readThreads';
+import { previewMarkdown } from '@/github/previewMarkdown';
 import { readViewed } from '@/github/readViewed';
 import { replyToComment, resolveThread } from '@/github/threadActions';
 import { submitReview } from '@/github/submitReview';
@@ -86,6 +87,17 @@ export default defineContentScript({
         void reviewFile(path, viewed).then((status) => {
           frame?.contentWindow?.postMessage(
             { channel: BRIDGE_CHANNEL, type: 'file-review-result', id, ok: status === 200, status },
+            '*'
+          );
+        });
+        return;
+      }
+
+      if (event.data.type === 'preview') {
+        const { id, text } = event.data;
+        void previewMarkdown(text).then((result) => {
+          frame?.contentWindow?.postMessage(
+            { channel: BRIDGE_CHANNEL, type: 'preview-result', id, ...result },
             '*'
           );
         });

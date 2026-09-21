@@ -29,6 +29,8 @@
     "test:firefox": "node test/firefox.mjs"
   },
   "dependencies": {
+    "@github/markdown-toolbar-element": "^2.2.3",
+    "@github/tab-container-element": "^4.9.0",
     "@pierre/diffs": "^1.4.3",
     "@pierre/icons": "^0.9.0",
     "@pierre/theme": "^2.0.0",

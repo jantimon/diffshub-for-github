@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import { useEffect, useRef, useState, type JSX } from 'react';
 
 import type { ReviewEvent } from '@/bridge';
+import { MarkdownEditor } from './MarkdownEditor';
 
 const VERDICTS: {
   value: ReviewEvent;
@@ -204,13 +205,13 @@ export function ReviewDialog({
             <h3>Review summary</h3>
             <span className="dh-review-markdown">Markdown supported</span>
           </div>
-          <textarea
-            className="dh-review-text"
-            rows={6}
+          <MarkdownEditor
             value={body}
+            onChange={setBody}
+            onSubmit={() => void send()}
             placeholder="Summarise your review — key findings, overall feedback, or next steps…"
+            rows={6}
             disabled={sending}
-            onChange={(change) => setBody(change.target.value)}
           />
           {missingNote && <p className="dh-review-required">Required for this review type</p>}
         </section>

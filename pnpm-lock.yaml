@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@github/markdown-toolbar-element':
+        specifier: ^2.2.3
+        version: 2.2.3
+      '@github/tab-container-element':
+        specifier: ^4.9.0
+        version: 4.9.0
       '@pierre/diffs':
         specifier: ^1.4.3
         version: 1.4.3(@shikijs/themes@4.4.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -158,6 +164,12 @@ packages:
   '@fregante/relaxed-json@2.0.0':
     resolution: {integrity: sha512-PyUXQWB42s4jBli435TDiYuVsadwRHnMc27YaLouINktvTWsL3FcKrRMGawTayFk46X+n5bE23RjUTWQwrukWw==}
     engines: {node: '>= 0.10.0'}
+
+  '@github/markdown-toolbar-element@2.2.3':
+    resolution: {integrity: sha512-AlquKGee+IWiAMYVB0xyHFZRMnu4n3X4HTvJHu79GiVJ1ojTukCWyxMlF5NMsecoLcBKsuBhx3QPv2vkE/zQ0A==}
+
+  '@github/tab-container-element@4.9.0':
+    resolution: {integrity: sha512-wUk72T/pA3OG+YCdVaDcwHwpT2uyVmHlu6CjZyeRfoECWNQovFZAMqp8JVHjweeLxp2lM2ASqa8lLrkCskrB2g==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -2398,6 +2410,10 @@ snapshots:
   '@fluent/syntax@0.19.0': {}
 
   '@fregante/relaxed-json@2.0.0': {}
+
+  '@github/markdown-toolbar-element@2.2.3': {}
+
+  '@github/tab-container-element@4.9.0': {}
 
   '@humanfs/core@0.19.2':
     dependencies:

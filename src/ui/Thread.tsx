@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+import { MarkdownEditor } from './MarkdownEditor';
+
 import type { ReviewThread } from '@/bridge';
 
 /** One review thread, at the line it was left on. */
@@ -59,28 +61,23 @@ export function Thread({
 
       {replying ? (
         <div className="dh-composer">
-          <textarea
-            className="dh-composer-text"
-            rows={3}
+          <MarkdownEditor
             value={text}
+            onChange={setText}
             placeholder="Reply"
+            rows={3}
             disabled={busy}
             autoFocus
-            onChange={(event) => setText(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') setReplying(false);
-              if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-                event.preventDefault();
-                void run(async () => {
-                  const failed = await onReply(text);
-                  if (failed == null) {
-                    setText('');
-                    setReplying(false);
-                  }
-                  return failed;
-                });
-              }
-            }}
+            onSubmit={() =>
+              void run(async () => {
+                const failed = await onReply(text);
+                if (failed == null) {
+                  setText('');
+                  setReplying(false);
+                }
+                return failed;
+              })
+            }
           />
           <div className="dh-composer-actions">
             <button type="button" onClick={() => setReplying(false)} disabled={busy}>

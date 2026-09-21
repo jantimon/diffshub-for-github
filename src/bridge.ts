@@ -48,6 +48,13 @@ export type ToViewer =
   | { channel: typeof BRIDGE_CHANNEL; type: 'file-review-result'; id: number; ok: boolean; status: number }
   | {
       channel: typeof BRIDGE_CHANNEL;
+      type: 'preview-result';
+      id: number;
+      html?: string;
+      error?: string;
+    }
+  | {
+      channel: typeof BRIDGE_CHANNEL;
       type: 'thread-result';
       id: number;
       ok: boolean;
@@ -104,7 +111,8 @@ export type FromViewer =
       body: string;
     }
   | { channel: typeof BRIDGE_CHANNEL; type: 'reply'; id: number; inReplyTo: string; body: string }
-  | { channel: typeof BRIDGE_CHANNEL; type: 'resolve'; id: number; threadId: string };
+  | { channel: typeof BRIDGE_CHANNEL; type: 'resolve'; id: number; threadId: string }
+  | { channel: typeof BRIDGE_CHANNEL; type: 'preview'; id: number; text: string };
 
 export function isToViewer(value: unknown): value is ToViewer {
   return (value as ToViewer | null)?.channel === BRIDGE_CHANNEL;

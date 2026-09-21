@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+
+import { MarkdownEditor } from './MarkdownEditor';
 
 /** The box for writing one comment, shown at the line it will be left on. */
 export function CommentComposer({
@@ -10,11 +12,6 @@ export function CommentComposer({
 }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
-  const box = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    box.current?.focus();
-  }, []);
 
   const send = async (): Promise<void> => {
     if (text.trim() === '' || sending) return;
@@ -26,25 +23,14 @@ export function CommentComposer({
 
   return (
     <div className="dh-composer">
-      <textarea
-        ref={box}
-        className="dh-composer-text"
+      <MarkdownEditor
         value={text}
-        rows={3}
+        onChange={setText}
+        onSubmit={() => void send()}
         placeholder="Leave a comment"
+        rows={3}
         disabled={sending}
-        onChange={(event) => setText(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            onCancel();
-          }
-          // The same key GitHub submits with.
-          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-            event.preventDefault();
-            void send();
-          }
-        }}
+        autoFocus
       />
       <div className="dh-composer-actions">
         <button type="button" onClick={onCancel} disabled={sending}>
