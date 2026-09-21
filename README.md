@@ -101,7 +101,7 @@ replace GitHub's review page and where each piece stands.
 [`docs/analysis.md`](docs/analysis.md) records how diffshub.com works, read
 from its own source in the submodule.
 
-## Requirements
+## What you need
 
 - Node.js 22 or newer
 - pnpm 10
