@@ -5,10 +5,10 @@ files off and submits a verdict. The overlay replaces that page only when a
 reviewer never has to go back to it. This lists what that takes, in three
 groups, and ends with where each one stands.
 
-**Today the overlay is a reader, not a reviewer.** You can read a pull request
-in it from end to end, faster than on GitHub, and tick files off as you go. You
-cannot say anything about what you read. Writing a comment and submitting a
-review are the two gaps that keep the old page open.
+**Today the overlay reads a pull request and comments on it, but cannot finish
+a review.** You can read it end to end faster than on GitHub, tick files off,
+and leave a comment on a line. You cannot reply, resolve a conversation, or
+approve. Those three keep the old page open.
 
 ## Must have
 
@@ -96,7 +96,7 @@ Worth building once the rest holds.
 | 10 | Keyboard navigation | ✅ | `j`/`k` files, `n`/`p` hunks, follows the scroll position |
 | 11 | Renames and moves are obvious | ✅ | `MOVED` badge and the old path in blue |
 | 12 | Read existing review comments | ✅ | Inline, with outdated and resolved marked. GitHub stops at 350 threads |
-| 13 | **Write a review comment** | ❌ | Endpoint captured, not built |
+| 13 | Write a review comment | ✅ | From the gutter control, posted at once, shown at its line |
 | 14 | **Reply to a comment** | ❌ | |
 | 15 | **Resolve a conversation** | ❌ | |
 | 16 | **Submit a review** | ❌ | No approve or request changes |
@@ -137,16 +137,15 @@ Worth building once the rest holds.
 
 | Group | ✅ | 🟡 | ❌ | Total |
 | --- | :---: | :---: | :---: | :---: |
-| Must have | 13 | 0 | 4 | 17 |
+| Must have | 14 | 0 | 3 | 17 |
 | Should have | 5 | 2 | 4 | 11 |
 | Nice to have | 0 | 0 | 10 | 10 |
-| **All** | **18** | **2** | **18** | **38** |
+| **All** | **19** | **2** | **17** | **38** |
 
 ## What to build next
 
-The four missing must-haves are one piece of work: writing a comment, replying,
-resolving and submitting are the same request family, and GitHub's endpoint for
-the first is already captured, along with the base commit sha it needs. Until
+The three missing must-haves are one piece of work: replying, resolving and
+submitting sit on the same routes as writing a comment, which is done. Until
 they exist a reviewer still finishes the job on GitHub's page.
 
 Viewed state now agrees in both directions: `page_data/file_tree` reports what

@@ -352,8 +352,14 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     });
   }, [pushToast]);
 
+  // The viewer ignores an item whose version it has already seen, and the
+  // version is worked out from the item the stream produced, so it has to
+  // count up by itself rather than from what that item carries.
+  const annotationRevision = useRef(0);
+
   // Annotations live on the item, so hang each thread on the file it belongs to.
   const itemsWithThreads = useMemo(() => {
+    annotationRevision.current += 1;
     const all = draft == null ? threads : [...threads, draft];
     if (all.length === 0) return items;
     const byPath = new Map<string, ReviewThread[]>();
@@ -368,14 +374,17 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       if (list == null) return item;
       return {
         ...item,
-        annotations: list.map((thread) => ({
-          side: thread.side,
-          // A comment on the file, or one whose lines have since changed, goes
-          // to the top of the file rather than to a line it no longer fits.
-          lineNumber: thread.isOutdated || thread.line == null ? 0 : thread.line,
-          metadata: thread,
-        })),
-        version: (item.version ?? 0) + 1,
+        annotations: list
+          .map((thread) => ({
+            side: thread.side,
+            // A comment on the file, or one whose lines have since changed,
+            // goes to the top of the file rather than to a line it no longer
+            // fits.
+            lineNumber: thread.isOutdated || thread.line == null ? 0 : thread.line,
+            metadata: thread,
+          }))
+          .sort((a, b) => a.lineNumber - b.lineNumber),
+        version: (item.version ?? 0) + annotationRevision.current,
       };
     });
   }, [draft, items, threads]);

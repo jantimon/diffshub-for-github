@@ -93,6 +93,39 @@ await page.waitForTimeout(1500);
 
 const marked = await frame.locator('[data-dh-viewed]').first().getAttribute('data-dh-viewed');
 
+// Leaves a real comment on the fixture pull request, which is what it is for.
+failures += await check('a comment can be written', async () => {
+  const posted = [];
+  page.on('response', (r) => {
+    if (r.url().includes('create_review_comment')) posted.push(r.status());
+  });
+
+  const before = await frame.locator('.dh-thread').count();
+  await frame.locator('[data-line]').nth(4).hover();
+  await page.waitForTimeout(900);
+  const box = await frame.locator('[data-utility-button]').first().boundingBox();
+  if (box == null) return false;
+  await page.mouse.move(box.x + 10, box.y + 10);
+  await page.mouse.down();
+  await page.waitForTimeout(150);
+  await page.mouse.up();
+  await page.waitForTimeout(2000);
+  if ((await frame.locator('.dh-composer').count()) === 0) {
+    console.log('      the composer did not open');
+    return false;
+  }
+
+  await frame.locator('.dh-composer-text').fill(`Written by the browser test at ${new Date().toISOString()}`);
+  await frame.locator('.dh-composer-send').click();
+  await page.waitForTimeout(9000);
+
+  const after = await frame.locator('.dh-thread').count();
+  if (!posted.includes(200)) { console.log('      GitHub answered', JSON.stringify(posted)); return false; }
+  if ((await frame.locator('.dh-composer').count()) !== 0) { console.log('      the box stayed open'); return false; }
+  if (after <= before) { console.log(`      threads ${before} -> ${after}`); return false; }
+  return `posted, and shown at its line (${before} -> ${after} threads)`;
+});
+
 failures += await check('viewed state reaches GitHub', async () => {
   const before = reviewed.length;
   await frame.locator(`[data-dh-viewed="${marked}"]`).click();
