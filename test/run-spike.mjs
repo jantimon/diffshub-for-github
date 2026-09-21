@@ -130,7 +130,7 @@ await check('hunk expansion', async () => {
 
 await check('theme switch', async () => {
   const before = await frame.locator('.dh-overlay').getAttribute('data-theme');
-  const button = frame.locator('.dh-actions .dh-icon-button').nth(1);
+  const button = frame.locator('[data-dh-action="theme"]');
   await button.click();
   await page.waitForTimeout(1500);
   const after = await frame.locator('.dh-overlay').getAttribute('data-theme');
@@ -169,7 +169,7 @@ await check('separator bar expands', async () => {
   return before !== after ? `${before} -> ${after}` : false;
 });
 
-await frame.locator('.dh-icon-button').first().click();
+await frame.locator('[data-dh-action="sidebar"]').click();
 await page.waitForTimeout(500);
 await shoot('sidebar-hidden');
 

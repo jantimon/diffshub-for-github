@@ -574,7 +574,8 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         <button
           type="button"
           className="dh-icon-button"
-          onClick={toggleSidebar}
+          data-dh-action="sidebar"
+            onClick={toggleSidebar}
           aria-pressed={sidebarOpen}
           title={sidebarOpen ? 'Hide the file tree' : 'Show the file tree'}
         >
@@ -598,6 +599,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           <button
             type="button"
             className="dh-icon-button"
+            data-dh-action="layout"
             onClick={toggleLayout}
             title={diffStyle === 'split' ? 'Split view — switch to unified' : 'Unified view — switch to split'}
           >
@@ -606,6 +608,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           <button
             type="button"
             className="dh-icon-button"
+            data-dh-action="review"
             onClick={() => setReviewOpen(true)}
             title="Finish your review"
           >
@@ -614,6 +617,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           <button
             type="button"
             className="dh-icon-button"
+            data-dh-action="theme"
             onClick={toggleTheme}
             title={themeType === 'dark' ? 'Switch to light' : 'Switch to dark'}
           >
@@ -622,6 +626,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           <button
             type="button"
             className="dh-icon-button"
+            data-dh-action="help"
             onClick={() => setHelpOpen(true)}
             title="Keyboard shortcuts (?)"
           >
@@ -629,13 +634,20 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           </button>
           <a
             className="dh-icon-button"
+            data-dh-action="github"
             href={filesUrl(pr)}
             target="_top"
             title="Open GitHub's own Files changed view"
           >
             <IconBrandGithub size={16} />
           </a>
-          <button type="button" className="dh-icon-button" onClick={closeViewer} title="Close (Esc)">
+          <button
+            type="button"
+            className="dh-icon-button"
+            data-dh-action="close"
+            onClick={closeViewer}
+            title="Close (Esc)"
+          >
             <IconX size={16} />
           </button>
         </div>

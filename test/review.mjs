@@ -133,7 +133,7 @@ failures += await check('a review can be submitted', async () => {
     if (r.url().includes('submit_review')) sent.push(r.status());
   });
 
-  await frame.locator('.dh-actions .dh-icon-button').nth(1).click();
+  await frame.locator('[data-dh-action="review"]').click();
   await page.waitForTimeout(1500);
   if ((await frame.locator('.dh-review').count()) === 0) {
     console.log('      the dialog did not open');
