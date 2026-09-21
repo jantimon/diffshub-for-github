@@ -11,6 +11,7 @@ import {
 } from '@/github/pr';
 import { readThreads } from '@/github/readThreads';
 import { readViewed } from '@/github/readViewed';
+import { replyToComment, resolveThread } from '@/github/threadActions';
 import { submitReview } from '@/github/submitReview';
 import { writeComment } from '@/github/writeComment';
 import { readGitHubTheme } from '@/github/theme';
@@ -85,6 +86,24 @@ export default defineContentScript({
         void reviewFile(path, viewed).then((status) => {
           frame?.contentWindow?.postMessage(
             { channel: BRIDGE_CHANNEL, type: 'file-review-result', id, ok: status === 200, status },
+            '*'
+          );
+        });
+        return;
+      }
+
+      if (event.data.type === 'reply' || event.data.type === 'resolve') {
+        const message = event.data;
+        const pr = readPullRequestRef();
+        const request =
+          pr == null
+            ? Promise.resolve({ ok: false, error: 'Not a pull request page.' })
+            : message.type === 'reply'
+              ? replyToComment(pr, message.inReplyTo, message.body)
+              : resolveThread(pr, message.threadId, message.resolved);
+        void request.then((result) => {
+          frame?.contentWindow?.postMessage(
+            { channel: BRIDGE_CHANNEL, type: 'thread-result', id: message.id, ...result },
             '*'
           );
         });

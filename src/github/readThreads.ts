@@ -22,6 +22,7 @@ interface Thread {
 }
 
 interface RawComment {
+  databaseId?: number | string;
   author?: { login?: string };
   body?: string;
   createdAt?: string;
@@ -88,6 +89,7 @@ export async function readThreads(
 
 function toComment(comment: RawComment): ReviewComment {
   return {
+    databaseId: String(comment?.databaseId ?? ''),
     author: comment?.author?.login ?? 'someone',
     body: comment?.body ?? '',
     createdAt: comment?.createdAt ?? '',

@@ -33,6 +33,7 @@ import { usePatchStream } from '@/patch/usePatchStream';
 import { BinaryCompare, isImagePath } from './BinaryCompare';
 import { CommentComposer } from './CommentComposer';
 import { requestReview } from './requestReview';
+import { requestThreadAction } from './requestThreadAction';
 import { ReviewDialog } from './ReviewDialog';
 import { requestComment } from './requestComment';
 import { requestThreads } from './requestThreads';
@@ -401,7 +402,28 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     (annotation: { metadata?: ReviewThread }) => {
       const thread = annotation.metadata;
       if (thread == null) return null;
-      if (thread.isDraft !== true) return <Thread thread={thread} />;
+      if (thread.isDraft !== true) {
+        return (
+          <Thread
+            thread={thread}
+            onReply={async (body) => {
+              // A reply answers the first comment in the thread, which is what
+              // GitHub's own reply form names.
+              const inReplyTo = thread.comments[0]?.databaseId ?? '';
+              const result = await requestThreadAction({ type: 'reply', inReplyTo, body });
+              if (!result.ok) return result.error ?? 'GitHub refused the reply.';
+              reloadThreads();
+              return undefined;
+            }}
+            onResolve={async (resolved) => {
+              const result = await requestThreadAction({ type: 'resolve', threadId: thread.id, resolved });
+              if (!result.ok) return result.error ?? 'GitHub refused that.';
+              reloadThreads();
+              return undefined;
+            }}
+          />
+        );
+      }
       return (
         <CommentComposer
           onCancel={() => setDraft(undefined)}

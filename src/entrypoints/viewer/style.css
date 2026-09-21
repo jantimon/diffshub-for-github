@@ -728,3 +728,34 @@ body {
   color: var(--dh-added);
   border-color: color-mix(in srgb, var(--dh-added) 45%, transparent) !important;
 }
+
+.dh-thread-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.dh-thread-actions button {
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 11px;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--dh-border);
+  border-radius: 6px;
+  opacity: 0.8;
+}
+
+.dh-thread-actions button:hover:not(:disabled) {
+  opacity: 1;
+}
+
+.dh-thread-actions button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.dh-thread-error {
+  margin: 0;
+  color: var(--dh-deleted);
+}

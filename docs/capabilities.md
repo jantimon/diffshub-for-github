@@ -5,9 +5,11 @@ files off and submits a verdict. The overlay replaces that page only when a
 reviewer never has to go back to it. This lists what that takes, in three
 groups, and ends with where each one stands.
 
-**Today the overlay reads a pull request, comments on it and signs it off.**
-What is left is replying to a comment and resolving a conversation. A reviewer
-who needs either still goes back to GitHub's page for it.
+**A review can now be done here from beginning to end**: read the diff, tick
+files off, comment on a line, reply, resolve a conversation, and approve or
+ask for changes. Every must-have is built. What is left is the comfort of
+GitHub's page rather than its function -- ignoring whitespace, filtering the
+tree by status, and suggested changes.
 
 ## Must have
 
@@ -98,8 +100,8 @@ Worth building once the rest holds.
 | 11 | Renames and moves are obvious | ✅ | `MOVED` badge and the old path in blue |
 | 12 | Read existing review comments | ✅ | Inline, with outdated and resolved marked. GitHub stops at 350 threads |
 | 13 | Write a review comment | ✅ | From the gutter control, posted at once, shown at its line |
-| 14 | **Reply to a comment** | ❌ | |
-| 15 | **Resolve a conversation** | ❌ | |
+| 14 | Reply to a comment | ✅ | Submits GitHub's own reply form, so no token is invented |
+| 15 | Resolve a conversation | ✅ | And reopen one |
 | 16 | Submit a review | ✅ | Comment, approve or request changes, from the toolbar |
 | 17 | Mark a file viewed | ✅ | Both ways: what GitHub has is read on open, and every tick is sent back |
 
@@ -139,17 +141,19 @@ Worth building once the rest holds.
 
 | Group | ✅ | 🟡 | ❌ | Total |
 | --- | :---: | :---: | :---: | :---: |
-| Must have | 15 | 0 | 2 | 17 |
+| Must have | 17 | 0 | 0 | 17 |
 | Should have | 5 | 2 | 4 | 11 |
 | Nice to have | 0 | 0 | 11 | 11 |
-| **All** | **20** | **2** | **17** | **39** |
+| **All** | **22** | **2** | **15** | **39** |
 
 ## What to build next
 
-Replying and resolving are the last two. Both endpoints are captured:
-`review_comment/create` with `in_reply_to`, and `threads/{id}/resolve`. Unlike
-the routes used so far they are form posts carrying an `authenticity_token`,
-which the content script has to read off the page.
+Ignoring whitespace (18) is the one a reviewer will miss most: a reformatting
+commit is unreadable without it, and GitHub's `.diff` endpoint offers no `w=1`,
+so the comparison has to be redone in the worker.
+
+After that, filtering the tree by status (19) and rendering suggested changes
+(25), which needs comment bodies to be parsed rather than shown as text.
 
 Viewed state now agrees in both directions: `page_data/file_tree` reports what
 GitHub already has, so a file ticked on either side shows as ticked on the

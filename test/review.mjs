@@ -126,6 +126,44 @@ failures += await check('a comment can be written', async () => {
   return `posted, and shown at its line (${before} -> ${after} threads)`;
 });
 
+failures += await check('a comment can be replied to', async () => {
+  const sent = [];
+  page.on('response', (r) => {
+    if (r.url().includes('review_comment/create')) sent.push(r.status());
+  });
+
+  await frame.locator('[data-dh-thread="reply"]').first().click();
+  await page.waitForTimeout(800);
+  await frame.locator('.dh-thread .dh-composer-text').first().fill(`Replied by the browser test at ${new Date().toISOString()}`);
+  await frame.locator('.dh-thread .dh-composer-send').first().click();
+  await page.waitForTimeout(9000);
+
+  const shown = await frame.locator('.dh-thread-error').allTextContents();
+  if (shown.length > 0) { console.log('      ', shown.join(' | ')); return false; }
+  if (!sent.includes(200)) { console.log('      GitHub answered', JSON.stringify(sent)); return false; }
+  return 'posted through GitHub\'s own reply form';
+});
+
+failures += await check('a conversation can be resolved', async () => {
+  const sent = [];
+  page.on('response', (r) => {
+    if (/\/(resolve|unresolve)$/.test(r.url())) sent.push(`${r.status()} ${r.url().split('/').slice(-2).join('/')}`);
+  });
+
+  const button = frame.locator('[data-dh-thread="resolve"]').first();
+  const wasResolved = (await button.textContent())?.includes('Reopen') === true;
+  await button.click();
+  await page.waitForTimeout(9000);
+
+  const shown = await frame.locator('.dh-thread-error').allTextContents();
+  if (shown.length > 0) { console.log('      ', shown.join(' | ')); return false; }
+  if (!sent.some((entry) => entry.startsWith('200'))) { console.log('      GitHub answered', JSON.stringify(sent)); return false; }
+  // Put it back the way it was found.
+  await frame.locator('[data-dh-thread="resolve"]').first().click();
+  await page.waitForTimeout(6000);
+  return `${wasResolved ? 'reopened' : 'resolved'}, then restored`;
+});
+
 // Submits a real review on the fixture pull request, which is what it is for.
 failures += await check('a review can be submitted', async () => {
   const sent = [];

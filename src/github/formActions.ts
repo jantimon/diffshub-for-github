@@ -1,0 +1,119 @@
+/**
+ * Submitting one of GitHub's own forms.
+ *
+ * ## Why this file exists
+ *
+ * Most of what this extension asks GitHub to do goes through JSON routes that
+ * need no credential beyond the session cookie: fetching a patch, marking a
+ * file viewed, writing a comment, submitting a review. Two actions are
+ * different -- replying to a comment and resolving a conversation. Those are
+ * old-style Rails form posts, and GitHub will only accept them with an
+ * `authenticity_token`.
+ *
+ * ## Why we cannot simply find a token
+ *
+ * There is no page-wide token to find. `<meta name="csrf-token">` is long gone,
+ * and the token is scoped to a single form action: a pull request page carries
+ * dozens of hidden `authenticity_token` inputs and every one of them holds a
+ * different value. A token taken from the "add a reaction" form will not
+ * resolve a conversation. Sending one to the wrong route fails, and helping
+ * yourself to whichever token is nearest is the kind of thing that works in
+ * testing and breaks in front of a user.
+ *
+ * ## What GitHub itself does
+ *
+ * GitHub's own code reads the token from the exact form it is submitting.
+ * From its published source, `behaviors/commenting/preview.ts`:
+ *
+ *     container.closest<HTMLFormElement>('form')!.elements.namedItem('authenticity_token')
+ *
+ * It also ships a lint rule, `github/authenticity-token`, that flags every
+ * direct use of one, so each has to be justified where it is written. The
+ * pattern GitHub intends is clear: a token belongs to a form, and travels
+ * nowhere else.
+ *
+ * ## What this file does
+ *
+ * It goes one step further than reading the token out. It takes the whole form
+ * GitHub already rendered for that action, copies every field, changes only
+ * what the reader typed, and posts it back to the form's own action. That
+ * means:
+ *
+ * - A token can only reach the route it was minted for, because the form is
+ *   found by its action and posted to that same action. Sending a token
+ *   somewhere else is not expressible here.
+ * - No field name or commit sha is invented. GitHub fills in the eight or so
+ *   values a reply needs -- the side, three commit oids, the path, the line --
+ *   and this carries them along untouched. If GitHub renames one, the reply
+ *   keeps working.
+ * - The token is read at the moment of submitting, used once, and never
+ *   stored, logged, or passed anywhere.
+ *
+ * All of this runs in the content script, on github.com's own origin. Tokens
+ * never cross into the extension's viewer.
+ *
+ * ## The fallback
+ *
+ * The pull request page only renders the threads it is showing, so the form
+ * for a given thread may not be in the page at all. When it is missing, the
+ * page is fetched and parsed for a fresh copy of the same form. Same rule, new
+ * copy -- never a token from somewhere else.
+ */
+
+/** Finds a form GitHub has already rendered, by the action it posts to. */
+export function findForm(action: string, match?: (form: HTMLFormElement) => boolean): HTMLFormElement | undefined {
+  for (const form of document.querySelectorAll<HTMLFormElement>(`form[action="${cssEscape(action)}"]`)) {
+    if (match == null || match(form)) return form;
+  }
+  return undefined;
+}
+
+/**
+ * Fetches the pull request page and looks for the form there.
+ *
+ * Used when the thread in question is not on screen, so its form was never
+ * rendered into this document.
+ */
+export async function fetchForm(
+  pageUrl: string,
+  action: string,
+  match?: (form: HTMLFormElement) => boolean
+): Promise<HTMLFormElement | undefined> {
+  const response = await fetch(pageUrl, { credentials: 'include' });
+  if (!response.ok) return undefined;
+
+  // A detached document: parsing alone runs no scripts and loads no subresources.
+  const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+  for (const form of page.querySelectorAll<HTMLFormElement>(`form[action="${cssEscape(action)}"]`)) {
+    if (match == null || match(form)) return form;
+  }
+  return undefined;
+}
+
+/**
+ * Posts a form back to its own action, with some of its values replaced.
+ *
+ * `overrides` is what the reader actually changed -- the text of a reply, say.
+ * Everything else, the token included, goes back exactly as GitHub wrote it.
+ */
+export async function submitForm(
+  form: HTMLFormElement,
+  overrides: Record<string, string> = {}
+): Promise<{ ok: boolean; status: number }> {
+  const body = new FormData(form);
+  for (const [name, value] of Object.entries(overrides)) body.set(name, value);
+
+  const response = await fetch(form.action, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'x-requested-with': 'XMLHttpRequest' },
+    body,
+  });
+
+  return { ok: response.ok, status: response.status };
+}
+
+/** Escapes a value for use inside an attribute selector. */
+function cssEscape(value: string): string {
+  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+}

@@ -12,6 +12,8 @@ export interface PageInfo {
 }
 
 export interface ReviewComment {
+  /** GitHub's own id for the comment, which a reply has to name. */
+  databaseId: string;
   author: string;
   body: string;
   createdAt: string;
@@ -44,6 +46,13 @@ export type ReviewEvent = 'comment' | 'approve' | 'request changes';
 export type ToViewer =
   | { channel: typeof BRIDGE_CHANNEL; type: 'page-info'; info: PageInfo }
   | { channel: typeof BRIDGE_CHANNEL; type: 'file-review-result'; id: number; ok: boolean; status: number }
+  | {
+      channel: typeof BRIDGE_CHANNEL;
+      type: 'thread-result';
+      id: number;
+      ok: boolean;
+      error?: string;
+    }
   | {
       channel: typeof BRIDGE_CHANNEL;
       type: 'review-result';
@@ -93,7 +102,9 @@ export type FromViewer =
       id: number;
       event: ReviewEvent;
       body: string;
-    };
+    }
+  | { channel: typeof BRIDGE_CHANNEL; type: 'reply'; id: number; inReplyTo: string; body: string }
+  | { channel: typeof BRIDGE_CHANNEL; type: 'resolve'; id: number; threadId: string; resolved: boolean };
 
 export function isToViewer(value: unknown): value is ToViewer {
   return (value as ToViewer | null)?.channel === BRIDGE_CHANNEL;

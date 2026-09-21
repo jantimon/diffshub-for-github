@@ -86,9 +86,8 @@ broke, while the diff keeps rendering.
 
 ## What is not built
 
-- **Replying to a comment, and resolving a conversation.** Everything else in a
-  review works here: read the threads, leave a comment on a line, and submit a
-  verdict. For those two, go back to GitHub's tab.
+- **Ignore whitespace.** GitHub's `.diff` endpoint takes no `?w=1`, and the
+  comparison to replace it is not written.
 - **Ignore whitespace.** GitHub's `.diff` endpoint takes no `?w=1`, and the
   client-side comparison to replace it is not written.
 - **Filtering the tree by status.** Added, modified and deleted are shown, not
