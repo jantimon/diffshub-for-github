@@ -90,8 +90,6 @@ broke, while the diff keeps rendering.
   be hidden, but a file mixing a reformatting with a real edit shows both.
 - **Ignore whitespace.** GitHub's `.diff` endpoint takes no `?w=1`, and the
   client-side comparison to replace it is not written.
-- **Filtering the tree by status.** Added, modified and deleted are shown, not
-  filtered on.
 - **The before side of a binary comparison**, which needs a base revision the
   pull request page does not carry.
 

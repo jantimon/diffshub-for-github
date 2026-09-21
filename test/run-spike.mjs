@@ -103,6 +103,21 @@ await check('exclude filter', async () => {
   return `${before} -> ${after} (${hidden?.trim()}) -> ${restored}`;
 });
 
+await check('filter by kind of change', async () => {
+  const all = await frame.locator('[data-item-type="file"]').count();
+  await frame.locator('[data-dh-kind="added"]').click();
+  await page.waitForTimeout(2500);
+  const added = await frame.locator('[data-item-type="file"]').count();
+  await frame.locator('[data-dh-kind="added"]').click();
+  await page.waitForTimeout(2500);
+  const back = await frame.locator('[data-item-type="file"]').count();
+  if (!(added > 0 && added < all && back === all)) {
+    console.log(`      ${all} -> ${added} -> ${back}`);
+    return false;
+  }
+  return `${all} files, ${added} added`;
+});
+
 await check('sidebar resizes', async () => {
   const before = await frame.locator('.dh-sidebar').evaluate((el) => el.getBoundingClientRect().width);
   const handle = frame.locator('.dh-resize');

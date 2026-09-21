@@ -29,7 +29,7 @@ import type { ReviewThread } from '@/bridge';
 import { createFileLoader } from '@/github/fileLoader';
 import { blameUrl, blobUrl, copyPath, type FileRefs } from '@/github/fileLinks';
 import { filesUrl, patchUrl, GITHUB_ORIGIN, type PullRequestRef } from '@/github/pr';
-import type { DiffStats } from '@/patch/accumulator';
+import type { ChangeKind, DiffStats } from '@/patch/accumulator';
 import { usePatchStream } from '@/patch/usePatchStream';
 import { BinaryCompare, isImagePath } from './BinaryCompare';
 import { CommentComposer } from './CommentComposer';
@@ -47,6 +47,13 @@ import { useThemeSurfaces } from './useThemeSurfaces';
 import { useShortcuts } from './useShortcuts';
 import { useViewed } from './useViewed';
 import { readSetting, writeSetting } from './storage';
+
+const KINDS: { kind: ChangeKind; label: string; short: string }[] = [
+  { kind: 'added', label: 'Added', short: 'A' },
+  { kind: 'modified', label: 'Modified', short: 'M' },
+  { kind: 'deleted', label: 'Deleted', short: 'D' },
+  { kind: 'renamed', label: 'Renamed', short: 'R' },
+];
 
 const POOL_OPTIONS: WorkerPoolOptions = {
   poolSize: Math.min(Math.max(1, (navigator.hardwareConcurrency ?? 1) - 1), 3),
@@ -174,6 +181,21 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   );
   const [sidebarOpen, setSidebarOpen] = useState(() => readSetting('sidebar', 'open') !== 'closed');
   const [ignoreWhitespace, setIgnoreWhitespace] = useState(() => readSetting('whitespace', 'show') === 'ignore');
+
+  // No kind chosen means every kind, which is how a reviewer expects a set of
+  // filters to start.
+  const [kinds, setKinds] = useState<ReadonlySet<ChangeKind>>(() => {
+    const stored = readSetting('kinds', '').split(',').filter(Boolean) as ChangeKind[];
+    return new Set(stored);
+  });
+  const toggleKind = useCallback((kind: ChangeKind) => {
+    setKinds((current) => {
+      const next = new Set(current);
+      if (!next.delete(kind)) next.add(kind);
+      writeSetting('kinds', [...next].join(','));
+      return next;
+    });
+  }, []);
   const [sidebarWidth, setSidebarWidth] = useState(() => Number(readSetting('sidebarWidth', '280')) || 280);
   const sidebarWidthRef = useRef(sidebarWidth);
   sidebarWidthRef.current = sidebarWidth;
@@ -269,6 +291,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     include,
     exclude,
     ignoreWhitespace,
+    kinds,
     model,
   });
 
@@ -739,6 +762,20 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
             {state.hiddenCount > 0 && (
               <p className="dh-hidden">{state.hiddenCount.toLocaleString()} files hidden</p>
             )}
+            <div className="dh-kinds" role="group" aria-label="Show only these kinds of change">
+              {KINDS.map(({ kind, label, short }) => (
+                <button
+                  key={kind}
+                  type="button"
+                  data-dh-kind={kind}
+                  data-on={kinds.size === 0 || kinds.has(kind)}
+                  title={kinds.size === 0 ? `Show only ${label.toLowerCase()} files` : label}
+                  onClick={() => toggleKind(kind)}
+                >
+                  {short}
+                </button>
+              ))}
+            </div>
             {state.spacingOnlyCount > 0 && (
               <p className="dh-hidden">
                 {state.spacingOnlyCount.toLocaleString()} changed only in spacing

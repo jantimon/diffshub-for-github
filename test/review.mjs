@@ -63,6 +63,13 @@ failures += await check('comment shows its author and body', async () => {
   const text = (await frame.locator('.dh-comment').first().textContent())?.trim() ?? '';
   return text.includes('jantimon') && text.length > 20 ? text.slice(0, 60) : false;
 });
+failures += await check('a comment renders as GitHub renders it', async () => {
+  const bodies = await frame.locator('.dh-comment-body').count();
+  if (bodies === 0) { console.log('      no rendered bodies'); return false; }
+  const html = await frame.locator('.dh-comment-body').first().innerHTML();
+  return html.includes('<') ? `${bodies} rendered` : false;
+});
+
 failures += await check('thread sits inside the diff', async () => {
   const inside = await frame.evaluate(() => {
     const thread = document.querySelector('.dh-thread');

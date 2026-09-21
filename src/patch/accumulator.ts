@@ -4,11 +4,15 @@ import type { GitStatusEntry } from '@pierre/trees';
 import type { ReviewThread } from '@/bridge';
 import { changesOnlyWhitespace } from './whitespace';
 
+/** What happened to a file, in the words a reviewer filters by. */
+export type ChangeKind = 'added' | 'modified' | 'deleted' | 'renamed';
+
 export interface ParsedFile {
   item: CodeViewItem<ReviewThread>;
   path: string;
   /** Nothing changed here but spacing. */
   spacingOnly: boolean;
+  changeKind: ChangeKind;
   status?: GitStatusEntry['status'];
   addedLines: number;
   deletedLines: number;
@@ -32,11 +36,22 @@ export function createAccumulator(): PatchAccumulator {
   return { files: [], ids: new Set() };
 }
 
-const STATUS_BY_CHANGE_TYPE: Record<string, GitStatusEntry['status'] | undefined> = {
+const KIND_BY_CHANGE_TYPE: Record<string, ChangeKind> = {
   new: 'added',
   deleted: 'deleted',
   'rename-pure': 'renamed',
   'rename-changed': 'renamed',
+};
+
+/**
+ * The tree paints a file by its status, and treats a modified one as the
+ * ordinary case with no mark of its own.
+ */
+const TREE_STATUS: Record<ChangeKind, GitStatusEntry['status'] | undefined> = {
+  added: 'added',
+  deleted: 'deleted',
+  renamed: 'renamed',
+  modified: undefined,
 };
 
 /** Parses one file's patch text and adds it to the accumulator. */
@@ -62,11 +77,13 @@ export function appendFile(
     deletedLines += hunk.deletionLines;
   }
 
+  const changeKind = KIND_BY_CHANGE_TYPE[fileDiff.type] ?? 'modified';
   const parsed: ParsedFile = {
     item: { id, type: 'diff', fileDiff, version: 0 },
     path,
+    changeKind,
     spacingOnly: changesOnlyWhitespace(fileDiff),
-    status: STATUS_BY_CHANGE_TYPE[fileDiff.type],
+    status: TREE_STATUS[changeKind],
     addedLines,
     deletedLines,
     totalLines: fileDiff.unifiedLineCount,

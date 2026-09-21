@@ -23,6 +23,7 @@ interface Thread {
 
 interface RawComment {
   databaseId?: number | string;
+  bodyHTML?: string;
   author?: { login?: string };
   body?: string;
   createdAt?: string;
@@ -92,6 +93,7 @@ function toComment(comment: RawComment): ReviewComment {
     databaseId: String(comment?.databaseId ?? ''),
     author: comment?.author?.login ?? 'someone',
     body: comment?.body ?? '',
+    bodyHTML: comment?.bodyHTML ?? '',
     createdAt: comment?.createdAt ?? '',
     url: comment?.url ?? '',
   };

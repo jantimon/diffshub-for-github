@@ -110,13 +110,13 @@ Worth building once the rest holds.
 | # | Capability | Status | Note |
 | --- | --- | :---: | --- |
 | 18 | Ignore whitespace | 🟡 | Hides files that changed only in spacing. A file mixing spacing with real edits still shows both |
-| 19 | Filter files by status | ❌ | |
+| 19 | Filter files by status | ✅ | Added, modified, deleted, renamed; none chosen means all |
 | 20 | Filter files by glob | ✅ | Include and exclude, remembered |
 | 21 | Diff statistics | ✅ | With the split between additions and deletions |
 | 22 | Follow GitHub's theme, with an override | ✅ | Light and dark, no automatic third state |
 | 23 | Per-file actions | ✅ | Copy path, open the file, blame |
 | 24 | Compare binary files and images | 🟡 | Head side only; the base side needs a revision the page does not carry |
-| 25 | Render and apply suggested changes | ❌ | Bodies arrive as text, so suggestions read as raw markdown |
+| 25 | Render and apply suggested changes | 🟡 | Shown as GitHub renders them. Applying one still happens on GitHub |
 | 26 | A pending review | ❌ | Depends on 13 and 16 |
 | 27 | Keyboard parity with GitHub | 🟡 | Navigation and viewed keys work; nothing for commenting or submitting |
 | 28 | Say when something fails | ✅ | Toasts, and the diff keeps rendering |
@@ -142,9 +142,9 @@ Worth building once the rest holds.
 | Group | ✅ | 🟡 | ❌ | Total |
 | --- | :---: | :---: | :---: | :---: |
 | Must have | 16 | 1 | 0 | 17 |
-| Should have | 5 | 3 | 3 | 11 |
+| Should have | 6 | 4 | 1 | 11 |
 | Nice to have | 1 | 0 | 10 | 11 |
-| **All** | **22** | **4** | **13** | **39** |
+| **All** | **23** | **5** | **11** | **39** |
 
 ### Resolving depends on GitHub's page
 
@@ -169,12 +169,15 @@ commenting wherever the anchor cannot be trusted.
 
 ## What to build next
 
-Filtering the tree by status (19) is the small one, and useful on a diff of any
-size.
+A pending review (26) is the largest thing left: comments go up one at a time
+today, where GitHub holds them back until the review is submitted.
 
-Rendering suggested changes (25) is the larger one, and closer than it was:
-comment bodies are shown as text today, but GitHub's own renderer is already
-wired up for the preview.
+Applying a suggested change (25) needs a commit made on the reader's behalf,
+which none of the routes used so far do.
+
+Resolving (15) is the one that is fragile rather than missing, and worth a look
+before either: if GitHub's own React page resolves through a JSON route instead
+of a per-thread form, the limitation goes away.
 
 Viewed state now agrees in both directions: `page_data/file_tree` reports what
 GitHub already has, so a file ticked on either side shows as ticked on the

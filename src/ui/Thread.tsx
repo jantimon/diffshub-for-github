@@ -53,7 +53,16 @@ export function Thread({
               </a>
             )}
           </header>
-          <p>{comment.body}</p>
+          {/* GitHub's own rendering, which is the only way a suggested change
+              arrives as anything but raw markdown. It is sanitised by GitHub,
+              and the extension's content security policy allows no inline
+              script, so nothing in it can run. Falls back to the plain text
+              when GitHub sends no HTML. */}
+          {comment.bodyHTML !== '' ? (
+            <div className="dh-comment-body" dangerouslySetInnerHTML={{ __html: comment.bodyHTML }} />
+          ) : (
+            <p>{comment.body}</p>
+          )}
         </article>
       ))}
 

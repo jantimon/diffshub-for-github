@@ -18,6 +18,8 @@ export interface ReviewComment {
   databaseId: string;
   author: string;
   body: string;
+  /** GitHub's own rendering of the body, which is how a suggestion arrives. */
+  bodyHTML: string;
   createdAt: string;
   url: string;
 }
