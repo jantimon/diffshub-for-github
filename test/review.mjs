@@ -27,7 +27,7 @@ await page.waitForTimeout(3500);
 await page.locator('[data-diffshub-marked]').first().click();
 await page.waitForTimeout(12000);
 
-const frame = page.frames().find((f) => f.url().startsWith('chrome-extension://'));
+let frame = page.frames().find((f) => f.url().startsWith('chrome-extension://'));
 if (frame == null) {
   console.log('FAIL: no viewer frame');
   await context.close();
@@ -71,6 +71,26 @@ failures += await check('thread sits inside the diff', async () => {
   return inside && 'anchored in the viewer';
 });
 
+// The profile persists between runs, so a file left ticked would make the click
+// below an unmark and the assertions meaningless.
+await frame.evaluate(() => {
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith('diffshub-for-github.')) localStorage.removeItem(key);
+  }
+});
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(3000);
+await page.locator('[data-diffshub-marked]').first().click();
+await page.waitForTimeout(10000);
+frame = page.frames().find((f) => f.url().startsWith('moz-extension://')) ??
+  page.frames().find((f) => f.url().startsWith('chrome-extension://'));
+
+// The patch streams and the comments arrive in two paginated walks; the write
+// checks below are about state, so let the overlay settle before touching it.
+await frame.locator('.dh-loading').waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
+await frame.locator('[data-dh-viewed]').first().waitFor({ timeout: 30000 });
+await page.waitForTimeout(1500);
+
 const marked = await frame.locator('[data-dh-viewed]').first().getAttribute('data-dh-viewed');
 
 failures += await check('viewed state reaches GitHub', async () => {
@@ -85,11 +105,18 @@ failures += await check('viewed state reaches GitHub', async () => {
 });
 
 failures += await check('the tick survives', async () => {
-  const pressed = await frame.locator(`[data-dh-viewed="${marked}"]`).getAttribute('aria-pressed');
-  return pressed === 'true' ? 'still marked after the write' : false;
+  // Marking moves on to the next file, so that header is scrolled away and
+  // recycled. The tally in the header is the durable evidence: a write GitHub
+  // refused would have taken the tick back.
+  const text = (await frame.locator('.dh-stats span').first().textContent())?.trim() ?? '';
+  const viewed = Number(text.split('/')[0].replace(/[^0-9]/g, ''));
+  if (viewed < 1) console.log('      tally:', JSON.stringify(text), 'writes:', JSON.stringify(reviewed));
+  return viewed >= 1 ? `${text} after the write` : false;
 });
 
 failures += await check('the tree marks it', async () => {
+  const mark = frame.locator('[data-item-section="decoration"]', { hasText: '\u2713' }).first();
+  await mark.waitFor({ timeout: 10000 }).catch(() => {});
   const marks = await frame.locator('[data-item-section="decoration"]', { hasText: '\u2713' }).count();
   return marks > 0 ? `${marks} mark(s)` : false;
 });

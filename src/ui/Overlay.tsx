@@ -260,7 +260,8 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
 
   const navigation = useNavigation(viewerRef, visibleRef);
   const { viewed, toggle } = useViewed(
-    `${pr.owner}/${pr.repo}/${pr.number}/${page.headSha ?? 'head'}`,
+    `${pr.owner}/${pr.repo}/${pr.number}`,
+    page.headSha,
     useCallback((message: string) => toasts.push(message), [toasts])
   );
 

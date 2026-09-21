@@ -9,7 +9,6 @@ import {
 } from 'react';
 
 import { blobUrl, rawUrl, type FileRefs } from '@/github/fileLinks';
-import { githubFetch } from '@/github/githubFetch';
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg', 'ico', 'bmp']);
 
@@ -44,7 +43,7 @@ function formatBytes(size: number): string {
 
 /** A 404 is how a side that does not exist — added or deleted — announces itself. */
 async function readSide(url: string, signal: AbortSignal): Promise<SideState> {
-  const response = await githubFetch(url, signal);
+  const response = await fetch(url, { credentials: 'include', signal });
   if (response.status === 404) {
     void response.body?.cancel().catch(() => {});
     return { status: 'missing' };

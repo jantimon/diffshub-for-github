@@ -1,5 +1,4 @@
 import { BRIDGE_CHANNEL } from '@/bridge';
-import { serveGithubFetch } from '@/github/githubFetch';
 
 const GITHUB_ORIGINS = ['https://github.com/*', 'https://*.githubusercontent.com/*'];
 
@@ -32,7 +31,6 @@ async function watchHostAccess(): Promise<void> {
 
 // The toolbar button is a second way in, for when the tab strip is off screen.
 export default defineBackground(() => {
-  if (import.meta.env.FIREFOX) serveGithubFetch();
   void watchHostAccess();
 
   browser.action.onClicked.addListener((tab) => {

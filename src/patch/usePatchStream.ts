@@ -14,7 +14,6 @@ import {
   type ParsedFile,
   type PatchAccumulator,
 } from './accumulator';
-import { githubFetch } from '@/github/githubFetch';
 
 /** Publish cadence, mirroring what diffshub.com settled on. */
 const WORK_BUDGET_MS = 8;
@@ -118,7 +117,7 @@ export function usePatchStream({ url, cacheKeyPrefix, include, exclude, model }:
     let lastPublishedAt = 0;
 
     const run = async (): Promise<void> => {
-      const response = await githubFetch(url, controller.signal);
+      const response = await fetch(url, { credentials: 'include', signal: controller.signal });
       if (!response.ok) throw new Error(`GitHub answered ${response.status} for this patch.`);
       if (response.body == null) throw new Error('GitHub returned no patch body.');
 
