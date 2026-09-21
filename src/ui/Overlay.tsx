@@ -342,6 +342,9 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     void requestThreads().then((result) => {
       setThreads(result.threads);
       if (result.error != null) pushToast(`Comments: ${result.error}`);
+      else if (result.truncated) {
+        pushToast('GitHub returned only the most recent comments on this pull request.');
+      }
     });
   }, [pushToast]);
 
@@ -362,7 +365,9 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         ...item,
         annotations: list.map((thread) => ({
           side: thread.side,
-          lineNumber: thread.line,
+          // A comment on the file, or one whose lines have since changed, goes
+          // to the top of the file rather than to a line it no longer fits.
+          lineNumber: thread.isOutdated || thread.line == null ? 0 : thread.line,
           metadata: thread,
         })),
         version: (item.version ?? 0) + 1,

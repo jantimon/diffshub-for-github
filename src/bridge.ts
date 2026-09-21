@@ -21,9 +21,12 @@ export interface ReviewComment {
 export interface ReviewThread {
   id: string;
   path: string;
-  line: number;
+  /** Null for a comment on the file rather than a line. */
+  line: number | null;
   side: 'additions' | 'deletions';
   isResolved: boolean;
+  /** The lines this was written against are no longer in the diff. */
+  isOutdated: boolean;
   comments: ReviewComment[];
 }
 
@@ -35,6 +38,7 @@ export type ToViewer =
       type: 'threads-result';
       id: number;
       threads: ReviewThread[];
+      truncated: boolean;
       error?: string;
     };
 

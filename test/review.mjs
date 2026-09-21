@@ -71,9 +71,11 @@ failures += await check('thread sits inside the diff', async () => {
   return inside && 'anchored in the viewer';
 });
 
+const marked = await frame.locator('[data-dh-viewed]').first().getAttribute('data-dh-viewed');
+
 failures += await check('viewed state reaches GitHub', async () => {
   const before = reviewed.length;
-  await frame.locator('[data-dh-viewed]').first().click();
+  await frame.locator(`[data-dh-viewed="${marked}"]`).click();
   await page.waitForTimeout(3000);
   const sent = reviewed.slice(before);
   if (sent.length === 0) return false;
@@ -83,7 +85,7 @@ failures += await check('viewed state reaches GitHub', async () => {
 });
 
 failures += await check('the tick survives', async () => {
-  const pressed = await frame.locator('[data-dh-viewed]').first().getAttribute('aria-pressed');
+  const pressed = await frame.locator(`[data-dh-viewed="${marked}"]`).getAttribute('aria-pressed');
   return pressed === 'true' ? 'still marked after the write' : false;
 });
 

@@ -4,7 +4,17 @@ import type { ReviewThread } from '@/bridge';
 export function Thread({ thread }: { thread: ReviewThread }) {
   return (
     <aside className="dh-thread" data-resolved={thread.isResolved}>
-      {thread.isResolved && <p className="dh-thread-resolved">Resolved</p>}
+      {(thread.isResolved || thread.isOutdated || thread.line == null) && (
+        <p className="dh-thread-resolved">
+          {[
+            thread.isResolved ? 'Resolved' : undefined,
+            thread.isOutdated ? 'Outdated' : undefined,
+            thread.line == null ? 'On the file' : undefined,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+      )}
       {thread.comments.map((comment, index) => (
         <article className="dh-comment" key={`${thread.id}-${index}`}>
           <header>
