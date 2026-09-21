@@ -2,12 +2,8 @@ import type { FileDiffContentsLoader, FileDiffLoadedFiles } from '@pierre/diffs'
 
 import { githubFetch } from './githubFetch';
 import { reconstructOldFile } from '@/patch/reconstructOldFile';
-import { GITHUB_ORIGIN, type PullRequestRef } from './pr';
-
-function rawUrl(pr: PullRequestRef, sha: string, path: string): string {
-  const encoded = path.split('/').map(encodeURIComponent).join('/');
-  return `${GITHUB_ORIGIN}/${pr.owner}/${pr.repo}/raw/${sha}/${encoded}`;
-}
+import { rawFileUrl } from './fileLinks';
+import type { PullRequestRef } from './pr';
 
 /**
  * Supplies both sides of a file so collapsed context can be expanded.
@@ -40,7 +36,7 @@ async function load(
   headSha: string,
   fileDiff: Parameters<FileDiffContentsLoader>[0]
 ): Promise<FileDiffLoadedFiles> {
-  const url = rawUrl(pr, headSha, fileDiff.name);
+  const url = rawFileUrl(pr, headSha, fileDiff.name);
   const response = await githubFetch(url);
   if (!response.ok) {
     throw new Error(`GitHub answered ${response.status} for ${fileDiff.name}.`);

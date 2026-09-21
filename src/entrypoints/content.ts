@@ -1,4 +1,11 @@
-import { BRIDGE_CHANNEL, isFromViewer, type PageInfo } from '@/bridge';
+import {
+  BRIDGE_CHANNEL,
+  isFromViewer,
+  type Ask,
+  type PageInfo,
+  type Reply,
+  type RequestName,
+} from '@/bridge';
 import {
   filesPaths,
   findFilesChangedLink,
@@ -8,6 +15,7 @@ import {
   readHeadSha,
   readPullRequestRef,
   readPullRequestTitle,
+  GITHUB_ORIGIN,
   type PullRequestRef,
 } from '@/github/pr';
 import { readThreads } from '@/github/readThreads';
@@ -16,6 +24,7 @@ import { readViewed } from '@/github/readViewed';
 import { replyToComment, resolveThread } from '@/github/threadActions';
 import { submitReview } from '@/github/submitReview';
 import { writeComment } from '@/github/writeComment';
+import { writeViewed } from '@/github/writeViewed';
 import { readGitHubTheme } from '@/github/theme';
 
 const MARKER_ATTRIBUTE = 'data-diffshub-marked';
@@ -80,123 +89,71 @@ export default defineContentScript({
       document.documentElement.append(frame);
     };
 
-    addEventListener('message', (event: MessageEvent) => {
+    // Everything the viewer can ask for. One entry per request in the bridge's
+    // table, so a missing or misnamed handler is a compile error rather than a
+    // message that goes unanswered.
+    const handlers: {
+      [K in RequestName]: (ask: Ask<K>, pr: PullRequestRef) => Promise<Reply<K>>;
+    } = {
+      viewed: (_ask, pr) => readViewed(pr),
+      'file-review': ({ path, viewed }, pr) => writeViewed(pr, path, viewed),
+      threads: (_ask, pr) => readThreads(pr),
+      comment: (comment, pr) => writeComment(pr, comment),
+      reply: ({ inReplyTo, body }, pr) => replyToComment(pr, inReplyTo, body),
+      resolve: ({ threadId }, pr) => resolveThread(pr, threadId),
+      review: async ({ event, body }, pr) => {
+        const headSha = readHeadSha();
+        if (headSha == null) return { ok: false, error: 'Could not tell which commit to review.' };
+        return submitReview(pr, headSha, event, body);
+      },
+      preview: ({ text }) => previewMarkdown(text),
+    };
+
+    /** What every request answers with when the page is no longer a pull request. */
+    const NOT_A_PULL_REQUEST: { [K in RequestName]: Reply<K> } = {
+      viewed: { paths: [], error: 'Not a pull request page.' },
+      'file-review': { ok: false, error: 'Not a pull request page.' },
+      threads: { threads: [], truncated: false, error: 'Not a pull request page.' },
+      comment: { ok: false, error: 'Not a pull request page.' },
+      reply: { ok: false, error: 'Not a pull request page.' },
+      resolve: { ok: false, error: 'Not a pull request page.' },
+      review: { ok: false, error: 'Not a pull request page.' },
+      preview: { error: 'Not a pull request page.' },
+    };
+
+    ctx.addEventListener(window, 'message', (event: MessageEvent) => {
       if (frame == null || event.source !== frame.contentWindow) return;
       if (!isFromViewer(event.data)) return;
+      const message = event.data;
 
-      if (event.data.type === 'file-review') {
-        const { id, path, viewed } = event.data;
-        void reviewFile(path, viewed).then((status) => {
-          frame?.contentWindow?.postMessage(
-            { channel: BRIDGE_CHANNEL, type: 'file-review-result', id, ok: status === 200, status },
-            '*'
-          );
-        });
+      if (message.type === 'close') {
+        close();
         return;
       }
 
-      if (event.data.type === 'preview') {
-        const { id, text } = event.data;
-        void previewMarkdown(text).then((result) => {
-          frame?.contentWindow?.postMessage(
-            { channel: BRIDGE_CHANNEL, type: 'preview-result', id, ...result },
-            '*'
-          );
-        });
-        return;
-      }
-
-      if (event.data.type === 'reply' || event.data.type === 'resolve') {
-        const message = event.data;
-        const pr = readPullRequestRef();
-        const request =
-          pr == null
-            ? Promise.resolve({ ok: false, error: 'Not a pull request page.' })
-            : message.type === 'reply'
-              ? replyToComment(pr, message.inReplyTo, message.body)
-              : resolveThread(pr, message.threadId);
-        void request.then((result) => {
-          frame?.contentWindow?.postMessage(
-            { channel: BRIDGE_CHANNEL, type: 'thread-result', id: message.id, ...result },
-            '*'
-          );
-        });
-        return;
-      }
-
-      if (event.data.type === 'review') {
-        const { id, event: verdict, body } = event.data;
-        const pr = readPullRequestRef();
-        const headSha = readHeadSha();
-        const request =
-          pr == null || headSha == null
-            ? Promise.resolve({ ok: false, error: 'Could not tell which commit to review.' })
-            : submitReview(pr.owner, pr.repo, pr.number, headSha, verdict, body);
-        void request.then((result) => {
-          frame?.contentWindow?.postMessage(
-            { channel: BRIDGE_CHANNEL, type: 'review-result', id, ...result },
-            '*'
-          );
-        });
-        return;
-      }
-
-      if (event.data.type === 'comment') {
-        const { id, comment } = event.data;
-        const pr = readPullRequestRef();
-        const request =
-          pr == null
-            ? Promise.resolve({ ok: false, error: 'Not a pull request page.' })
-            : writeComment(pr.owner, pr.repo, pr.number, comment);
-        void request.then((result) => {
-          frame?.contentWindow?.postMessage(
-            { channel: BRIDGE_CHANNEL, type: 'comment-result', id, ...result },
-            '*'
-          );
-        });
-        return;
-      }
-
-      if (event.data.type === 'viewed') {
-        const { id } = event.data;
-        const pr = readPullRequestRef();
-        const request =
-          pr == null
-            ? Promise.resolve({ paths: [], error: 'Not a pull request page.' })
-            : readViewed(pr.owner, pr.repo, pr.number);
-        void request.then((result) => {
-          frame?.contentWindow?.postMessage(
-            { channel: BRIDGE_CHANNEL, type: 'viewed-result', id, paths: result.paths, error: result.error },
-            '*'
-          );
-        });
-        return;
-      }
-
-      if (event.data.type === 'threads') {
-        const { id } = event.data;
-        const pr = readPullRequestRef();
-        const request =
-          pr == null
-            ? Promise.resolve({ threads: [], error: 'Not a pull request page.' })
-            : readThreads(pr.owner, pr.repo, pr.number);
-        void request.then((result) => {
-          frame?.contentWindow?.postMessage(
-            { channel: BRIDGE_CHANNEL, type: 'threads-result', id, ...result },
-            '*'
-          );
-        });
-        return;
-      }
-
-      if (event.data.type === 'ready') {
+      if (message.type === 'ready') {
         frame.contentWindow?.postMessage(
           { channel: BRIDGE_CHANNEL, type: 'page-info', info: collectPageInfo() },
           '*'
         );
         return;
       }
-      close();
+
+      if (message.type !== 'request') return;
+
+      const { id, name } = message;
+      const pr = readPullRequestRef();
+      const answer =
+        pr == null
+          ? Promise.resolve(NOT_A_PULL_REQUEST[name])
+          : // The table is keyed by the same name that types the payload, which
+            // TypeScript cannot follow across a lookup, so this is the one place
+            // the pairing is asserted rather than checked.
+            (handlers[name] as (ask: unknown, pr: PullRequestRef) => Promise<Reply<typeof name>>)(message.ask, pr);
+
+      void answer.then((reply) => {
+        frame?.contentWindow?.postMessage({ channel: BRIDGE_CHANNEL, type: 'response', id, name, reply }, '*');
+      });
     });
 
     browser.runtime.onMessage.addListener((message: { channel?: string; type?: string }) => {
@@ -204,28 +161,6 @@ export default defineContentScript({
       const pr = readPullRequestRef();
       if (pr != null) open(pr);
     });
-
-    // GitHub refuses a write that does not come from its own origin, so the
-    // viewer asks this script to make it.
-    const reviewFile = async (path: string, viewed: boolean): Promise<number> => {
-      const pr = readPullRequestRef();
-      if (pr == null) return 0;
-      try {
-        const response = await fetch(`/${pr.owner}/${pr.repo}/pull/${pr.number}/file_review`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'content-type': 'application/json',
-            'x-requested-with': 'XMLHttpRequest',
-            'github-verified-fetch': 'true',
-          },
-          body: JSON.stringify({ path, viewed: viewed ? 'viewed' : 'unviewed' }),
-        });
-        return response.status;
-      } catch {
-        return 0;
-      }
-    };
 
     // Listening on the document rather than on the tab means a re-render cannot
     // drop the handler, and it covers every route to the diff -- the tab strip,
@@ -253,7 +188,7 @@ export default defineContentScript({
       style.id = MARKER_ATTRIBUTE;
       const selectors = filesPaths(pr).flatMap((path) => {
         const value = path.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
-        return [`a[href="${value}"]::after`, `a[href="${GITHUB_ORIGIN_PREFIX}${value}"]::after`];
+        return [`a[href="${value}"]::after`, `a[href="${GITHUB_ORIGIN}${value}"]::after`];
       });
       const badge = browser.runtime.getURL('/icon/32.png');
       style.textContent = `${selectors.join(', ')} {
@@ -298,5 +233,3 @@ export default defineContentScript({
     });
   },
 });
-
-const GITHUB_ORIGIN_PREFIX = 'https://github.com';

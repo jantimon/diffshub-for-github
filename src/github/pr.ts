@@ -8,6 +8,11 @@ export interface PullRequestRef {
 
 const PULL_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/|$)/;
 
+/** Where the pull request lives, which every one of its routes hangs off. */
+export function pullPath(ref: PullRequestRef): string {
+  return `/${ref.owner}/${ref.repo}/pull/${ref.number}`;
+}
+
 export function readPullRequestRef(pathname = location.pathname): PullRequestRef | undefined {
   const match = PULL_PATH.exec(pathname);
   if (match == null) return undefined;
@@ -16,11 +21,11 @@ export function readPullRequestRef(pathname = location.pathname): PullRequestRef
 }
 
 export function patchUrl(ref: PullRequestRef): string {
-  return `${GITHUB_ORIGIN}/${ref.owner}/${ref.repo}/pull/${ref.number}.diff`;
+  return `${GITHUB_ORIGIN}${pullPath(ref)}.diff`;
 }
 
 export function filesUrl(ref: PullRequestRef): string {
-  return `${GITHUB_ORIGIN}/${ref.owner}/${ref.repo}/pull/${ref.number}/files`;
+  return `${GITHUB_ORIGIN}${pullPath(ref)}/files`;
 }
 
 /** The PR title, from the page if it exposes one and from the tab title if not. */
@@ -47,7 +52,7 @@ export function readBranchPair(): { base: string; head: string } | undefined {
  * page uses `/files`; the React one uses `/changes`.
  */
 export function filesPaths(ref: PullRequestRef): string[] {
-  const base = `/${ref.owner}/${ref.repo}/pull/${ref.number}`;
+  const base = pullPath(ref);
   return [`${base}/files`, `${base}/changes`];
 }
 

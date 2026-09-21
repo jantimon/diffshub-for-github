@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { requestFileReview } from './reviewFile';
-import { requestViewed } from './requestViewed';
+import { ask } from './ask';
 import { readSetting, writeSetting } from './storage';
 
 interface Stored {
@@ -33,6 +32,10 @@ function read(key: string): Stored {
  */
 export function useViewed(key: string, headSha: string | undefined, onFailure: (message: string) => void) {
   const [viewed, setViewed] = useState<ReadonlySet<string>>(() => new Set(read(key).ids));
+  // The commit the diff starts at. GitHub reports it on the same request as the
+  // ticks, so it is taken from there rather than fetched again: the route that
+  // carries it is over a megabyte on a large pull request.
+  const [baseSha, setBaseSha] = useState<string | undefined>(undefined);
   const viewedRef = useRef(viewed);
   viewedRef.current = viewed;
 
@@ -48,7 +51,8 @@ export function useViewed(key: string, headSha: string | undefined, onFailure: (
   // otherwise be thrown away when it lands.
   const touched = useRef(false);
   useEffect(() => {
-    void requestViewed().then(({ paths }) => {
+    void ask('viewed').then(({ paths, baseSha: base }) => {
+      setBaseSha(base);
       if (touched.current || paths.length === 0) return;
       setViewed((current) => {
         const merged = new Set(current);
@@ -92,14 +96,14 @@ export function useViewed(key: string, headSha: string | undefined, onFailure: (
       touched.current = true;
       const next = !viewedRef.current.has(id);
       apply(id, next);
-      void requestFileReview(path, next).then((ok) => {
+      void ask('file-review', { path, viewed: next }).then(({ ok, error }) => {
         if (ok) return;
         apply(id, !next);
-        onFailure(`GitHub did not record ${path} as ${next ? 'viewed' : 'not viewed'}.`);
+        onFailure(error ?? `GitHub did not record ${path} as ${next ? 'viewed' : 'not viewed'}.`);
       });
     },
     [apply, onFailure]
   );
 
-  return { viewed, toggle };
+  return { viewed, toggle, baseSha };
 }

@@ -11,6 +11,9 @@
  * `.js-data-preview-url-csrf` input. That is where GitHub's own preview code
  * looks, from its published source `behaviors/commenting/preview.ts`.
  */
+
+import { POST_FORM } from './requests';
+
 export async function previewMarkdown(text: string): Promise<{ html?: string; error?: string }> {
   const host = document.querySelector<HTMLElement>('[data-preview-url]');
   const url = host?.getAttribute('data-preview-url');
@@ -33,7 +36,7 @@ export async function previewMarkdown(text: string): Promise<{ html?: string; er
     const response = await fetch(url, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'x-requested-with': 'XMLHttpRequest' },
+      headers: POST_FORM,
       body,
     });
     if (!response.ok) return { error: `GitHub answered ${response.status} for the preview.` };

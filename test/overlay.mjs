@@ -1,58 +1,26 @@
-import { chromium } from '@playwright/test';
-import { fileURLToPath } from 'node:url';
-import fs from 'node:fs';
-import path from 'node:path';
+/**
+ * What the viewer does with a pull request it only reads.
+ *
+ * Nothing here writes to GitHub, so it runs against any public pull request and
+ * needs no login. The checks that write have their own suite in `review.mjs`.
+ */
 
-const root = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.resolve(root, '../.output/chrome-mv3');
+import { checker, launch, openOverlay, screenshots } from './browser.mjs';
+
 const url = process.argv[2] ?? 'https://github.com/nodejs/node/pull/60000';
 
-// Screenshots of each step, so a run can be looked over afterwards.
-const shots = path.resolve(root, 'screenshots');
-fs.rmSync(shots, { recursive: true, force: true });
-fs.mkdirSync(shots, { recursive: true });
-let shotIndex = 0;
-const shoot = async (name) =>
-  page.screenshot({ path: path.join(shots, `${String(++shotIndex).padStart(2, '0')}-${name}.png`) });
+const { context, page, noise } = await launch();
+const { dir, shoot } = screenshots(page);
+const { check, finish } = checker();
 
-const context = await chromium.launchPersistentContext(process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'), {
-  channel: 'chromium',
-  headless: false,
-  viewport: { width: 1600, height: 1000 },
-  args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
-});
+const frame = await openOverlay(page, url, { noise });
+if (frame == null) {
+  console.log('FAIL  the viewer did not open');
+  await context.close();
+  process.exit(1);
+}
 
-const page = context.pages()[0] ?? (await context.newPage());
-const noise = [];
-page.on('pageerror', (e) => noise.push(`gh pageerror: ${e.message.slice(0, 160)}`));
-
-await page.goto(url, { waitUntil: 'domcontentloaded' });
-await page.waitForTimeout(3500);
-await shoot('github-page');
-await page.locator('[data-diffshub-marked]').first().click();
-await page.waitForTimeout(12000);
 await shoot('overlay');
-
-let frame = page.frames().find((f) => f.url().startsWith('chrome-extension://'));
-if (frame == null) { console.log('FAIL: no viewer frame'); await context.close(); process.exit(1); }
-frame.on('console', (m) => { if (m.type() === 'error') noise.push(`viewer: ${m.text().slice(0, 160)}`); });
-
-const check = async (name, fn) => {
-  try { const value = await fn(); console.log(`${value ? 'ok  ' : 'FAIL'}  ${name}${value && value !== true ? ` — ${value}` : ''}`); }
-  catch (error) { console.log(`FAIL  ${name} — ${String(error).slice(0, 140)}`); }
-};
-
-// The profile persists between runs, so clear what the last one remembered.
-await frame.evaluate(() => {
-  for (const key of Object.keys(localStorage)) {
-    if (key.startsWith('diffshub-for-github.')) localStorage.removeItem(key);
-  }
-});
-await page.reload();
-await page.waitForTimeout(3000);
-await page.locator('[data-diffshub-marked]').first().click();
-await page.waitForTimeout(12000);
-frame = page.frames().find((f) => f.url().startsWith('chrome-extension://'));
 
 await check('patch streamed', async () => (await frame.locator('.dh-stats').textContent())?.trim());
 await check('file tree populated', async () => `${await frame.locator('[data-item-type="file"]').count()} files`);
@@ -103,19 +71,52 @@ await check('exclude filter', async () => {
   return `${before} -> ${after} (${hidden?.trim()}) -> ${restored}`;
 });
 
-await check('filter by kind of change', async () => {
-  const all = await frame.locator('[data-item-type="file"]').count();
-  await frame.locator('[data-dh-kind="added"]').click();
+await check('a folder is ticked once every file under it is read', async () => {
+  // The tree names a folder with a trailing slash and a file without one, and
+  // the two are counted separately, so this is worth pinning: when the tally
+  // and the tree disagreed about the name, no folder was ever ticked.
+  const ticks = () =>
+    frame.evaluate(() => {
+      const out = { file: 0, folder: 0 };
+      const walk = (root, depth) => {
+        if (depth > 6) return;
+        for (const row of root.querySelectorAll('[data-item-path]')) {
+          const mark = row.querySelector('[data-item-section="decoration"]');
+          if (mark?.textContent?.includes('\u2713') !== true) continue;
+          out[row.getAttribute('data-item-type') === 'folder' ? 'folder' : 'file'] += 1;
+        }
+        for (const el of root.querySelectorAll('*')) if (el.shadowRoot != null) walk(el.shadowRoot, depth + 1);
+      };
+      walk(document, 0);
+      return out;
+    });
+
+  // Only the files on screen have an eye, and GitHub may already have marked
+  // them viewed, so rather than hunting for an unread one this unticks a file
+  // and ticks it again. The second click is the transition being checked, and
+  // the pair leaves the pull request as it was found.
+  const eye = frame.locator('[data-dh-viewed][aria-pressed="true"]').first();
+  if ((await eye.count()) === 0) return false;
+
+  await eye.click();
   await page.waitForTimeout(2500);
-  const added = await frame.locator('[data-item-type="file"]').count();
-  await frame.locator('[data-dh-kind="added"]').click();
+  const unticked = await ticks();
+
+  await frame.locator('[data-dh-viewed][aria-pressed="false"]').first().click();
   await page.waitForTimeout(2500);
-  const back = await frame.locator('[data-item-type="file"]').count();
-  if (!(added > 0 && added < all && back === all)) {
-    console.log(`      ${all} -> ${added} -> ${back}`);
+  const ticked = await ticks();
+  await shoot('folder-ticked');
+
+  // Ticking a file jumps to the next one still to read, so put the view back
+  // at the top for the checks that follow.
+  await frame.locator('.dh-code').evaluate((pane) => pane.scrollTo({ top: 0 }));
+  await page.waitForTimeout(1500);
+
+  if (!(ticked.file > unticked.file && ticked.folder > unticked.folder)) {
+    console.log(`      files ${unticked.file}->${ticked.file}, folders ${unticked.folder}->${ticked.folder}`);
     return false;
   }
-  return `${all} files, ${added} added`;
+  return `${ticked.folder - unticked.folder} folders, ${ticked.file - unticked.file} file`;
 });
 
 await check('sidebar resizes', async () => {
@@ -174,12 +175,38 @@ await check('shortcut help', async () => {
 await page.keyboard.press('Escape');
 await page.waitForTimeout(400);
 
-await check('j moves to next file', async () => {
+// The virtualiser owns the scrolling element, so it is found by behaviour --
+// the thing with somewhere to scroll -- rather than by a class name that is
+// not ours to depend on.
+const scrolled = () =>
+  frame.evaluate(() => {
+    let furthest = 0;
+    const walk = (root, depth) => {
+      if (depth > 6) return;
+      for (const el of root.querySelectorAll('*')) {
+        if (el.scrollHeight - el.clientHeight > 200) furthest = Math.max(furthest, el.scrollTop);
+        if (el.shadowRoot != null) walk(el.shadowRoot, depth + 1);
+      }
+    };
+    walk(document, 0);
+    return furthest;
+  });
+
+await check('j keeps moving down the diff', async () => {
+  const start = await scrolled();
   await page.keyboard.press('j');
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(1200);
+  const once = await scrolled();
   await page.keyboard.press('j');
-  await page.waitForTimeout(800);
-  return true;
+  await page.waitForTimeout(1200);
+  const twice = await scrolled();
+  // Pressing it a second time has to move again: staying put is the bug this
+  // guards, and a check that only pressed once would not have seen it.
+  if (!(once > start && twice > once)) {
+    console.log(`      ${start} -> ${once} -> ${twice}`);
+    return false;
+  }
+  return `${Math.round(start)} -> ${Math.round(once)} -> ${Math.round(twice)}`;
 });
 
 await check('separator bar expands', async () => {
@@ -196,6 +223,5 @@ await frame.locator('[data-dh-action="sidebar"]').click();
 await page.waitForTimeout(500);
 await shoot('sidebar-hidden');
 
-console.log(`\nscreenshots: ${shots}`);
-if (noise.length > 0) console.log('\nconsole noise:\n' + [...new Set(noise)].slice(0, 8).join('\n'));
-await context.close();
+console.log(`\nscreenshots: ${dir}`);
+await finish(context, noise);

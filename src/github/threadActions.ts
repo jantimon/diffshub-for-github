@@ -1,4 +1,6 @@
+import type { Result } from '@/bridge';
 import { findAnyForm, findForm, findFormEndingWith, submitForm } from './formActions';
+import { pullPath, type PullRequestRef } from './pr';
 
 /**
  * Replying to a comment and resolving a conversation.
@@ -9,16 +11,6 @@ import { findAnyForm, findForm, findFormEndingWith, submitForm } from './formAct
  * a token cannot simply be looked up.
  */
 
-interface PullRequest {
-  owner: string;
-  repo: string;
-  number: number;
-}
-
-function pageUrl(pr: PullRequest): string {
-  return `/${pr.owner}/${pr.repo}/pull/${pr.number}`;
-}
-
 /**
  * Replies to a review comment.
  *
@@ -28,11 +20,11 @@ function pageUrl(pr: PullRequest): string {
  * oids, the path and the line; only the text is ours.
  */
 export async function replyToComment(
-  pr: PullRequest,
+  pr: PullRequestRef,
   inReplyTo: string,
   body: string
-): Promise<{ ok: boolean; error?: string }> {
-  const action = `${pageUrl(pr)}/review_comment/create`;
+): Promise<Result> {
+  const action = `${pullPath(pr)}/review_comment/create`;
 
   try {
     // Every thread has its own copy of this one form, and a token is good for
@@ -61,10 +53,10 @@ export async function replyToComment(
  * the form as rendered is the whole request.
  */
 export async function resolveThread(
-  pr: PullRequest,
+  pr: PullRequestRef,
   threadId: string
-): Promise<{ ok: boolean; error?: string }> {
-  const base = `${pageUrl(pr)}/threads/${threadId}`;
+): Promise<Result> {
+  const base = `${pullPath(pr)}/threads/${threadId}`;
 
   try {
     // Unlike a reply, these tokens are tied to the thread's own address, so no

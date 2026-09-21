@@ -89,8 +89,7 @@ await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(3000);
 await page.locator('[data-diffshub-marked]').first().click();
 await page.waitForTimeout(10000);
-frame = page.frames().find((f) => f.url().startsWith('moz-extension://')) ??
-  page.frames().find((f) => f.url().startsWith('chrome-extension://'));
+frame = page.frames().find((f) => f.url().startsWith('chrome-extension://'));
 
 // The patch streams and the comments arrive in two paginated walks; the write
 // checks below are about state, so let the overlay settle before touching it.
@@ -188,7 +187,7 @@ failures += await check('a comment can be replied to', async () => {
   return 'posted through GitHub\'s own reply form';
 });
 
-failures += await check('a conversation can be resolved', async () => {
+failures += await check('a conversation can be resolved, if one is on screen', async () => {
   const sent = [];
   page.on('response', (r) => {
     if (/\/(resolve|unresolve)$/.test(r.url())) sent.push(`${r.status()} ${r.url().split('/').slice(-2).join('/')}`);

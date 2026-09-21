@@ -1,4 +1,18 @@
-/** Messages between the GitHub page and the viewer that overlays it. */
+/**
+ * What the viewer and the GitHub page say to each other.
+ *
+ * The viewer is an extension page in an iframe, so it has its own origin. That
+ * is what lets it run module workers and split its code, but it also means
+ * GitHub treats it as a stranger: a write from that origin is refused, and on
+ * Firefox the session cookie is not even sent. So anything that has to happen
+ * as the reader, on github.com, is named here, asked for over postMessage, and
+ * carried out by the content script.
+ *
+ * Both sides are driven by the `Requests` table below. Adding an action means
+ * adding one line to it and one handler in the content script; the envelope,
+ * the ids, the timeout and the types all follow from that line.
+ */
+
 export const BRIDGE_CHANNEL = 'diffshub-for-github';
 
 export interface PageInfo {
@@ -47,76 +61,70 @@ export interface NewComment {
 
 export type ReviewEvent = 'comment' | 'approve' | 'request changes';
 
-export type ToViewer =
-  | { channel: typeof BRIDGE_CHANNEL; type: 'page-info'; info: PageInfo }
-  | { channel: typeof BRIDGE_CHANNEL; type: 'file-review-result'; id: number; ok: boolean; status: number }
-  | {
-      channel: typeof BRIDGE_CHANNEL;
-      type: 'preview-result';
-      id: number;
-      html?: string;
-      error?: string;
-    }
-  | {
-      channel: typeof BRIDGE_CHANNEL;
-      type: 'thread-result';
-      id: number;
-      ok: boolean;
-      error?: string;
-    }
-  | {
-      channel: typeof BRIDGE_CHANNEL;
-      type: 'review-result';
-      id: number;
-      ok: boolean;
-      error?: string;
-    }
-  | {
-      channel: typeof BRIDGE_CHANNEL;
-      type: 'viewed-result';
-      id: number;
-      paths: string[];
-      error?: string;
-    }
-  | {
-      channel: typeof BRIDGE_CHANNEL;
-      type: 'comment-result';
-      id: number;
-      ok: boolean;
-      error?: string;
-    }
-  | {
-      channel: typeof BRIDGE_CHANNEL;
-      type: 'threads-result';
-      id: number;
-      threads: ReviewThread[];
-      truncated: boolean;
-      error?: string;
-    };
+/** The answer from an action that only has to say whether it worked. */
+export interface Result {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * Everything the viewer asks the page to do: what it sends, and what it gets
+ * back. `void` means the request carries nothing beyond its name.
+ */
+export interface Requests {
+  /** Which files GitHub already has ticked off, and the commit the diff starts at. */
+  viewed: { ask: void; reply: { paths: string[]; baseSha?: string; error?: string } };
+  /** Ticking one file off, or putting it back. */
+  'file-review': { ask: { path: string; viewed: boolean }; reply: Result };
+  /** Every review comment on the pull request. */
+  threads: { ask: void; reply: { threads: ReviewThread[]; truncated: boolean; error?: string } };
+  /** A new comment on one line. */
+  comment: { ask: NewComment; reply: Result };
+  /** An answer to an existing comment. */
+  reply: { ask: { inReplyTo: string; body: string }; reply: Result };
+  /** Resolving a conversation, or reopening one. */
+  resolve: { ask: { threadId: string }; reply: Result };
+  /** The verdict that ends a review. */
+  review: { ask: { event: ReviewEvent; body: string }; reply: Result };
+  /** GitHub's own rendering of markdown, for the preview tab. */
+  preview: { ask: { text: string }; reply: { html?: string; error?: string } };
+}
+
+export type RequestName = keyof Requests;
+export type Ask<K extends RequestName> = Requests[K]['ask'];
+export type Reply<K extends RequestName> = Requests[K]['reply'];
+
+/**
+ * One envelope for every request, and one for every answer. The id pairs them
+ * up, because several can be in flight at once and every message arrives at
+ * the same listener.
+ */
+export type Request = {
+  [K in RequestName]: {
+    channel: typeof BRIDGE_CHANNEL;
+    type: 'request';
+    id: number;
+    name: K;
+    ask: Ask<K>;
+  };
+}[RequestName];
+
+export type Response = {
+  [K in RequestName]: {
+    channel: typeof BRIDGE_CHANNEL;
+    type: 'response';
+    id: number;
+    name: K;
+    reply: Reply<K>;
+  };
+}[RequestName];
 
 export type FromViewer =
   | { channel: typeof BRIDGE_CHANNEL; type: 'ready' }
   | { channel: typeof BRIDGE_CHANNEL; type: 'close' }
-  | {
-      channel: typeof BRIDGE_CHANNEL;
-      type: 'file-review';
-      id: number;
-      path: string;
-      viewed: boolean;
-    }
-  | { channel: typeof BRIDGE_CHANNEL; type: 'threads'; id: number }
-  | { channel: typeof BRIDGE_CHANNEL; type: 'viewed'; id: number }
-  | { channel: typeof BRIDGE_CHANNEL; type: 'comment'; id: number; comment: NewComment }
-  | {
-      channel: typeof BRIDGE_CHANNEL;
-      type: 'review';
-      id: number;
-      event: ReviewEvent;
-      body: string;
-    }
-  | { channel: typeof BRIDGE_CHANNEL; type: 'reply'; id: number; inReplyTo: string; body: string }
-  | { channel: typeof BRIDGE_CHANNEL; type: 'resolve'; id: number; threadId: string }
-  | { channel: typeof BRIDGE_CHANNEL; type: 'preview'; id: number; text: string };
+  | Request;
+
+export type ToViewer = { channel: typeof BRIDGE_CHANNEL; type: 'page-info'; info: PageInfo } | Response;
 
 export function isToViewer(value: unknown): value is ToViewer {
   return (value as ToViewer | null)?.channel === BRIDGE_CHANNEL;

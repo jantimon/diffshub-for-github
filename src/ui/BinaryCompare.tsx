@@ -93,10 +93,16 @@ export function BinaryCompare({
           ✕
         </button>
       </header>
+      {/* Without a base revision there is nothing to compare against. Showing
+          the new file twice, once labelled "Before", would say the file had not
+          changed when it had. */}
       <div className="dh-binary-sides">
-        <BinarySide refs={refs} path={path} side="base" preview={preview} />
+        {refs.baseSha != null && <BinarySide refs={refs} path={path} side="base" preview={preview} />}
         <BinarySide refs={refs} path={path} side="head" preview={preview} />
       </div>
+      {refs.baseSha == null && (
+        <p className="dh-binary-note">GitHub has not said which commit this diff starts at, so only the new file is shown.</p>
+      )}
     </dialog>
   );
 }
@@ -139,7 +145,7 @@ function BinarySide({
     setDimensions({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight });
   }, []);
 
-  const sha = shortSha(side === 'base' ? refs.baseSha : refs.headSha);
+  const sha = shortSha((side === 'base' ? refs.baseSha : refs.headSha) ?? refs.headSha);
 
   return (
     <section className="dh-binary-side">

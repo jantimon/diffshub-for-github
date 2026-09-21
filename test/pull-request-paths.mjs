@@ -2,17 +2,17 @@ import { filesPaths, readPullRequestRef } from '../src/github/pr.ts';
 
 // GitHub serves two pull request layouts. The older one links its Files-changed
 // tab at /files, the React one at /changes, and both have to open the viewer.
-const ref = readPullRequestRef('/DigitecGalaxus/isomorph/pull/10797');
+const ref = readPullRequestRef('/octocat/hello-world/pull/347');
 const paths = filesPaths(ref);
 
 const cases = [
-  ['/DigitecGalaxus/isomorph/pull/10797/files', true],
-  ['/DigitecGalaxus/isomorph/pull/10797/changes', true],
-  ['/DigitecGalaxus/isomorph/pull/10797', false],
-  ['/DigitecGalaxus/isomorph/pull/10797/commits', false],
-  ['/DigitecGalaxus/isomorph/pull/10797/checks', false],
-  ['/DigitecGalaxus/isomorph/pull/10798/files', false],
-  ['/DigitecGalaxus/other/pull/10797/files', false],
+  ['/octocat/hello-world/pull/347/files', true],
+  ['/octocat/hello-world/pull/347/changes', true],
+  ['/octocat/hello-world/pull/347', false],
+  ['/octocat/hello-world/pull/347/commits', false],
+  ['/octocat/hello-world/pull/347/checks', false],
+  ['/octocat/hello-world/pull/348/files', false],
+  ['/octocat/other/pull/347/files', false],
 ];
 
 let failures = 0;
@@ -23,7 +23,7 @@ for (const [path, expected] of cases) {
   console.log(`FAIL ${path}: expected ${expected}, got ${actual}`);
 }
 
-if (ref.owner !== 'DigitecGalaxus' || ref.repo !== 'isomorph' || ref.number !== 10797) {
+if (ref.owner !== 'octocat' || ref.repo !== 'hello-world' || ref.number !== 347) {
   failures += 1;
   console.log(`FAIL parsed the wrong pull request: ${JSON.stringify(ref)}`);
 }

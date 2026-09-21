@@ -1,7 +1,7 @@
 import '@github/markdown-toolbar-element';
 import { useEffect, useId, useRef, useState, type JSX, type KeyboardEvent } from 'react';
 
-import { requestPreview } from './requestPreview';
+import { ask } from './ask';
 
 /**
  * The box for writing a comment, with GitHub's own formatting toolbar.
@@ -51,7 +51,7 @@ export function MarkdownEditor({
     setHtml(undefined);
     setError(undefined);
     if (value.trim() === '') return;
-    const result = await requestPreview(value);
+    const result = await ask('preview', { text: value });
     setHtml(result.html);
     setError(result.error);
   };

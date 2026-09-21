@@ -12,7 +12,7 @@ export function Thread({
 }: {
   thread: ReviewThread;
   onReply: (body: string) => Promise<string | undefined>;
-  onResolve: (resolved: boolean) => Promise<string | undefined>;
+  onResolve: () => Promise<string | undefined>;
 }) {
   const [replying, setReplying] = useState(false);
   const [text, setText] = useState('');
@@ -41,7 +41,7 @@ export function Thread({
       {thread.comments.map((comment, index) => (
         <article className="dh-comment" key={`${thread.id}-${index}`}>
           <header>
-            <strong>{comment.author}</strong>
+            {comment.author !== '' && <strong>{comment.author}</strong>}
             {comment.createdAt !== '' && (
               <time dateTime={comment.createdAt}>
                 {new Date(comment.createdAt).toLocaleDateString()}
@@ -120,7 +120,7 @@ export function Thread({
             type="button"
             data-dh-thread="resolve"
             disabled={busy}
-            onClick={() => void run(() => onResolve(!thread.isResolved))}
+            onClick={() => void run(() => onResolve())}
           >
             {thread.isResolved ? 'Reopen conversation' : 'Resolve conversation'}
           </button>

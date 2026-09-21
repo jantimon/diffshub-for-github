@@ -73,6 +73,8 @@
  * state, which is what our own copy becomes the moment we change it.
  */
 
+import { POST_FORM } from './requests';
+
 /**
  * Finds a form GitHub has already rendered, by any of the actions it might
  * post to.
@@ -133,7 +135,7 @@ export async function submitForm(
   const response = await fetch(form.action, {
     method: 'POST',
     credentials: 'include',
-    headers: { 'x-requested-with': 'XMLHttpRequest' },
+    headers: POST_FORM,
     body,
   });
 

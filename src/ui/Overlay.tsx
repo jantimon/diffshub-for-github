@@ -29,15 +29,12 @@ import type { ReviewThread } from '@/bridge';
 import { createFileLoader } from '@/github/fileLoader';
 import { blameUrl, blobUrl, copyPath, type FileRefs } from '@/github/fileLinks';
 import { filesUrl, patchUrl, GITHUB_ORIGIN, type PullRequestRef } from '@/github/pr';
-import type { ChangeKind, DiffStats } from '@/patch/accumulator';
+import type { DiffStats } from '@/patch/accumulator';
 import { usePatchStream } from '@/patch/usePatchStream';
+import { ask } from './ask';
 import { BinaryCompare, isImagePath } from './BinaryCompare';
 import { CommentComposer } from './CommentComposer';
-import { requestReview } from './requestReview';
-import { requestThreadAction } from './requestThreadAction';
 import { ReviewDialog } from './ReviewDialog';
-import { requestComment } from './requestComment';
-import { requestThreads } from './requestThreads';
 import { ShortcutHelp } from './ShortcutHelp';
 import { Thread } from './Thread';
 import { ToastStack, useToasts } from './Toast';
@@ -47,13 +44,6 @@ import { useThemeSurfaces } from './useThemeSurfaces';
 import { useShortcuts } from './useShortcuts';
 import { useViewed } from './useViewed';
 import { readSetting, writeSetting } from './storage';
-
-const KINDS: { kind: ChangeKind; label: string; short: string }[] = [
-  { kind: 'added', label: 'Added', short: 'A' },
-  { kind: 'modified', label: 'Modified', short: 'M' },
-  { kind: 'deleted', label: 'Deleted', short: 'D' },
-  { kind: 'renamed', label: 'Renamed', short: 'R' },
-];
 
 const POOL_OPTIONS: WorkerPoolOptions = {
   poolSize: Math.min(Math.max(1, (navigator.hardwareConcurrency ?? 1) - 1), 3),
@@ -87,7 +77,9 @@ const TREE_CSS = `
   padding-inline-start: 0;
 }
 
-[data-item-type='directory'] [data-item-section='decoration'] {
+/* A folder's tick is fainter than a file's: it is a summary of what is inside
+   rather than something ticked off by hand. */
+[data-item-type='folder'] [data-item-section='decoration'] {
   opacity: 0.45;
 }
 `;
@@ -182,20 +174,6 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   const [sidebarOpen, setSidebarOpen] = useState(() => readSetting('sidebar', 'open') !== 'closed');
   const [ignoreWhitespace, setIgnoreWhitespace] = useState(() => readSetting('whitespace', 'show') === 'ignore');
 
-  // No kind chosen means every kind, which is how a reviewer expects a set of
-  // filters to start.
-  const [kinds, setKinds] = useState<ReadonlySet<ChangeKind>>(() => {
-    const stored = readSetting('kinds', '').split(',').filter(Boolean) as ChangeKind[];
-    return new Set(stored);
-  });
-  const toggleKind = useCallback((kind: ChangeKind) => {
-    setKinds((current) => {
-      const next = new Set(current);
-      if (!next.delete(kind)) next.add(kind);
-      writeSetting('kinds', [...next].join(','));
-      return next;
-    });
-  }, []);
   const [sidebarWidth, setSidebarWidth] = useState(() => Number(readSetting('sidebarWidth', '280')) || 280);
   const sidebarWidthRef = useRef(sidebarWidth);
   sidebarWidthRef.current = sidebarWidth;
@@ -278,7 +256,9 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         if (id == null || !seen.has(id)) return null;
         return { text: '✓', title: 'Viewed' };
       }
-      const folder = folders.get(item.path);
+      // The tree names a folder with a trailing slash; the tally is keyed by
+      // the path as it appears in the patch, which has none.
+      const folder = folders.get(item.path.replace(/\/$/, ''));
       if (folder == null || folder.total === 0 || folder.viewed < folder.total) return null;
       return { text: '✓', title: `All ${folder.total} files viewed` };
     },
@@ -291,12 +271,11 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     include,
     exclude,
     ignoreWhitespace,
-    kinds,
     model,
   });
 
   const navigation = useNavigation(viewerRef, visibleRef);
-  const { viewed, toggle } = useViewed(
+  const { viewed, toggle, baseSha } = useViewed(
     `${pr.owner}/${pr.repo}/${pr.number}`,
     page.headSha,
     useCallback((message: string) => toasts.push(message), [toasts])
@@ -339,9 +318,11 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     model.render({});
   }, [viewed, model]);
 
-  // Ticking a file off moves to the next one and puts the keyboard on its eye,
-  // so the whole review is space, read, space. Unticking one leaves you on it,
-  // because you went back to it on purpose.
+  // Ticking a file off moves to the next one still to read and puts the
+  // keyboard on its eye, so the whole review is space, read, space. Files
+  // already read are skipped: stopping on one would mean ticking it off again
+  // or stepping past it by hand. Unticking a file leaves you on it, because
+  // you went back to it on purpose.
   const markViewed = useCallback(
     (id: string) => {
       // Read through a ref: the header this button lives in is rendered by the
@@ -350,7 +331,13 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       const files = visibleRef.current;
       toggle(id, files.find((file) => file.item.id === id)?.path ?? id);
       if (wasViewed) return;
-      const next = files[files.findIndex((file) => file.item.id === id) + 1];
+      const from = files.findIndex((file) => file.item.id === id);
+      const seen = viewedRef.current;
+      const next =
+        files.slice(from + 1).find((file) => !seen.has(file.item.id)) ??
+        // Nothing unread below, so fall back to anything unread above: the
+        // reader may have worked through the list out of order.
+        files.slice(0, from).find((file) => !seen.has(file.item.id));
       if (next == null) return;
       viewerRef.current?.scrollTo({ type: 'item', id: next.item.id, align: 'start', behavior: 'smooth' });
       setTimeout(() => {
@@ -378,7 +365,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   useEffect(() => {
     if (askedForThreads.current) return;
     askedForThreads.current = true;
-    void requestThreads().then((result) => {
+    void ask('threads').then((result) => {
       setThreads(result.threads);
       if (result.error != null) pushToast(`Comments: ${result.error}`);
       else if (result.truncated) {
@@ -425,7 +412,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   }, [draft, items, threads]);
 
   const reloadThreads = useCallback(() => {
-    void requestThreads().then((result) => setThreads(result.threads));
+    void ask('threads').then((result) => setThreads(result.threads));
   }, []);
 
   const renderAnnotation = useCallback(
@@ -440,13 +427,13 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
               // A reply answers the first comment in the thread, which is what
               // GitHub's own reply form names.
               const inReplyTo = thread.comments[0]?.databaseId ?? '';
-              const result = await requestThreadAction({ type: 'reply', inReplyTo, body });
+              const result = await ask('reply', { inReplyTo, body });
               if (!result.ok) return result.error ?? 'GitHub refused the reply.';
               reloadThreads();
               return undefined;
             }}
-            onResolve={async (resolved) => {
-              const result = await requestThreadAction({ type: 'resolve', threadId: thread.id });
+            onResolve={async () => {
+              const result = await ask('resolve', { threadId: thread.id });
               if (!result.ok) return result.error ?? 'GitHub refused that.';
               reloadThreads();
               return undefined;
@@ -458,7 +445,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         <CommentComposer
           onCancel={() => setDraft(undefined)}
           onSubmit={async (text) => {
-            const result = await requestComment({
+            const result = await ask('comment', {
               path: thread.path,
               line: thread.line ?? 0,
               side: thread.side,
@@ -486,12 +473,13 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     toasts.push(state.error, { label: 'Open on GitHub', href: filesUrl(pr) });
   }, [state.phase, state.error, toasts, pr]);
 
+  // The two revisions a binary file is compared across. Without the base there
+  // is nothing to compare against, so the viewer shows the new file alone
+  // rather than the same image twice under two headings.
   const refs = useMemo<FileRefs | undefined>(
     () =>
-      page.headSha == null
-        ? undefined
-        : { owner: pr.owner, repo: pr.repo, baseSha: page.headSha, headSha: page.headSha },
-    [page.headSha, pr.owner, pr.repo]
+      page.headSha == null ? undefined : { owner: pr.owner, repo: pr.repo, baseSha, headSha: page.headSha },
+    [baseSha, page.headSha, pr.owner, pr.repo]
   );
 
   const loadDiffFiles = useMemo(
@@ -762,20 +750,6 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
             {state.hiddenCount > 0 && (
               <p className="dh-hidden">{state.hiddenCount.toLocaleString()} files hidden</p>
             )}
-            <div className="dh-kinds" role="group" aria-label="Show only these kinds of change">
-              {KINDS.map(({ kind, label, short }) => (
-                <button
-                  key={kind}
-                  type="button"
-                  data-dh-kind={kind}
-                  data-on={kinds.size === 0 || kinds.has(kind)}
-                  title={kinds.size === 0 ? `Show only ${label.toLowerCase()} files` : label}
-                  onClick={() => toggleKind(kind)}
-                >
-                  {short}
-                </button>
-              ))}
-            </div>
             {state.spacingOnlyCount > 0 && (
               <p className="dh-hidden">
                 {state.spacingOnlyCount.toLocaleString()} changed only in spacing
@@ -822,7 +796,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           }}
           onClose={() => setReviewOpen(false)}
           onSubmit={async (verdict, body) => {
-            const result = await requestReview(verdict, body);
+            const result = await ask('review', { event: verdict, body });
             if (!result.ok) return result.error ?? 'GitHub refused the review.';
             toasts.push('Review submitted.');
             reloadThreads();

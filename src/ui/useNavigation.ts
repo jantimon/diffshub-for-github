@@ -6,6 +6,39 @@ import { useCallback } from 'react';
 import type { ParsedFile } from '@/patch/accumulator';
 
 /**
+ * How far past the top edge a file may hang and still count as scrolled past.
+ * Rounding and a border are enough to leave a fraction of it showing.
+ */
+const EDGE_TOLERANCE = 4;
+
+/**
+ * Where the diff starts on screen.
+ *
+ * The diff scrolls inside its own pane, which sits below the toolbar, so a file
+ * scrolled to the top of that pane is still some way down the window. Measuring
+ * against the window instead would make the file above always look like the one
+ * being read, and every press would land back on the same file.
+ *
+ * The pane is found by walking up from the file, through shadow boundaries,
+ * rather than being passed in: the viewer library owns that element.
+ */
+function paneTop(element: Element): number {
+  let node: Node | null = element.parentNode;
+  while (node != null) {
+    if (node instanceof ShadowRoot) {
+      node = node.host;
+      continue;
+    }
+    if (node instanceof HTMLElement) {
+      const overflow = getComputedStyle(node).overflowY;
+      if (overflow === 'auto' || overflow === 'scroll') return node.getBoundingClientRect().top;
+    }
+    node = node.parentNode;
+  }
+  return 0;
+}
+
+/**
  * Walks the diff file by file and hunk by hunk.
  *
  * Where you are is read from what the viewer has on screen rather than from a
@@ -20,17 +53,35 @@ export function useNavigation(
     const files = visibleRef.current;
     const rendered = viewerRef.current?.getInstance()?.getRenderedItems() ?? [];
 
-    let topId: string | undefined;
-    let topEdge = Number.POSITIVE_INFINITY;
+    // The file you are on is the one crossing the top of the diff pane. A file
+    // scrolled past can still hang a pixel or two below that line, so it has to
+    // reach past the tolerance to count -- otherwise the file just left stays
+    // current and every press lands back on the same one.
+    const first = rendered[0];
+    if (first == null) return 0;
+    const edge = paneTop(first.element) + EDGE_TOLERANCE;
+
+    let covering: string | undefined;
+    let coveringTop = Number.NEGATIVE_INFINITY;
+    let below: string | undefined;
+    let belowTop = Number.POSITIVE_INFINITY;
+
     for (const entry of rendered) {
       const { bottom, top } = entry.element.getBoundingClientRect();
-      if (bottom <= 0) continue;
-      if (top < topEdge) {
-        topEdge = top;
-        topId = entry.id;
+      if (top <= edge) {
+        if (bottom > edge && top > coveringTop) {
+          coveringTop = top;
+          covering = entry.id;
+        }
+      } else if (top < belowTop) {
+        // Nothing crosses the line -- a gap between files, say -- so the next
+        // file down is the one being looked at.
+        belowTop = top;
+        below = entry.id;
       }
     }
 
+    const topId = covering ?? below;
     if (topId == null) return 0;
     const index = files.findIndex((file) => file.item.id === topId);
     return index < 0 ? 0 : index;
@@ -57,7 +108,10 @@ export function useNavigation(
       const viewer = viewerRef.current;
       if (viewer == null) return;
 
-      // The hunk nearest the top of the viewport is the one to step from.
+      // Which hunk to step from is worked out from how far down the file the
+      // viewport has reached, rather than by measuring each hunk: the viewer
+      // renders a file as one element, so the hunks inside it cannot be
+      // measured separately from here.
       const rendered = viewer.getInstance()?.getRenderedItems() ?? [];
       const element = rendered.find((entry) => entry.id === file.item.id)?.element;
       const offset = element == null ? 0 : -element.getBoundingClientRect().top;

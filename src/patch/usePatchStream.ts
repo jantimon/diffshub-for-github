@@ -12,7 +12,6 @@ import {
   createAccumulator,
   sumStats,
   type DiffStats,
-  type ChangeKind,
   type ParsedFile,
   type PatchAccumulator,
 } from './accumulator';
@@ -49,8 +48,6 @@ interface Options {
   include: string;
   exclude: string;
   ignoreWhitespace: boolean;
-  /** Which kinds of change to show; empty means every kind. */
-  kinds: ReadonlySet<ChangeKind>;
   model: FileTree;
 }
 
@@ -62,7 +59,6 @@ export function usePatchStream({
   include,
   exclude,
   ignoreWhitespace,
-  kinds,
   model,
 }: Options): PatchStream {
   const [items, setItems] = useState<readonly CodeViewItem<ReviewThread>[]>([]);
@@ -82,8 +78,6 @@ export function usePatchStream({
   filterRef.current = filter;
   const ignoreWhitespaceRef = useRef(ignoreWhitespace);
   ignoreWhitespaceRef.current = ignoreWhitespace;
-  const kindsRef = useRef(kinds);
-  kindsRef.current = kinds;
 
   // The whole patch stays parsed in memory, so changing a filter is a
   // recalculation rather than another 20 MB download.
@@ -93,9 +87,9 @@ export function usePatchStream({
       const { isVisible } = filterRef.current;
       const previous = visibleRef.current;
       const hideSpacing = ignoreWhitespaceRef.current;
-      const wanted = kindsRef.current;
+
       const matching = accumulator.files.filter(
-        (file) => isVisible(file.path) && (wanted.size === 0 || wanted.has(file.changeKind))
+        (file) => isVisible(file.path)
       );
       const visible = hideSpacing ? matching.filter((file) => !file.spacingOnly) : matching;
       visibleRef.current = visible;
@@ -192,7 +186,7 @@ export function usePatchStream({
       return;
     }
     publish(true);
-  }, [filter, ignoreWhitespace, kinds, publish]);
+  }, [filter, ignoreWhitespace, publish]);
 
   return { state, items, visibleRef, pathToItemIdRef };
 }

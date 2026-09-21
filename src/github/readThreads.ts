@@ -1,6 +1,9 @@
-import type { ReviewComment, ReviewThread } from '@/bridge';
-
 /** GitHub serves forty threads a page and will not serve more than this many. */
+
+import type { ReviewComment, ReviewThread } from '@/bridge';
+import { pullPath, type PullRequestRef } from './pr';
+import { READ_JSON } from './requests';
+
 const PAGE_LIMIT = 40;
 const MAX_PAGES = 20;
 
@@ -8,7 +11,6 @@ interface Preview {
   id?: string;
   path?: string;
   line?: number | null;
-  startLine?: number | null;
   diffSide?: string;
   subjectType?: string;
   isOutdated?: boolean;
@@ -17,7 +19,6 @@ interface Preview {
 interface Thread {
   id?: string;
   isResolved?: boolean;
-  reviewCommentsLimitExceeded?: boolean;
   commentsData?: { comments?: RawComment[] };
 }
 
@@ -42,11 +43,9 @@ interface RawComment {
  * ordinary pull request with a few outdated comments loses most of them.
  */
 export async function readThreads(
-  owner: string,
-  repo: string,
-  number: number
+  ref: PullRequestRef
 ): Promise<{ threads: ReviewThread[]; truncated: boolean; error?: string }> {
-  const base = `/${owner}/${repo}/pull/${number}/page_data`;
+  const base = `${pullPath(ref)}/page_data`;
 
   try {
     const [previews, threads] = await Promise.all([
@@ -91,7 +90,7 @@ export async function readThreads(
 function toComment(comment: RawComment): ReviewComment {
   return {
     databaseId: String(comment?.databaseId ?? ''),
-    author: comment?.author?.login ?? 'someone',
+    author: comment?.author?.login ?? '',
     body: comment?.body ?? '',
     bodyHTML: comment?.bodyHTML ?? '',
     createdAt: comment?.createdAt ?? '',
@@ -106,7 +105,7 @@ async function walk<T>(start: string): Promise<{ items: T[]; truncated: boolean 
   for (let page = 0; page < MAX_PAGES && url != null; page += 1) {
     const response: Response = await fetch(url, {
       credentials: 'include',
-      headers: { accept: 'application/json', 'x-requested-with': 'XMLHttpRequest' },
+      headers: READ_JSON,
     });
     if (!response.ok) throw new Error(`GitHub answered ${response.status} for the comments.`);
 
