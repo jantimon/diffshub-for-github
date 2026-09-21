@@ -27,12 +27,35 @@ export interface ReviewThread {
   isResolved: boolean;
   /** The lines this was written against are no longer in the diff. */
   isOutdated: boolean;
+  /** Not on GitHub yet: the box the reader is typing into. */
+  isDraft?: boolean;
   comments: ReviewComment[];
+}
+
+export interface NewComment {
+  path: string;
+  line: number;
+  side: 'additions' | 'deletions';
+  text: string;
 }
 
 export type ToViewer =
   | { channel: typeof BRIDGE_CHANNEL; type: 'page-info'; info: PageInfo }
   | { channel: typeof BRIDGE_CHANNEL; type: 'file-review-result'; id: number; ok: boolean; status: number }
+  | {
+      channel: typeof BRIDGE_CHANNEL;
+      type: 'viewed-result';
+      id: number;
+      paths: string[];
+      error?: string;
+    }
+  | {
+      channel: typeof BRIDGE_CHANNEL;
+      type: 'comment-result';
+      id: number;
+      ok: boolean;
+      error?: string;
+    }
   | {
       channel: typeof BRIDGE_CHANNEL;
       type: 'threads-result';
@@ -52,7 +75,9 @@ export type FromViewer =
       path: string;
       viewed: boolean;
     }
-  | { channel: typeof BRIDGE_CHANNEL; type: 'threads'; id: number };
+  | { channel: typeof BRIDGE_CHANNEL; type: 'threads'; id: number }
+  | { channel: typeof BRIDGE_CHANNEL; type: 'viewed'; id: number }
+  | { channel: typeof BRIDGE_CHANNEL; type: 'comment'; id: number; comment: NewComment };
 
 export function isToViewer(value: unknown): value is ToViewer {
   return (value as ToViewer | null)?.channel === BRIDGE_CHANNEL;

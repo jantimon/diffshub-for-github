@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { requestFileReview } from './reviewFile';
+import { requestViewed } from './requestViewed';
 import { readSetting, writeSetting } from './storage';
 
 interface Stored {
@@ -20,9 +21,10 @@ function read(key: string): Stored {
 /**
  * Which files have been ticked off.
  *
- * The tick goes to GitHub, so its own Files-changed tab agrees. It is also kept
- * in this browser, which is what the overlay shows while it is open -- GitHub
- * offers no way to read the existing state back.
+ * GitHub is the source of truth: what it already has marked is read once when
+ * the overlay opens, and every tick is sent to it, so its own Files-changed tab
+ * and this one agree in both directions. A copy is kept in this browser so the
+ * list is there before GitHub answers.
  *
  * Storage is keyed by pull request rather than by revision, because the head
  * commit arrives from the page a moment after the overlay opens. Keying on it
@@ -40,6 +42,21 @@ export function useViewed(key: string, headSha: string | undefined, onFailure: (
     },
     [key]
   );
+
+  // What GitHub already has wins over the local copy, but only before the
+  // reader has ticked anything: a tick made while this is in flight would
+  // otherwise be thrown away when it lands.
+  const touched = useRef(false);
+  useEffect(() => {
+    void requestViewed().then(({ paths }) => {
+      if (touched.current || paths.length === 0) return;
+      setViewed((current) => {
+        const merged = new Set(current);
+        for (const path of paths) merged.add(path);
+        return merged;
+      });
+    });
+  }, [key]);
 
   // A push replaces the diff, so what was read no longer applies to it.
   const checkedRevision = useRef(false);
@@ -72,6 +89,7 @@ export function useViewed(key: string, headSha: string | undefined, onFailure: (
   // it, so the two never quietly disagree.
   const toggle = useCallback(
     (id: string, path: string) => {
+      touched.current = true;
       const next = !viewedRef.current.has(id);
       apply(id, next);
       void requestFileReview(path, next).then((ok) => {

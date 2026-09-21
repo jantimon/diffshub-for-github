@@ -4,6 +4,7 @@ import type { FileTree } from '@pierre/trees';
 import type { ReviewThread } from '@/bridge';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { githubFetch } from '@/github/githubFetch';
 import { compileFilters } from './filters';
 import { streamPatchFiles } from './stream';
 import {
@@ -117,7 +118,7 @@ export function usePatchStream({ url, cacheKeyPrefix, include, exclude, model }:
     let lastPublishedAt = 0;
 
     const run = async (): Promise<void> => {
-      const response = await fetch(url, { credentials: 'include', signal: controller.signal });
+      const response = await githubFetch(url, controller.signal);
       if (!response.ok) throw new Error(`GitHub answered ${response.status} for this patch.`);
       if (response.body == null) throw new Error('GitHub returned no patch body.');
 

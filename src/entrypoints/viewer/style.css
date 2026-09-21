@@ -594,3 +594,58 @@ body {
   margin: 0;
   white-space: pre-wrap;
 }
+
+/* Writing a comment, in the place the comment will appear. */
+.dh-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 8px;
+}
+
+.dh-composer-text {
+  width: 100%;
+  padding: 8px;
+  font: inherit;
+  color: inherit;
+  resize: vertical;
+  background: var(--dh-bg);
+  border: 1px solid var(--dh-border);
+  border-radius: 6px;
+}
+
+.dh-composer-text:focus {
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+  outline: none;
+}
+
+.dh-composer-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dh-composer-actions button {
+  padding: 4px 12px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--dh-border);
+  border-radius: 6px;
+}
+
+.dh-composer-actions button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.dh-composer-send {
+  font-weight: 600;
+  color: var(--dh-added);
+  border-color: color-mix(in srgb, var(--dh-added) 45%, transparent) !important;
+}

@@ -89,9 +89,6 @@ broke, while the diff keeps rendering.
 - **Writing anything.** Existing comments are shown at the line they were left
   on, but you cannot write one, reply, resolve a conversation or submit a
   review. Finish a review on GitHub's own tab.
-- **Reading viewed state back.** A tick is sent to GitHub, so its Files-changed
-  tab agrees. The reverse does not work: files ticked on GitHub do not show as
-  ticked here.
 - **Ignore whitespace.** GitHub's `.diff` endpoint takes no `?w=1`, and the
   client-side comparison to replace it is not written.
 - **Filtering the tree by status.** Added, modified and deleted are shown, not

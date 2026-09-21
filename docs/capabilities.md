@@ -100,7 +100,7 @@ Worth building once the rest holds.
 | 14 | **Reply to a comment** | ❌ | |
 | 15 | **Resolve a conversation** | ❌ | |
 | 16 | **Submit a review** | ❌ | No approve or request changes |
-| 17 | Mark a file viewed | 🟡 | Writes to GitHub. Cannot read existing state back, so ticks made on GitHub do not show |
+| 17 | Mark a file viewed | ✅ | Both ways: what GitHub has is read on open, and every tick is sent back |
 
 ### Should have
 
@@ -137,10 +137,10 @@ Worth building once the rest holds.
 
 | Group | ✅ | 🟡 | ❌ | Total |
 | --- | :---: | :---: | :---: | :---: |
-| Must have | 12 | 1 | 4 | 17 |
+| Must have | 13 | 0 | 4 | 17 |
 | Should have | 5 | 2 | 4 | 11 |
 | Nice to have | 0 | 0 | 10 | 10 |
-| **All** | **17** | **3** | **18** | **38** |
+| **All** | **18** | **2** | **18** | **38** |
 
 ## What to build next
 
@@ -149,5 +149,6 @@ resolving and submitting are the same request family, and GitHub's endpoint for
 the first is already captured, along with the base commit sha it needs. Until
 they exist a reviewer still finishes the job on GitHub's page.
 
-After that, reading viewed state back from GitHub (17) is the only thing left
-that makes the two views disagree.
+Viewed state now agrees in both directions: `page_data/file_tree` reports what
+GitHub already has, so a file ticked on either side shows as ticked on the
+other.

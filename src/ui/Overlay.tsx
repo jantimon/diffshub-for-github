@@ -30,6 +30,8 @@ import { filesUrl, patchUrl, type PullRequestRef } from '@/github/pr';
 import type { DiffStats } from '@/patch/accumulator';
 import { usePatchStream } from '@/patch/usePatchStream';
 import { BinaryCompare, isImagePath } from './BinaryCompare';
+import { CommentComposer } from './CommentComposer';
+import { requestComment } from './requestComment';
 import { requestThreads } from './requestThreads';
 import { ShortcutHelp } from './ShortcutHelp';
 import { Thread } from './Thread';
@@ -335,6 +337,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   });
 
   const [threads, setThreads] = useState<readonly ReviewThread[]>([]);
+  const [draft, setDraft] = useState<ReviewThread | undefined>(undefined);
   const askedForThreads = useRef(false);
   const pushToast = toasts.push;
   useEffect(() => {
@@ -351,9 +354,10 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
 
   // Annotations live on the item, so hang each thread on the file it belongs to.
   const itemsWithThreads = useMemo(() => {
-    if (threads.length === 0) return items;
+    const all = draft == null ? threads : [...threads, draft];
+    if (all.length === 0) return items;
     const byPath = new Map<string, ReviewThread[]>();
-    for (const thread of threads) {
+    for (const thread of all) {
       const list = byPath.get(thread.path);
       if (list == null) byPath.set(thread.path, [thread]);
       else list.push(thread);
@@ -374,12 +378,39 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         version: (item.version ?? 0) + 1,
       };
     });
-  }, [items, threads]);
+  }, [draft, items, threads]);
+
+  const reloadThreads = useCallback(() => {
+    void requestThreads().then((result) => setThreads(result.threads));
+  }, []);
 
   const renderAnnotation = useCallback(
-    (annotation: { metadata?: ReviewThread }) =>
-      annotation.metadata == null ? null : <Thread thread={annotation.metadata} />,
-    []
+    (annotation: { metadata?: ReviewThread }) => {
+      const thread = annotation.metadata;
+      if (thread == null) return null;
+      if (thread.isDraft !== true) return <Thread thread={thread} />;
+      return (
+        <CommentComposer
+          onCancel={() => setDraft(undefined)}
+          onSubmit={async (text) => {
+            const result = await requestComment({
+              path: thread.path,
+              line: thread.line ?? 0,
+              side: thread.side,
+              text,
+            });
+            if (!result.ok) {
+              toasts.push(result.error ?? 'GitHub refused the comment.');
+              return false;
+            }
+            setDraft(undefined);
+            reloadThreads();
+            return true;
+          }}
+        />
+      );
+    },
+    [reloadThreads, toasts]
   );
 
   const reportedError = useRef<string | undefined>(undefined);
@@ -475,6 +506,21 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       overflow: 'scroll',
       lineHoverHighlight: 'number',
       enableLineSelection: true,
+      enableGutterUtility: true,
+      onGutterUtilityClick(range: { start: number; side?: string }, context: { item: CodeViewItem<ReviewThread> }) {
+        const item = context.item;
+        if (item.type !== 'diff') return;
+        setDraft({
+          id: 'draft',
+          path: item.fileDiff.name,
+          line: range.start,
+          side: range.side === 'deletions' ? 'deletions' : 'additions',
+          isResolved: false,
+          isOutdated: false,
+          isDraft: true,
+          comments: [],
+        });
+      },
       unsafeCSS: `${HEADER_CSS}\n${SEPARATOR_CSS}`,
       loadDiffFiles,
     }),

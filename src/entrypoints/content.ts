@@ -10,6 +10,8 @@ import {
   type PullRequestRef,
 } from '@/github/pr';
 import { readThreads } from '@/github/readThreads';
+import { readViewed } from '@/github/readViewed';
+import { writeComment } from '@/github/writeComment';
 import { readGitHubTheme } from '@/github/theme';
 
 const MARKER_ATTRIBUTE = 'data-diffshub-marked';
@@ -82,6 +84,38 @@ export default defineContentScript({
         void reviewFile(path, viewed).then((status) => {
           frame?.contentWindow?.postMessage(
             { channel: BRIDGE_CHANNEL, type: 'file-review-result', id, ok: status === 200, status },
+            '*'
+          );
+        });
+        return;
+      }
+
+      if (event.data.type === 'comment') {
+        const { id, comment } = event.data;
+        const pr = readPullRequestRef();
+        const request =
+          pr == null
+            ? Promise.resolve({ ok: false, error: 'Not a pull request page.' })
+            : writeComment(pr.owner, pr.repo, pr.number, comment);
+        void request.then((result) => {
+          frame?.contentWindow?.postMessage(
+            { channel: BRIDGE_CHANNEL, type: 'comment-result', id, ...result },
+            '*'
+          );
+        });
+        return;
+      }
+
+      if (event.data.type === 'viewed') {
+        const { id } = event.data;
+        const pr = readPullRequestRef();
+        const request =
+          pr == null
+            ? Promise.resolve({ paths: [], error: 'Not a pull request page.' })
+            : readViewed(pr.owner, pr.repo, pr.number);
+        void request.then((result) => {
+          frame?.contentWindow?.postMessage(
+            { channel: BRIDGE_CHANNEL, type: 'viewed-result', id, paths: result.paths, error: result.error },
             '*'
           );
         });

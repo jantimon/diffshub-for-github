@@ -25,7 +25,8 @@
     "test:fps": "node test/measure-fps.mjs",
     "test:units": "node test/reconstruct-old-file.mjs && node test/pull-request-paths.mjs",
     "test:review": "node test/review.mjs",
-    "lint:firefox": "web-ext lint --source-dir .output/firefox-mv3"
+    "lint:firefox": "web-ext lint --source-dir .output/firefox-mv3",
+    "test:firefox": "node test/firefox.mjs"
   },
   "dependencies": {
     "@pierre/diffs": "^1.4.3",
