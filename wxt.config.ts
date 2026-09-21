@@ -2,6 +2,9 @@ import { defineConfig } from 'wxt';
 
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
+  // Keep the dependency scan out of the read-only submodule, whose own
+  // workspace packages are not installed here.
+  vite: () => ({ optimizeDeps: { entries: ['src/**/*.{ts,tsx,html}'] } }),
   srcDir: 'src',
   manifestVersion: 3,
   // The submodule is a read-only reference and the screenshots are rebuilt on

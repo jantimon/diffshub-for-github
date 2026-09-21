@@ -1,5 +1,13 @@
+import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineWebExtConfig } from 'wxt';
+
+const profile = resolve(import.meta.dirname, '.firefox-profile');
+
+// web-ext only treats this as a path if the directory is already there, and
+// reads it as a profile name otherwise, which fails. Firefox fills an empty
+// directory in on first run.
+mkdirSync(profile, { recursive: true });
 
 // `pnpm dev:firefox` drives a real Firefox through web-ext, which installs the
 // build as a temporary add-on over the remote debugging protocol.
@@ -7,7 +15,7 @@ export default defineWebExtConfig({
   // Absolute, deliberately: web-ext reads a relative value as a profile *name*
   // and passes `-P <name>`, which drops Firefox into the profile manager, so no
   // debugger port ever opens and the run dies on ECONNREFUSED.
-  firefoxProfile: resolve(import.meta.dirname, '.firefox-profile'),
+  firefoxProfile: profile,
   // Keep the profile between runs so a GitHub login survives a restart.
   keepProfileChanges: true,
   startUrls: ['https://github.com/nodejs/node/pull/60000'],
