@@ -104,7 +104,7 @@ export type FromViewer =
       body: string;
     }
   | { channel: typeof BRIDGE_CHANNEL; type: 'reply'; id: number; inReplyTo: string; body: string }
-  | { channel: typeof BRIDGE_CHANNEL; type: 'resolve'; id: number; threadId: string; resolved: boolean };
+  | { channel: typeof BRIDGE_CHANNEL; type: 'resolve'; id: number; threadId: string };
 
 export function isToViewer(value: unknown): value is ToViewer {
   return (value as ToViewer | null)?.channel === BRIDGE_CHANNEL;

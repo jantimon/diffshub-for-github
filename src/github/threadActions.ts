@@ -1,4 +1,4 @@
-import { fetchForm, findForm, submitForm } from './formActions';
+import { findAnyForm, findForm, findFormEndingWith, submitForm } from './formActions';
 
 /**
  * Replying to a comment and resolving a conversation.
@@ -33,17 +33,20 @@ export async function replyToComment(
   body: string
 ): Promise<{ ok: boolean; error?: string }> {
   const action = `${pageUrl(pr)}/review_comment/create`;
-  const isTheRightThread = (form: HTMLFormElement): boolean =>
-    new FormData(form).get('in_reply_to') === inReplyTo;
 
   try {
+    // Every thread has its own copy of this one form, and a token is good for
+    // the action it was minted for rather than the copy it came in. So the
+    // thread's own form is preferred, and any other copy will do -- with the
+    // comment it answers set to the one being replied to.
     const form =
-      findForm(action, isTheRightThread) ?? (await fetchForm(pageUrl(pr), action, isTheRightThread));
+      findForm(action, (candidate: HTMLFormElement) => new FormData(candidate).get('in_reply_to') === inReplyTo) ??
+      findFormEndingWith('/review_comment/create');
     if (form == null) {
-      return { ok: false, error: 'GitHub did not offer a reply form for that comment.' };
+      return { ok: false, error: 'GitHub did not offer a reply form on this page.' };
     }
 
-    const result = await submitForm(form, { 'comment[body]': body });
+    const result = await submitForm(form, { in_reply_to: inReplyTo, 'comment[body]': body });
     return result.ok ? { ok: true } : { ok: false, error: `GitHub answered ${result.status}.` };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
@@ -59,18 +62,18 @@ export async function replyToComment(
  */
 export async function resolveThread(
   pr: PullRequest,
-  threadId: string,
-  resolved: boolean
+  threadId: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const action = `${pageUrl(pr)}/threads/${threadId}/${resolved ? 'resolve' : 'unresolve'}`;
+  const base = `${pageUrl(pr)}/threads/${threadId}`;
 
   try {
-    const form = findForm(action) ?? (await fetchForm(pageUrl(pr), action));
+    // Unlike a reply, these tokens are tied to the thread's own address, so no
+    // other form will do. GitHub renders whichever transition is available --
+    // resolve, or reopen -- and that is the one to take: our own idea of the
+    // state goes stale the moment we change it.
+    const form = findAnyForm([`${base}/resolve`, `${base}/unresolve`]);
     if (form == null) {
-      return {
-        ok: false,
-        error: `GitHub did not offer a form to ${resolved ? 'resolve' : 'reopen'} that conversation.`,
-      };
+      return { ok: false, error: 'GitHub is not offering to resolve that conversation here.' };
     }
 
     const result = await submitForm(form);

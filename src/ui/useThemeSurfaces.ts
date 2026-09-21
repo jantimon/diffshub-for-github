@@ -39,6 +39,7 @@ export function useThemeSurfaces(themeName: string): ThemeSurfaces {
             '--dh-border': colors['panel.border'] ?? colors['sideBar.border'] ?? colors['editorGroup.border'] ?? 'transparent',
             '--dh-added': colors['gitDecoration.addedResourceForeground'] ?? '#3fb950',
             '--dh-deleted': colors['gitDecoration.deletedResourceForeground'] ?? '#f85149',
+            '--dh-accent': colors['textLink.foreground'] ?? colors['focusBorder'] ?? '#0969da',
           } as CSSProperties,
         });
       })

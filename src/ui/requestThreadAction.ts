@@ -5,7 +5,7 @@ let nextId = 0;
 
 type Ask =
   | { type: 'reply'; inReplyTo: string; body: string }
-  | { type: 'resolve'; threadId: string; resolved: boolean };
+  | { type: 'resolve'; threadId: string };
 
 /** Asks the GitHub page to reply to a comment, or resolve a conversation. */
 export function requestThreadAction(ask: Ask): Promise<{ ok: boolean; error?: string }> {

@@ -27,7 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import type { ReviewThread } from '@/bridge';
 import { createFileLoader } from '@/github/fileLoader';
 import { blameUrl, blobUrl, copyPath, type FileRefs } from '@/github/fileLinks';
-import { filesUrl, patchUrl, type PullRequestRef } from '@/github/pr';
+import { filesUrl, patchUrl, GITHUB_ORIGIN, type PullRequestRef } from '@/github/pr';
 import type { DiffStats } from '@/patch/accumulator';
 import { usePatchStream } from '@/patch/usePatchStream';
 import { BinaryCompare, isImagePath } from './BinaryCompare';
@@ -416,7 +416,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
               return undefined;
             }}
             onResolve={async (resolved) => {
-              const result = await requestThreadAction({ type: 'resolve', threadId: thread.id, resolved });
+              const result = await requestThreadAction({ type: 'resolve', threadId: thread.id });
               if (!result.ok) return result.error ?? 'GitHub refused that.';
               reloadThreads();
               return undefined;
@@ -728,6 +728,18 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       {helpOpen && <ShortcutHelp onClose={() => setHelpOpen(false)} />}
       {reviewOpen && (
         <ReviewDialog
+          repo={`${pr.owner}/${pr.repo}`}
+          number={pr.number}
+          title={page.title}
+          url={`${GITHUB_ORIGIN}/${pr.owner}/${pr.repo}/pull/${pr.number}`}
+          viewed={viewedOnShow}
+          total={stats.fileCount}
+          onViewRemaining={() => {
+            // Jump to the first file still to be read.
+            const next = visibleRef.current.find((file) => !viewed.has(file.item.id));
+            if (next == null) return;
+            viewerRef.current?.scrollTo({ type: 'item', id: next.item.id, align: 'start', behavior: 'smooth' });
+          }}
           onClose={() => setReviewOpen(false)}
           onSubmit={async (verdict, body) => {
             const result = await requestReview(verdict, body);

@@ -100,7 +100,7 @@ export default defineContentScript({
             ? Promise.resolve({ ok: false, error: 'Not a pull request page.' })
             : message.type === 'reply'
               ? replyToComment(pr, message.inReplyTo, message.body)
-              : resolveThread(pr, message.threadId, message.resolved);
+              : resolveThread(pr, message.threadId);
         void request.then((result) => {
           frame?.contentWindow?.postMessage(
             { channel: BRIDGE_CHANNEL, type: 'thread-result', id: message.id, ...result },

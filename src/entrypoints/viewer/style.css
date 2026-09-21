@@ -652,7 +652,8 @@ body {
 
 /* Finishing a review. */
 .dh-review {
-  max-width: min(560px, 92vw);
+  width: min(680px, 94vw);
+  max-width: none;
   padding: 0;
   color: inherit;
   background: transparent;
@@ -660,73 +661,263 @@ body {
 }
 
 .dh-review::backdrop {
-  background: rgb(0 0 0 / 45%);
+  background: rgb(0 0 0 / 50%);
 }
 
 .dh-review-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px;
+  gap: 18px;
+  padding: 20px;
   color: var(--dh-fg);
   background: var(--dh-chrome);
+  border: 1px solid var(--dh-border);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 30%);
+}
+
+.dh-review-panel h2 {
+  margin: 0 0 6px;
+  font-size: 17px;
+}
+
+.dh-review-panel h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.dh-review-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.dh-review-which {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+}
+
+.dh-review-number,
+.dh-review-title {
+  opacity: 0.6;
+}
+
+.dh-review-title {
+  margin: 2px 0 0;
+}
+
+.dh-review-copy,
+.dh-review-close {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  opacity: 0.6;
+}
+
+.dh-review-copy:hover,
+.dh-review-close:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  opacity: 1;
+}
+
+/* How much of the diff has actually been read. */
+.dh-review-progress {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
   border: 1px solid var(--dh-border);
   border-radius: 10px;
 }
 
-.dh-review-panel h2 {
-  margin: 0;
-  font-size: 14px;
+.dh-review-progress-body {
+  flex: 1;
+  min-width: 0;
 }
 
-.dh-review-text {
-  width: 100%;
-  padding: 8px;
+.dh-review-progress-body p {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+.dh-review-bar {
+  height: 8px;
+  overflow: hidden;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  border-radius: 4px;
+}
+
+.dh-review-bar span {
+  display: block;
+  height: 100%;
+  background: var(--dh-added);
+  border-radius: 4px;
+  transition: width 150ms ease-out;
+}
+
+.dh-review-count {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.dh-review-remaining {
+  padding: 5px 12px;
   font: inherit;
   color: inherit;
-  resize: vertical;
-  background: var(--dh-bg);
-  border: 1px solid var(--dh-border);
-  border-radius: 6px;
-}
-
-.dh-review-verdicts {
-  display: flex;
-  gap: 14px;
-}
-
-.dh-review-verdicts label {
-  display: inline-flex;
-  gap: 5px;
-  align-items: center;
-  cursor: pointer;
-}
-
-.dh-review-error {
-  margin: 0;
-  color: var(--dh-deleted);
-}
-
-.dh-review-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.dh-review-actions button {
-  padding: 5px 14px;
-  font: inherit;
-  color: inherit;
+  white-space: nowrap;
   cursor: pointer;
   background: transparent;
   border: 1px solid var(--dh-border);
   border-radius: 6px;
 }
 
+.dh-review-remaining:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+/* One card per outcome, so the choice is a target rather than a dot. */
+.dh-review-verdicts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.dh-review-verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  cursor: pointer;
+  border: 1px solid var(--dh-border);
+  border-radius: 10px;
+}
+
+.dh-review-verdict:hover {
+  background: color-mix(in srgb, currentColor 5%, transparent);
+}
+
+.dh-review-verdict[data-chosen='true'] {
+  background: color-mix(in srgb, var(--dh-accent, #0969da) 10%, transparent);
+  border-color: var(--dh-accent, #0969da);
+}
+
+.dh-review-verdict-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 600;
+}
+
+.dh-review-verdict-hint {
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.dh-review-summary-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.dh-review-markdown {
+  font-size: 12px;
+  opacity: 0.55;
+}
+
+.dh-review-text {
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  color: inherit;
+  resize: vertical;
+  background: var(--dh-bg);
+  border: 1px solid var(--dh-border);
+  border-radius: 8px;
+}
+
+.dh-review-text:focus {
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+  outline: none;
+}
+
+.dh-review-required,
+.dh-review-error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--dh-deleted);
+}
+
+.dh-review-foot {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid var(--dh-border);
+}
+
+.dh-review-note {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.dh-review-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.dh-review-actions button {
+  padding: 7px 16px;
+  font: inherit;
+  color: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--dh-border);
+  border-radius: 7px;
+}
+
+.dh-review-actions button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .dh-review-send {
   font-weight: 600;
-  color: var(--dh-added);
-  border-color: color-mix(in srgb, var(--dh-added) 45%, transparent) !important;
+  color: #ffffff;
+  background: var(--dh-added) !important;
+  border-color: transparent !important;
+}
+
+/* Dark themes give a pale green, which white text sits badly on. */
+.dh-overlay[data-theme='dark'] .dh-review-send {
+  color: #06140b;
+}
+
+.dh-review-send:disabled {
+  /* Still legible while it explains why it cannot be pressed. */
+  opacity: 0.45;
+}
+
+@media (width <= 640px) {
+  .dh-review-verdicts {
+    grid-template-columns: 1fr;
+  }
+
+  .dh-review-foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .dh-thread-actions {

@@ -52,39 +52,66 @@
  * All of this runs in the content script, on github.com's own origin. Tokens
  * never cross into the extension's viewer.
  *
- * ## The fallback
+ * ## When the form is not there
  *
- * The pull request page only renders the threads it is showing, so the form
- * for a given thread may not be in the page at all. When it is missing, the
- * page is fetched and parsed for a fresh copy of the same form. Same rule, new
- * copy -- never a token from somewhere else.
+ * These forms are built by React after the page loads, so fetching the page
+ * again and reading its HTML finds nothing -- there is no server-rendered copy
+ * to fall back on. What is available depends on the action:
+ *
+ * - Replies all post to one shared action, `review_comment/create`, and a
+ *   token is good for the action it was minted for rather than the copy it
+ *   arrived in. Rails masks each one differently, so two copies look unalike
+ *   while being equally valid. Any reply form on the page will do; the comment
+ *   being answered is set on it.
+ * - Resolving posts to the thread's own address, so its token is good for that
+ *   thread alone. Measured: a token from a reply form is refused with 422.
+ *   Only that thread's form works, and when GitHub has not rendered one the
+ *   reader is told rather than left wondering.
+ *
+ * GitHub also renders whichever transition applies -- resolve, or reopen --
+ * never both. Taking the one it offers avoids acting on a stale idea of the
+ * state, which is what our own copy becomes the moment we change it.
  */
 
-/** Finds a form GitHub has already rendered, by the action it posts to. */
-export function findForm(action: string, match?: (form: HTMLFormElement) => boolean): HTMLFormElement | undefined {
-  for (const form of document.querySelectorAll<HTMLFormElement>(`form[action="${cssEscape(action)}"]`)) {
-    if (match == null || match(form)) return form;
+/**
+ * Finds a form GitHub has already rendered, by any of the actions it might
+ * post to.
+ *
+ * More than one action is useful where GitHub renders whichever transition is
+ * available rather than both: a conversation shows a form to resolve it, or
+ * one to reopen it, never the pair.
+ */
+export function findAnyForm(
+  actions: string[],
+  match?: (form: HTMLFormElement) => boolean
+): HTMLFormElement | undefined {
+  for (const action of actions) {
+    const form = findForm(action, match);
+    if (form != null) return form;
   }
   return undefined;
 }
 
 /**
- * Fetches the pull request page and looks for the form there.
- *
- * Used when the thread in question is not on screen, so its form was never
- * rendered into this document.
+ * Finds a form by the action it ends with, for actions that are the same for
+ * every instance -- a reply form, say, where each thread has its own copy of
+ * one shared action. Rails masks a token differently every time it renders it,
+ * so two copies look unalike while being equally valid for that action.
  */
-export async function fetchForm(
-  pageUrl: string,
-  action: string,
+export function findFormEndingWith(
+  suffix: string,
   match?: (form: HTMLFormElement) => boolean
-): Promise<HTMLFormElement | undefined> {
-  const response = await fetch(pageUrl, { credentials: 'include' });
-  if (!response.ok) return undefined;
+): HTMLFormElement | undefined {
+  for (const form of document.querySelectorAll<HTMLFormElement>('form[action]')) {
+    if (!(form.getAttribute('action') ?? '').endsWith(suffix)) continue;
+    if (match == null || match(form)) return form;
+  }
+  return undefined;
+}
 
-  // A detached document: parsing alone runs no scripts and loads no subresources.
-  const page = new DOMParser().parseFromString(await response.text(), 'text/html');
-  for (const form of page.querySelectorAll<HTMLFormElement>(`form[action="${cssEscape(action)}"]`)) {
+/** Finds a form GitHub has already rendered, by the action it posts to. */
+export function findForm(action: string, match?: (form: HTMLFormElement) => boolean): HTMLFormElement | undefined {
+  for (const form of document.querySelectorAll<HTMLFormElement>(`form[action="${cssEscape(action)}"]`)) {
     if (match == null || match(form)) return form;
   }
   return undefined;
