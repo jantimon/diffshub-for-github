@@ -4,6 +4,11 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   srcDir: 'src',
   manifestVersion: 3,
+  // The submodule is a read-only reference and the screenshots are rebuilt on
+  // every test run; neither belongs in the source archive AMO asks for.
+  zip: {
+    excludeSources: ['research/**', 'test/screenshots/**', 'test/.profile/**', '.firefox-profile/**'],
+  },
   manifest: {
     name: 'DiffsHub for GitHub',
     description:
@@ -16,6 +21,11 @@ export default defineConfig({
       gecko: {
         id: 'diffshub-for-github@jantimon.dev',
         strict_min_version: '128.0',
+        // Required of every new Firefox extension. Nothing is collected: the
+        // diff is fetched from github.com and rendered, and nothing leaves the
+        // machine. Firefox reads this from 140 and ignores it before that,
+        // which `web-ext lint` notes against the 128 minimum kept here.
+        data_collection_permissions: { required: ['none'] },
       },
     },
     web_accessible_resources: [

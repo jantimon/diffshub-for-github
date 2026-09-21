@@ -10,3 +10,4 @@ test/.profile/
 .output/
 test/screenshots/
 .firefox-profile/
+.wxt/
