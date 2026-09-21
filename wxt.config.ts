@@ -2,14 +2,21 @@ import { defineConfig } from 'wxt';
 
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
-  // A port of its own. On the default 3000 the extension reaches whatever else
-  // answers there: `localhost` resolves to ::1 before 127.0.0.1, so a second
-  // server on that port is a coin toss, and when the browser picks the wrong
-  // one the dev socket never opens. In development the content scripts are
-  // registered over that socket rather than declared in the manifest, so
-  // losing it injects nothing and the extension looks dead.
+  // A port of its own, bound to IPv4.
+  //
+  // In development the content scripts are registered over the dev socket
+  // rather than declared in the manifest, so if that socket never opens the
+  // extension injects nothing: no marker on the tab, no overlay, and the
+  // toolbar button has nobody to send its message to. It looks dead rather
+  // than broken.
+  //
+  // Two things close that socket. On the default 3000 the extension reaches
+  // whatever else answers there, and a second dev server on that port is a
+  // coin toss. And left to itself the server binds `::1` alone, while Firefox
+  // asks for `ws://localhost:3197` and resolves that to 127.0.0.1 -- measured:
+  // the IPv6 address answers and the IPv4 one refuses the connection.
   dev: {
-    server: { port: 3197 },
+    server: { port: 3197, host: '127.0.0.1' },
   },
   // Keep the dependency scan out of the read-only submodule, whose own
   // workspace packages are not installed here.
