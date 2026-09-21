@@ -1,21 +1,37 @@
-import { IconCheck, IconCopy, IconFile, IconX } from '@pierre/icons';
+import { IconCheck, IconComment, IconConflict, IconCopy, IconFile, IconX } from '@pierre/icons';
+import type { ComponentType } from 'react';
 import { useEffect, useRef, useState, type JSX } from 'react';
 
 import type { ReviewEvent } from '@/bridge';
 
-const VERDICTS: { value: ReviewEvent; label: string; hint: string }[] = [
+const VERDICTS: {
+  value: ReviewEvent;
+  label: string;
+  hint: string;
+  icon: ComponentType<{ size?: number }>;
+}[] = [
   {
     value: 'comment',
     label: 'Comment',
     hint: 'Share feedback without approving or requesting changes.',
+    icon: IconComment,
   },
-  { value: 'approve', label: 'Approve', hint: 'The changes look good.' },
+  { value: 'approve', label: 'Approve', hint: 'The changes look good.', icon: IconCheck },
   {
     value: 'request changes',
     label: 'Request changes',
     hint: 'These changes need revisions before they can be merged.',
+    icon: IconConflict,
   },
 ];
+
+/** Says where the reading stands, without inventing praise for it. */
+function progressNote(remaining: number, total: number): string {
+  if (total === 0) return 'Nothing to read.';
+  if (remaining === 0) return 'Every file read.';
+  if (remaining === 1) return 'One file still to read.';
+  return `${remaining} files still to read.`;
+}
 
 /** GitHub turns away a "request changes" with nothing written in it. */
 const NEEDS_A_NOTE: ReviewEvent = 'request changes';
@@ -83,7 +99,16 @@ export function ReviewDialog({
     >
       <div className="dh-review-panel">
         <header className="dh-review-head">
-          <div>
+          <img
+            className="dh-review-mascot"
+            // The viewer is served from the extension root, so this resolves
+            // without needing the extension id.
+            src="./review-celebrate.png"
+            alt=""
+            width={72}
+            height={72}
+          />
+          <div className="dh-review-heading">
             <h2>Finish your review</h2>
             <p className="dh-review-which">
               <strong>{repo}</strong>
@@ -117,7 +142,9 @@ export function ReviewDialog({
         <section className="dh-review-progress">
           <IconFile size={20} />
           <div className="dh-review-progress-body">
-            <p>Files viewed</p>
+            <p>
+              Files viewed <span className="dh-review-progress-note">{progressNote(remaining, total)}</span>
+            </p>
             <div className="dh-review-bar" role="img" aria-label={`${viewed} of ${total} files viewed`}>
               <span style={{ width: `${read}%` }} />
             </div>
@@ -147,18 +174,25 @@ export function ReviewDialog({
                 key={verdict.value}
                 className="dh-review-verdict"
                 data-chosen={event === verdict.value}
+                data-verdict={verdict.value}
               >
-                <span className="dh-review-verdict-head">
-                  <input
-                    type="radio"
-                    name="dh-verdict"
-                    value={verdict.value}
-                    checked={event === verdict.value}
-                    disabled={sending}
-                    onChange={() => setEvent(verdict.value)}
-                  />
-                  {verdict.label}
+                <input
+                  type="radio"
+                  name="dh-verdict"
+                  value={verdict.value}
+                  checked={event === verdict.value}
+                  disabled={sending}
+                  onChange={() => setEvent(verdict.value)}
+                />
+                <span className="dh-review-verdict-mark" aria-hidden="true">
+                  <verdict.icon size={16} />
                 </span>
+                {event === verdict.value && (
+                  <span className="dh-review-verdict-chosen" aria-hidden="true">
+                    <IconCheck size={12} />
+                  </span>
+                )}
+                <span className="dh-review-verdict-label">{verdict.label}</span>
                 <span className="dh-review-verdict-hint">{verdict.hint}</span>
               </label>
             ))}

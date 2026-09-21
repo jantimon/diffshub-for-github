@@ -42,7 +42,7 @@ export default defineConfig({
     },
     web_accessible_resources: [
       {
-        resources: ['viewer.html', 'icon/*'],
+        resources: ['viewer.html', 'icon/*', 'review-celebrate.png'],
         matches: ['https://github.com/*'],
       },
     ],

@@ -950,3 +950,104 @@ body {
   margin: 0;
   color: var(--dh-deleted);
 }
+
+/* The header, with a character rather than a plain title. */
+.dh-review-mascot {
+  flex: 0 0 auto;
+  width: 72px;
+  height: 72px;
+  margin: -4px 0 0 -4px;
+}
+
+.dh-review-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.dh-review-progress-note {
+  margin-left: 6px;
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+/* Each outcome carries its own colour, so the choice reads at a glance. */
+.dh-review-verdict {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto;
+  gap: 8px;
+  padding: 14px;
+}
+
+.dh-review-verdict input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.dh-review-verdict-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: #ffffff;
+  background: color-mix(in srgb, currentColor 40%, transparent);
+  border-radius: 50%;
+}
+
+.dh-review-verdict[data-verdict='comment'] .dh-review-verdict-mark {
+  background: var(--dh-accent, #0969da);
+}
+
+.dh-review-verdict[data-verdict='approve'] .dh-review-verdict-mark {
+  background: var(--dh-added);
+}
+
+.dh-review-verdict[data-verdict='request changes'] .dh-review-verdict-mark {
+  background: var(--dh-deleted);
+}
+
+.dh-review-verdict-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dh-review-verdict-chosen {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: #ffffff;
+  background: var(--dh-accent, #0969da);
+  border-radius: 50%;
+}
+
+.dh-review-verdict[data-verdict='approve'][data-chosen='true'] {
+  background: color-mix(in srgb, var(--dh-added) 10%, transparent);
+  border-color: color-mix(in srgb, var(--dh-added) 60%, transparent);
+}
+
+.dh-review-verdict[data-verdict='approve'][data-chosen='true'] .dh-review-verdict-chosen {
+  background: var(--dh-added);
+}
+
+.dh-review-verdict[data-verdict='request changes'][data-chosen='true'] {
+  background: color-mix(in srgb, var(--dh-deleted) 10%, transparent);
+  border-color: color-mix(in srgb, var(--dh-deleted) 60%, transparent);
+}
+
+.dh-review-verdict[data-verdict='request changes'][data-chosen='true'] .dh-review-verdict-chosen {
+  background: var(--dh-deleted);
+}
+
+.dh-review-verdict:focus-within {
+  outline: 2px solid var(--dh-accent, #0969da);
+  outline-offset: 2px;
+}
