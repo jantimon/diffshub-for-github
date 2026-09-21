@@ -76,6 +76,16 @@ colourblind ones. A toolbar button switches light and dark on the spot.
 
 ![The overlay on the same pull request, light](docs/images/overlay-light.png)
 
+**A whole review, without leaving.** Every conversation on the pull request is
+read from GitHub, including the outdated ones its own page drops, and anchored
+to the line it was written against. Select lines to write a comment, reply to a
+thread, resolve one, and finish with a verdict — approve, request changes, or
+comment. The comment box is GitHub's own formatting toolbar and GitHub's own
+markdown preview, so what you see is what gets posted.
+
+Every write goes to github.com on your session cookie, from the GitHub tab
+itself. There is no token and no third party in the path.
+
 **The rest.** Split and unified layouts. Collapsed context expands in place —
 the old side of a file is rebuilt from the patch, because GitHub serves raw
 files only by commit sha and the base commit is not on the page. Copy path, open
@@ -86,12 +96,15 @@ broke, while the diff keeps rendering.
 
 ## What is not built
 
-- **Ignoring whitespace inside a file.** Files that changed only in spacing can
-  be hidden, but a file mixing a reformatting with a real edit shows both.
-- **Ignore whitespace.** GitHub's `.diff` endpoint takes no `?w=1`, and the
-  client-side comparison to replace it is not written.
-- **The before side of a binary comparison**, which needs a base revision the
-  pull request page does not carry.
+- **Ignoring whitespace line by line.** A file that changed only in spacing can
+  be hidden whole, but a file mixing a reformatting with a real edit shows
+  both. Hiding the individual lines would renumber what is left, and a comment
+  anchored to a renumbered line is a comment on the wrong code.
+- **Applying a suggested change.** Suggestions render exactly as GitHub renders
+  them; the Commit button is still on GitHub.
+- **Batching a review.** A comment written here is posted as it is written,
+  the way a single comment is on GitHub, rather than held back until the
+  review is submitted.
 
 [`docs/capabilities.md`](docs/capabilities.md) lists everything it takes to
 replace GitHub's review page and where each piece stands, and
@@ -136,31 +149,57 @@ the code branches on the browser only where the platforms genuinely differ.
 Everything runs through a real browser against real github.com.
 
 ```sh
-pnpm build && pnpm test   # the overlay, end to end
+pnpm build && pnpm test   # the viewer, on a public pull request: nothing is written
+pnpm test:review          # comments, replies, verdicts and viewed state: these write
+pnpm test:firefox         # that the Firefox fetch path is still needed, and works
+pnpm test:whitespace      # hiding files that changed only in spacing
+pnpm test:units           # offline: rebuilding a file's old side, globs, path matching
 pnpm test:fps             # frame times, against GitHub's own view
-pnpm test:units           # rebuilding the old side of a file, against real git diffs
 pnpm capture:readme       # the screenshots above, into docs/images
 ```
 
+`pnpm test` only reads, so it runs against any public pull request.
+`pnpm test:review` posts comments and submits reviews, so it runs against a
+pull request kept for the purpose — pass another as an argument if you want a
+different one. `pnpm test:units` needs no browser and no network.
+
 The browser tests load `.output/chrome-mv3`, so build first. They launch
-Chromium with the persistent profile in `test/.profile`, which is gitignored.
-Sign in to github.com there once and private repositories become testable too.
+Chromium with the persistent profile in `test/.profile`, which is gitignored;
+`pnpm test:login` opens a browser on that profile so you can sign in once, after
+which private repositories are testable too. `DIFFSHUB_PROFILE` points at a
+different profile, and `DIFFSHUB_FIREFOX_PROFILE` does the same for Firefox.
 None of this runs in CI, and a test can break when a real pull request changes.
 Both are the price of proving the session-cookie path against a real GitHub.
 
 ## Layout
 
+The source is laid out by *where the code runs*, because that is the thing
+that decides what each part is allowed to do.
+
 ```
-src/entrypoints/content.ts    marks the tab, takes over its click, mounts the viewer
-src/entrypoints/viewer/       the viewer, an extension page
-src/github/                   reading github.com: the page, its theme, its files
-src/patch/                    streaming the patch, parsing it, filtering it
-src/ui/                       the overlay and its parts
+src/bridge.ts                 what the two sides say to each other
+src/pullRequest.ts            which pull request, and where its parts live
+src/page/                     runs on github.com, as you: every write, and
+                              everything read out of GitHub's own markup
+src/viewer/                   runs on the extension's own origin
+  files/                      fetching file contents in both browsers
+  diff/                       the diff view, its styling and its workers
+  comments/                   conversations, and the box for a new one
+  review/                     the verdict, and which files are read
+  shell/                      the frame: toolbar, sidebar, toasts, shortcuts
+src/patch/                    a .diff becomes files, hunks and filters
+src/entrypoints/              WXT's entry points, kept thin
 public/                       files copied as-is
 docs/                         the analysis of diffshub.com, and the README images
-test/                         browser tests and the reconstruction check
+test/                         the browser suites and the offline checks
 research/pierre               git submodule, read-only reference (see below)
 ```
+
+The content script runs on github.com and can act as you; the viewer runs on
+the extension's own origin, where GitHub treats it as a stranger — it refuses a
+write from there, and Firefox will not even send the session cookie. So
+anything that has to happen as you is named in `bridge.ts`, asked for over
+`postMessage`, and carried out by the content script.
 
 The viewer is an extension page rather than part of the content script, because
 it needs the extension's own origin: github.com's CSP blocks a `blob:` worker,

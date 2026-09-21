@@ -3,7 +3,9 @@
 This extension is MIT licensed (see LICENSE). Its build output bundles the
 packages below, which carry their own terms.
 
-## Pierre packages
+## Apache License 2.0
+
+### Pierre packages
 
 - `@pierre/diffs` — the virtualized diff viewer and its Shiki worker
 - `@pierre/trees` — the file tree
@@ -12,7 +14,51 @@ packages below, which carry their own terms.
 Copyright 2025 Pierre Computer Company. Licensed under the Apache License,
 Version 2.0. Source: https://github.com/pierrecomputer/pierre
 
-The full licence text follows.
+The full licence text is at the end of this file.
+
+## MIT
+
+Each of these is under the MIT licence, whose text follows the list.
+
+- `react`, `react-dom` — Copyright (c) Meta Platforms, Inc. and affiliates.
+  https://github.com/facebook/react
+- `shiki`, `@shikijs/core`, `@shikijs/engine-javascript`,
+  `@shikijs/engine-oniguruma`, `@shikijs/langs`, `@shikijs/primitive` —
+  Copyright (c) 2021 Pine Wu, Copyright (c) 2023 Anthony Fu.
+  https://github.com/shikijs/shiki
+  Reaches the build through `@pierre/diffs`, which highlights with it. The
+  language grammars are redistributed by Shiki under the same licence.
+- `@github/markdown-toolbar-element` — Copyright (c) 2017-2018 GitHub, Inc.
+  https://github.com/github/markdown-toolbar-element
+  The element GitHub's own comment box is built from, so the formatting
+  buttons in this extension behave as they do on GitHub.
+- `picomatch` — Copyright (c) 2017-present, Jon Schlinkert.
+  https://github.com/micromatch/picomatch
+  Matches the include and exclude globs.
+
+### The MIT licence
+
+```
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## The Apache License, Version 2.0
 
 ---
 

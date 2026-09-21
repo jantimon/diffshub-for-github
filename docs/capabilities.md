@@ -5,11 +5,11 @@ files off and submits a verdict. The overlay replaces that page only when a
 reviewer never has to go back to it. This lists what that takes, in three
 groups, and ends with where each one stands.
 
-**A review can now be done here from beginning to end**: read the diff, tick
-files off, comment on a line, reply, resolve a conversation, and approve or
-ask for changes. Every must-have is built. What is left is the comfort of
-GitHub's page rather than its function -- ignoring whitespace, filtering the
-tree by status, and suggested changes.
+**A review can be done here from beginning to end**: read the diff, tick files
+off, comment on a line, reply, resolve a conversation, and approve or ask for
+changes. Every must-have is built. What is left is the comfort of GitHub's
+page rather than its function -- ignoring whitespace line by line, applying a
+suggested change, and holding a review back until it is submitted.
 
 ## Must have
 
@@ -98,7 +98,7 @@ Worth building once the rest holds.
 | 9 | A file tree with search | ✅ | Resizable, marks viewed files |
 | 10 | Keyboard navigation | ✅ | `j`/`k` files, `n`/`p` hunks, follows the scroll position |
 | 11 | Renames and moves are obvious | ✅ | `MOVED` badge and the old path in blue |
-| 12 | Read existing review comments | ✅ | Inline, with outdated and resolved marked. GitHub stops at 350 threads |
+| 12 | Read existing review comments | ✅ | Inline, with outdated and resolved marked. Walks both paginated routes, 40 a page, stopping at 800 and saying so |
 | 13 | Write a review comment | ✅ | From the gutter control, posted at once, shown at its line |
 | 14 | Reply to a comment | ✅ | Submits GitHub's own reply form, so no token is invented |
 | 15 | Resolve a conversation | 🟡 | And reopen one, for conversations GitHub has loaded on the page behind the overlay; it renders the form for no others |
@@ -109,15 +109,15 @@ Worth building once the rest holds.
 
 | # | Capability | Status | Note |
 | --- | --- | :---: | --- |
-| 18 | Ignore whitespace | 🟡 | Hides files that changed only in spacing. A file mixing spacing with real edits still shows both |
-| 19 | Filter files by status | ✅ | Added, modified, deleted, renamed; none chosen means all |
+| 18 | Ignore whitespace | 🟡 | Hides files that changed only in spacing. Hiding individual lines would renumber the rest and move every comment anchor, so a file mixing spacing with real edits shows both |
+| 19 | Filter files by status | ❌ | Built as four chips, then removed: it earned no room in the sidebar. The glob filters cover the same ground |
 | 20 | Filter files by glob | ✅ | Include and exclude, remembered |
 | 21 | Diff statistics | ✅ | With the split between additions and deletions |
 | 22 | Follow GitHub's theme, with an override | ✅ | Light and dark, no automatic third state |
 | 23 | Per-file actions | ✅ | Copy path, open the file, blame |
-| 24 | Compare binary files and images | 🟡 | Head side only; the base side needs a revision the page does not carry |
+| 24 | Compare binary files and images | ✅ | Both sides, against the commit the diff starts at. Shows the new file alone, and says so, when GitHub does not report that commit |
 | 25 | Render and apply suggested changes | 🟡 | Shown as GitHub renders them. Applying one still happens on GitHub |
-| 26 | A pending review | ❌ | Depends on 13 and 16 |
+| 26 | A pending review | ❌ | A comment is posted as it is written rather than held back until the review is submitted |
 | 27 | Keyboard parity with GitHub | 🟡 | Navigation and viewed keys work; nothing for commenting or submitting |
 | 28 | Say when something fails | ✅ | Toasts, and the diff keeps rendering |
 
@@ -142,9 +142,9 @@ Worth building once the rest holds.
 | Group | ✅ | 🟡 | ❌ | Total |
 | --- | :---: | :---: | :---: | :---: |
 | Must have | 16 | 1 | 0 | 17 |
-| Should have | 6 | 4 | 1 | 11 |
+| Should have | 6 | 3 | 2 | 11 |
 | Nice to have | 1 | 0 | 10 | 11 |
-| **All** | **23** | **5** | **11** | **39** |
+| **All** | **23** | **4** | **12** | **39** |
 
 ### Resolving depends on GitHub's page
 
@@ -179,6 +179,6 @@ Resolving (15) is the one that is fragile rather than missing, and worth a look
 before either: if GitHub's own React page resolves through a JSON route instead
 of a per-thread form, the limitation goes away.
 
-Viewed state now agrees in both directions: `page_data/file_tree` reports what
+Viewed state agrees in both directions: `page_data/file_tree` reports what
 GitHub already has, so a file ticked on either side shows as ticked on the
 other.

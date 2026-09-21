@@ -1,4 +1,10 @@
-/** GitHub serves forty threads a page and will not serve more than this many. */
+/**
+ * Reading every review comment on the pull request.
+ *
+ * GitHub serves forty threads a page behind a `Link` header. This follows that
+ * up to `MAX_PAGES`, so a pull request with more than 800 threads is reported
+ * as `truncated` rather than silently cut short or walked for ever.
+ */
 
 import type { ReviewComment, ReviewThread } from '@/bridge';
 import { pullPath, type PullRequestRef } from '@/pullRequest';
