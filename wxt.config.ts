@@ -2,6 +2,15 @@ import { defineConfig } from 'wxt';
 
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
+  // A port of its own. On the default 3000 the extension reaches whatever else
+  // answers there: `localhost` resolves to ::1 before 127.0.0.1, so a second
+  // server on that port is a coin toss, and when the browser picks the wrong
+  // one the dev socket never opens. In development the content scripts are
+  // registered over that socket rather than declared in the manifest, so
+  // losing it injects nothing and the extension looks dead.
+  dev: {
+    server: { port: 3197 },
+  },
   // Keep the dependency scan out of the read-only submodule, whose own
   // workspace packages are not installed here.
   vite: () => ({ optimizeDeps: { entries: ['src/**/*.{ts,tsx,html}'] } }),
