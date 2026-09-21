@@ -7,7 +7,9 @@ groups, and ends with where each one stands.
 
 **A review can be done here from beginning to end**: read the diff, tick files
 off, comment on a line, reply, resolve a conversation, and approve or ask for
-changes. Every must-have is built. What is left is the comfort of GitHub's
+changes. Every must-have is built, with one qualification: resolving a
+conversation reaches only the threads GitHub has rendered a form for on the
+page behind the overlay. What is otherwise left is the comfort of GitHub's
 page rather than its function -- ignoring whitespace line by line, applying a
 suggested change, and holding a review back until it is submitted.
 
@@ -50,33 +52,32 @@ they have no reason to come back.
 A reviewer can work without these, but will miss them daily.
 
 18. **Ignore whitespace.** A reformatting commit is unreadable without it.
-19. **Filter files by status** — added, modified, deleted, renamed.
-20. **Filter files by glob**, to hide generated code and snapshots.
-21. **Diff statistics** — files, additions, deletions, lines.
-22. **Follow GitHub's theme**, and let the reviewer override it.
-23. **Per-file actions** — copy path, open the file, blame.
-24. **Compare binary files and images**, before and after.
-25. **Render suggested changes**, and apply them.
-26. **A pending review**, so comments are batched and submitted together rather
+19. **Filter files by glob**, to hide generated code and snapshots.
+20. **Diff statistics** — files, additions, deletions, lines.
+21. **Follow GitHub's theme**, and let the reviewer override it.
+22. **Per-file actions** — copy path, open the file, blame.
+23. **Compare binary files and images**, before and after.
+24. **Render suggested changes**, and apply them.
+25. **A pending review**, so comments are batched and submitted together rather
     than posted one at a time.
-27. **Keyboard parity with GitHub**, so the keys a reviewer already knows work.
-28. **Say when something fails**, per feature, without taking the diff down.
+26. **Keyboard parity with GitHub**, so the keys a reviewer already knows work.
+27. **Say when something fails**, per feature, without taking the diff down.
 
 ## Nice to have
 
 Worth building once the rest holds.
 
-29. **Review commit by commit** rather than the whole range.
-30. **Link to a line**, so a reviewer can share what they are looking at.
-31. **Search within the diff.**
-32. **React to a comment.**
-33. **Edit or delete your own comment.**
-34. **Comment on a range of lines**, not a single one.
-35. **Expand or collapse every file at once.**
-36. **Remember where you were** in a pull request between visits.
-37. **Image comparison modes** beyond side by side — swipe, onion skin.
-38. **Jump to a definition** from a changed line.
-39. **Who opened it.** The author's avatar in the header, with their details on
+28. **Review commit by commit** rather than the whole range.
+29. **Link to a line**, so a reviewer can share what they are looking at.
+30. **Search within the diff.**
+31. **React to a comment.**
+32. **Edit or delete your own comment.**
+33. **Comment on a range of lines**, not a single one.
+34. **Expand or collapse every file at once.**
+35. **Remember where you were** in a pull request between visits.
+36. **Image comparison modes** beyond side by side — swipe, onion skin.
+37. **Jump to a definition** from a changed line.
+38. **Who opened it.** The author's avatar in the header, with their details on
     hover, so a reviewer knows whose work this is without leaving the overlay.
 
 ## Where each one stands
@@ -110,41 +111,40 @@ Worth building once the rest holds.
 | # | Capability | Status | Note |
 | --- | --- | :---: | --- |
 | 18 | Ignore whitespace | 🟡 | Hides files that changed only in spacing. Hiding individual lines would renumber the rest and move every comment anchor, so a file mixing spacing with real edits shows both |
-| 19 | Filter files by status | ❌ | Built as four chips, then removed: it earned no room in the sidebar. The glob filters cover the same ground |
-| 20 | Filter files by glob | ✅ | Include and exclude, remembered |
-| 21 | Diff statistics | ✅ | With the split between additions and deletions |
-| 22 | Follow GitHub's theme, with an override | ✅ | Light and dark, no automatic third state |
-| 23 | Per-file actions | ✅ | Copy path, open the file, blame |
-| 24 | Compare binary files and images | ✅ | Both sides, against the commit the diff starts at. Shows the new file alone, and says so, when GitHub does not report that commit |
-| 25 | Render and apply suggested changes | 🟡 | Shown as GitHub renders them. Applying one still happens on GitHub |
-| 26 | A pending review | ❌ | A comment is posted as it is written rather than held back until the review is submitted |
-| 27 | Keyboard parity with GitHub | 🟡 | Navigation and viewed keys work; nothing for commenting or submitting |
-| 28 | Say when something fails | ✅ | Toasts, and the diff keeps rendering |
+| 19 | Filter files by glob | ✅ | Include and exclude, remembered |
+| 20 | Diff statistics | ✅ | With the split between additions and deletions |
+| 21 | Follow GitHub's theme, with an override | ✅ | Light and dark, no automatic third state |
+| 22 | Per-file actions | ✅ | Copy path, open the file, blame |
+| 23 | Compare binary files and images | ✅ | Both sides, against the commit the diff starts at. Shows the new file alone, and says so, when GitHub does not report that commit |
+| 24 | Render and apply suggested changes | 🟡 | Shown as GitHub renders them. Applying one still happens on GitHub |
+| 25 | A pending review | ❌ | A comment is posted as it is written rather than held back until the review is submitted |
+| 26 | Keyboard parity with GitHub | 🟡 | Navigation and viewed keys work; nothing for commenting or submitting |
+| 27 | Say when something fails | ✅ | Toasts, and the diff keeps rendering |
 
 ### Nice to have
 
 | # | Capability | Status |
 | --- | --- | :---: |
-| 29 | Review commit by commit | ❌ |
-| 30 | Link to a line | ❌ |
-| 31 | Search within the diff | ❌ |
-| 32 | React to a comment | ❌ |
-| 33 | Edit or delete your own comment | ❌ |
-| 34 | Comment on a range of lines | ❌ |
-| 35 | Expand or collapse every file at once | ❌ |
-| 36 | Remember where you were | ❌ |
-| 37 | Image comparison modes | ❌ |
-| 38 | Jump to a definition | ❌ |
-| 39 | The author's avatar in the header | ✅ |
+| 28 | Review commit by commit | ❌ |
+| 29 | Link to a line | ❌ |
+| 30 | Search within the diff | ❌ |
+| 31 | React to a comment | ❌ |
+| 32 | Edit or delete your own comment | ❌ |
+| 33 | Comment on a range of lines | ❌ |
+| 34 | Expand or collapse every file at once | ❌ |
+| 35 | Remember where you were | ❌ |
+| 36 | Image comparison modes | ❌ |
+| 37 | Jump to a definition | ❌ |
+| 38 | The author's avatar in the header | ✅ |
 
 ### Count
 
 | Group | ✅ | 🟡 | ❌ | Total |
 | --- | :---: | :---: | :---: | :---: |
 | Must have | 16 | 1 | 0 | 17 |
-| Should have | 6 | 3 | 2 | 11 |
+| Should have | 6 | 3 | 1 | 10 |
 | Nice to have | 1 | 0 | 10 | 11 |
-| **All** | **23** | **4** | **12** | **39** |
+| **All** | **23** | **4** | **11** | **38** |
 
 ### Resolving depends on GitHub's page
 
