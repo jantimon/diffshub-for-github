@@ -649,3 +649,82 @@ body {
   color: var(--dh-added);
   border-color: color-mix(in srgb, var(--dh-added) 45%, transparent) !important;
 }
+
+/* Finishing a review. */
+.dh-review {
+  max-width: min(560px, 92vw);
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+}
+
+.dh-review::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.dh-review-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  color: var(--dh-fg);
+  background: var(--dh-chrome);
+  border: 1px solid var(--dh-border);
+  border-radius: 10px;
+}
+
+.dh-review-panel h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.dh-review-text {
+  width: 100%;
+  padding: 8px;
+  font: inherit;
+  color: inherit;
+  resize: vertical;
+  background: var(--dh-bg);
+  border: 1px solid var(--dh-border);
+  border-radius: 6px;
+}
+
+.dh-review-verdicts {
+  display: flex;
+  gap: 14px;
+}
+
+.dh-review-verdicts label {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.dh-review-error {
+  margin: 0;
+  color: var(--dh-deleted);
+}
+
+.dh-review-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dh-review-actions button {
+  padding: 5px 14px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--dh-border);
+  border-radius: 6px;
+}
+
+.dh-review-send {
+  font-weight: 600;
+  color: var(--dh-added);
+  border-color: color-mix(in srgb, var(--dh-added) 45%, transparent) !important;
+}

@@ -17,6 +17,7 @@ import {
   IconDiffUnified,
   IconEye,
   IconEyeSlash,
+  IconCheck,
   IconQuestion,
   IconSidebarLeft,
   IconX,
@@ -31,6 +32,8 @@ import type { DiffStats } from '@/patch/accumulator';
 import { usePatchStream } from '@/patch/usePatchStream';
 import { BinaryCompare, isImagePath } from './BinaryCompare';
 import { CommentComposer } from './CommentComposer';
+import { requestReview } from './requestReview';
+import { ReviewDialog } from './ReviewDialog';
 import { requestComment } from './requestComment';
 import { requestThreads } from './requestThreads';
 import { ShortcutHelp } from './ShortcutHelp';
@@ -186,6 +189,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     addEventListener('pointerup', onUp);
   }, []);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   // Reading code in light while GitHub sits in dark is a fair preference, so
   // once this is set it wins over the page. Light or dark, nothing automatic.
   const [themeChoice, setThemeChoice] = useState<'light' | 'dark' | undefined>(() => {
@@ -602,6 +606,14 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           <button
             type="button"
             className="dh-icon-button"
+            onClick={() => setReviewOpen(true)}
+            title="Finish your review"
+          >
+            <IconCheck size={16} />
+          </button>
+          <button
+            type="button"
+            className="dh-icon-button"
             onClick={toggleTheme}
             title={themeType === 'dark' ? 'Switch to light' : 'Switch to dark'}
           >
@@ -680,6 +692,18 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       </div>
 
       {helpOpen && <ShortcutHelp onClose={() => setHelpOpen(false)} />}
+      {reviewOpen && (
+        <ReviewDialog
+          onClose={() => setReviewOpen(false)}
+          onSubmit={async (verdict, body) => {
+            const result = await requestReview(verdict, body);
+            if (!result.ok) return result.error ?? 'GitHub refused the review.';
+            toasts.push('Review submitted.');
+            reloadThreads();
+            return undefined;
+          }}
+        />
+      )}
       {comparing != null && refs != null && (
         <BinaryCompare refs={refs} path={comparing} onClose={() => setComparing(undefined)} />
       )}

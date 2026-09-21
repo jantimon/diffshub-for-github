@@ -11,6 +11,7 @@ import {
 } from '@/github/pr';
 import { readThreads } from '@/github/readThreads';
 import { readViewed } from '@/github/readViewed';
+import { submitReview } from '@/github/submitReview';
 import { writeComment } from '@/github/writeComment';
 import { readGitHubTheme } from '@/github/theme';
 
@@ -84,6 +85,23 @@ export default defineContentScript({
         void reviewFile(path, viewed).then((status) => {
           frame?.contentWindow?.postMessage(
             { channel: BRIDGE_CHANNEL, type: 'file-review-result', id, ok: status === 200, status },
+            '*'
+          );
+        });
+        return;
+      }
+
+      if (event.data.type === 'review') {
+        const { id, event: verdict, body } = event.data;
+        const pr = readPullRequestRef();
+        const headSha = readHeadSha();
+        const request =
+          pr == null || headSha == null
+            ? Promise.resolve({ ok: false, error: 'Could not tell which commit to review.' })
+            : submitReview(pr.owner, pr.repo, pr.number, headSha, verdict, body);
+        void request.then((result) => {
+          frame?.contentWindow?.postMessage(
+            { channel: BRIDGE_CHANNEL, type: 'review-result', id, ...result },
             '*'
           );
         });

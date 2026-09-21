@@ -86,9 +86,9 @@ broke, while the diff keeps rendering.
 
 ## What is not built
 
-- **Finishing a review.** Comments are shown and you can leave one on a line,
-  but you cannot reply, resolve a conversation or approve. Finish on GitHub's
-  own tab.
+- **Replying to a comment, and resolving a conversation.** Everything else in a
+  review works here: read the threads, leave a comment on a line, and submit a
+  verdict. For those two, go back to GitHub's tab.
 - **Ignore whitespace.** GitHub's `.diff` endpoint takes no `?w=1`, and the
   client-side comparison to replace it is not written.
 - **Filtering the tree by status.** Added, modified and deleted are shown, not

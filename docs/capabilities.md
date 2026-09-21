@@ -5,10 +5,9 @@ files off and submits a verdict. The overlay replaces that page only when a
 reviewer never has to go back to it. This lists what that takes, in three
 groups, and ends with where each one stands.
 
-**Today the overlay reads a pull request and comments on it, but cannot finish
-a review.** You can read it end to end faster than on GitHub, tick files off,
-and leave a comment on a line. You cannot reply, resolve a conversation, or
-approve. Those three keep the old page open.
+**Today the overlay reads a pull request, comments on it and signs it off.**
+What is left is replying to a comment and resolving a conversation. A reviewer
+who needs either still goes back to GitHub's page for it.
 
 ## Must have
 
@@ -75,6 +74,8 @@ Worth building once the rest holds.
 36. **Remember where you were** in a pull request between visits.
 37. **Image comparison modes** beyond side by side — swipe, onion skin.
 38. **Jump to a definition** from a changed line.
+39. **Who opened it.** The author's avatar in the header, with their details on
+    hover, so a reviewer knows whose work this is without leaving the overlay.
 
 ## Where each one stands
 
@@ -99,7 +100,7 @@ Worth building once the rest holds.
 | 13 | Write a review comment | ✅ | From the gutter control, posted at once, shown at its line |
 | 14 | **Reply to a comment** | ❌ | |
 | 15 | **Resolve a conversation** | ❌ | |
-| 16 | **Submit a review** | ❌ | No approve or request changes |
+| 16 | Submit a review | ✅ | Comment, approve or request changes, from the toolbar |
 | 17 | Mark a file viewed | ✅ | Both ways: what GitHub has is read on open, and every tick is sent back |
 
 ### Should have
@@ -132,21 +133,23 @@ Worth building once the rest holds.
 | 36 | Remember where you were | ❌ |
 | 37 | Image comparison modes | ❌ |
 | 38 | Jump to a definition | ❌ |
+| 39 | The author's avatar in the header | ❌ |
 
 ### Count
 
 | Group | ✅ | 🟡 | ❌ | Total |
 | --- | :---: | :---: | :---: | :---: |
-| Must have | 14 | 0 | 3 | 17 |
+| Must have | 15 | 0 | 2 | 17 |
 | Should have | 5 | 2 | 4 | 11 |
-| Nice to have | 0 | 0 | 10 | 10 |
-| **All** | **19** | **2** | **17** | **38** |
+| Nice to have | 0 | 0 | 11 | 11 |
+| **All** | **20** | **2** | **17** | **39** |
 
 ## What to build next
 
-The three missing must-haves are one piece of work: replying, resolving and
-submitting sit on the same routes as writing a comment, which is done. Until
-they exist a reviewer still finishes the job on GitHub's page.
+Replying and resolving are the last two. Both endpoints are captured:
+`review_comment/create` with `in_reply_to`, and `threads/{id}/resolve`. Unlike
+the routes used so far they are form posts carrying an `authenticity_token`,
+which the content script has to read off the page.
 
 Viewed state now agrees in both directions: `page_data/file_tree` reports what
 GitHub already has, so a file ticked on either side shows as ticked on the

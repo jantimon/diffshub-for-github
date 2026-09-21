@@ -126,6 +126,30 @@ failures += await check('a comment can be written', async () => {
   return `posted, and shown at its line (${before} -> ${after} threads)`;
 });
 
+// Submits a real review on the fixture pull request, which is what it is for.
+failures += await check('a review can be submitted', async () => {
+  const sent = [];
+  page.on('response', (r) => {
+    if (r.url().includes('submit_review')) sent.push(r.status());
+  });
+
+  await frame.locator('.dh-actions .dh-icon-button').nth(1).click();
+  await page.waitForTimeout(1500);
+  if ((await frame.locator('.dh-review').count()) === 0) {
+    console.log('      the dialog did not open');
+    return false;
+  }
+  await frame.locator('.dh-review-text').fill(`Submitted by the browser test at ${new Date().toISOString()}`);
+  await frame.locator('.dh-review-send').click();
+  await page.waitForTimeout(8000);
+
+  const shown = await frame.locator('.dh-review-error').textContent().catch(() => null);
+  if (shown != null) { console.log('      ', shown); return false; }
+  if (!sent.includes(200)) { console.log('      GitHub answered', JSON.stringify(sent)); return false; }
+  if ((await frame.locator('.dh-review').count()) !== 0) { console.log('      the dialog stayed open'); return false; }
+  return 'submitted, and the dialog closed';
+});
+
 failures += await check('viewed state reaches GitHub', async () => {
   const before = reviewed.length;
   await frame.locator(`[data-dh-viewed="${marked}"]`).click();

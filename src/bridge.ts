@@ -39,9 +39,18 @@ export interface NewComment {
   text: string;
 }
 
+export type ReviewEvent = 'comment' | 'approve' | 'request changes';
+
 export type ToViewer =
   | { channel: typeof BRIDGE_CHANNEL; type: 'page-info'; info: PageInfo }
   | { channel: typeof BRIDGE_CHANNEL; type: 'file-review-result'; id: number; ok: boolean; status: number }
+  | {
+      channel: typeof BRIDGE_CHANNEL;
+      type: 'review-result';
+      id: number;
+      ok: boolean;
+      error?: string;
+    }
   | {
       channel: typeof BRIDGE_CHANNEL;
       type: 'viewed-result';
@@ -77,7 +86,14 @@ export type FromViewer =
     }
   | { channel: typeof BRIDGE_CHANNEL; type: 'threads'; id: number }
   | { channel: typeof BRIDGE_CHANNEL; type: 'viewed'; id: number }
-  | { channel: typeof BRIDGE_CHANNEL; type: 'comment'; id: number; comment: NewComment };
+  | { channel: typeof BRIDGE_CHANNEL; type: 'comment'; id: number; comment: NewComment }
+  | {
+      channel: typeof BRIDGE_CHANNEL;
+      type: 'review';
+      id: number;
+      event: ReviewEvent;
+      body: string;
+    };
 
 export function isToViewer(value: unknown): value is ToViewer {
   return (value as ToViewer | null)?.channel === BRIDGE_CHANNEL;
