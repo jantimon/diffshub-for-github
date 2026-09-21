@@ -14,6 +14,7 @@ import {
   IconColorDark,
   IconColorLight,
   IconDiffSplit,
+  IconParagraph,
   IconDiffUnified,
   IconEye,
   IconEyeSlash,
@@ -172,6 +173,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     readSetting('layout', 'split') === 'unified' ? 'unified' : 'split'
   );
   const [sidebarOpen, setSidebarOpen] = useState(() => readSetting('sidebar', 'open') !== 'closed');
+  const [ignoreWhitespace, setIgnoreWhitespace] = useState(() => readSetting('whitespace', 'show') === 'ignore');
   const [sidebarWidth, setSidebarWidth] = useState(() => Number(readSetting('sidebarWidth', '280')) || 280);
   const sidebarWidthRef = useRef(sidebarWidth);
   sidebarWidthRef.current = sidebarWidth;
@@ -266,6 +268,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     cacheKeyPrefix: `${pr.owner}/${pr.repo}/${pr.number}`,
     include,
     exclude,
+    ignoreWhitespace,
     model,
   });
 
@@ -646,6 +649,25 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           <button
             type="button"
             className="dh-icon-button"
+            data-dh-action="whitespace"
+            aria-pressed={ignoreWhitespace}
+            onClick={() =>
+              setIgnoreWhitespace((on) => {
+                writeSetting('whitespace', on ? 'show' : 'ignore');
+                return !on;
+              })
+            }
+            title={
+              ignoreWhitespace
+                ? 'Ignoring files that changed only in spacing — click to show them'
+                : 'Hide files that changed only in spacing'
+            }
+          >
+            <IconParagraph size={16} />
+          </button>
+          <button
+            type="button"
+            className="dh-icon-button"
             data-dh-action="layout"
             onClick={toggleLayout}
             title={diffStyle === 'split' ? 'Split view — switch to unified' : 'Unified view — switch to split'}
@@ -716,6 +738,11 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
             {state.excludeError != null && <p className="dh-pattern-error">{state.excludeError}</p>}
             {state.hiddenCount > 0 && (
               <p className="dh-hidden">{state.hiddenCount.toLocaleString()} files hidden</p>
+            )}
+            {state.spacingOnlyCount > 0 && (
+              <p className="dh-hidden">
+                {state.spacingOnlyCount.toLocaleString()} changed only in spacing
+              </p>
             )}
           </div>
           <FileTree className="dh-tree" model={model} style={{ ...surfaces.tree, ...TREE_STYLE }} />

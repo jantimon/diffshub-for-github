@@ -86,8 +86,8 @@ broke, while the diff keeps rendering.
 
 ## What is not built
 
-- **Ignore whitespace.** GitHub's `.diff` endpoint takes no `?w=1`, and the
-  comparison to replace it is not written.
+- **Ignoring whitespace inside a file.** Files that changed only in spacing can
+  be hidden, but a file mixing a reformatting with a real edit shows both.
 - **Ignore whitespace.** GitHub's `.diff` endpoint takes no `?w=1`, and the
   client-side comparison to replace it is not written.
 - **Filtering the tree by status.** Added, modified and deleted are shown, not

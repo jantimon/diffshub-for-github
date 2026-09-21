@@ -109,7 +109,7 @@ Worth building once the rest holds.
 
 | # | Capability | Status | Note |
 | --- | --- | :---: | --- |
-| 18 | Ignore whitespace | ❌ | Needs re-comparing hunks in the worker; `.diff` has no `w=1` |
+| 18 | Ignore whitespace | 🟡 | Hides files that changed only in spacing. A file mixing spacing with real edits still shows both |
 | 19 | Filter files by status | ❌ | |
 | 20 | Filter files by glob | ✅ | Include and exclude, remembered |
 | 21 | Diff statistics | ✅ | With the split between additions and deletions |
@@ -142,9 +142,9 @@ Worth building once the rest holds.
 | Group | ✅ | 🟡 | ❌ | Total |
 | --- | :---: | :---: | :---: | :---: |
 | Must have | 16 | 1 | 0 | 17 |
-| Should have | 5 | 2 | 4 | 11 |
+| Should have | 5 | 3 | 3 | 11 |
 | Nice to have | 1 | 0 | 10 | 11 |
-| **All** | **22** | **3** | **14** | **39** |
+| **All** | **22** | **4** | **13** | **39** |
 
 ### Resolving depends on GitHub's page
 
@@ -155,14 +155,26 @@ conversations it has loaded, not for all of them. When the form is missing the
 reader is told so and pointed at GitHub. Replying does not have this problem:
 every reply posts to one shared action, so any reply form on the page serves.
 
+### Ignoring whitespace stops at the file
+
+GitHub's `.diff` endpoint takes no `w=1`, so the comparison is made here. It is
+made a file at a time on purpose: hiding individual lines would renumber the
+ones left, and a comment anchored to a renumbered line is a comment on the
+wrong code. Hiding a whole file changes nothing about the files still shown, so
+every anchor stays sound.
+
+What that leaves: a file mixing a reformatting with a real edit still shows
+both. Doing better means re-comparing inside the file and suppressing
+commenting wherever the anchor cannot be trusted.
+
 ## What to build next
 
-Ignoring whitespace (18) is the one a reviewer will miss most: a reformatting
-commit is unreadable without it, and GitHub's `.diff` endpoint offers no `w=1`,
-so the comparison has to be redone in the worker.
+Filtering the tree by status (19) is the small one, and useful on a diff of any
+size.
 
-After that, filtering the tree by status (19) and rendering suggested changes
-(25), which needs comment bodies to be parsed rather than shown as text.
+Rendering suggested changes (25) is the larger one, and closer than it was:
+comment bodies are shown as text today, but GitHub's own renderer is already
+wired up for the preview.
 
 Viewed state now agrees in both directions: `page_data/file_tree` reports what
 GitHub already has, so a file ticked on either side shows as ticked on the

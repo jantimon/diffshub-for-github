@@ -2,10 +2,13 @@ import { processFile, type CodeViewItem } from '@pierre/diffs';
 import type { GitStatusEntry } from '@pierre/trees';
 
 import type { ReviewThread } from '@/bridge';
+import { changesOnlyWhitespace } from './whitespace';
 
 export interface ParsedFile {
   item: CodeViewItem<ReviewThread>;
   path: string;
+  /** Nothing changed here but spacing. */
+  spacingOnly: boolean;
   status?: GitStatusEntry['status'];
   addedLines: number;
   deletedLines: number;
@@ -62,6 +65,7 @@ export function appendFile(
   const parsed: ParsedFile = {
     item: { id, type: 'diff', fileDiff, version: 0 },
     path,
+    spacingOnly: changesOnlyWhitespace(fileDiff),
     status: STATUS_BY_CHANGE_TYPE[fileDiff.type],
     addedLines,
     deletedLines,

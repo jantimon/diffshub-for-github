@@ -26,6 +26,8 @@ export interface PatchStreamState {
   error?: string;
   stats: DiffStats;
   hiddenCount: number;
+  /** Files held back because nothing in them changed but spacing. */
+  spacingOnlyCount: number;
   includeError?: string;
   excludeError?: string;
   pathToItemId: ReadonlyMap<string, string>;
@@ -45,17 +47,26 @@ interface Options {
   cacheKeyPrefix: string;
   include: string;
   exclude: string;
+  ignoreWhitespace: boolean;
   model: FileTree;
 }
 
 const EMPTY_STATS: DiffStats = { addedLines: 0, deletedLines: 0, fileCount: 0, totalLines: 0 };
 
-export function usePatchStream({ url, cacheKeyPrefix, include, exclude, model }: Options): PatchStream {
+export function usePatchStream({
+  url,
+  cacheKeyPrefix,
+  include,
+  exclude,
+  ignoreWhitespace,
+  model,
+}: Options): PatchStream {
   const [items, setItems] = useState<readonly CodeViewItem<ReviewThread>[]>([]);
   const [state, setState] = useState<PatchStreamState>({
     phase: 'loading',
     stats: EMPTY_STATS,
     hiddenCount: 0,
+    spacingOnlyCount: 0,
     pathToItemId: new Map(),
   });
 
@@ -65,6 +76,8 @@ export function usePatchStream({ url, cacheKeyPrefix, include, exclude, model }:
   const filter = useMemo(() => compileFilters(include, exclude), [include, exclude]);
   const filterRef = useRef(filter);
   filterRef.current = filter;
+  const ignoreWhitespaceRef = useRef(ignoreWhitespace);
+  ignoreWhitespaceRef.current = ignoreWhitespace;
 
   // The whole patch stays parsed in memory, so changing a filter is a
   // recalculation rather than another 20 MB download.
@@ -73,7 +86,9 @@ export function usePatchStream({ url, cacheKeyPrefix, include, exclude, model }:
       const accumulator = accumulatorRef.current;
       const { isVisible } = filterRef.current;
       const previous = visibleRef.current;
-      const visible = accumulator.files.filter((file) => isVisible(file.path));
+      const hideSpacing = ignoreWhitespaceRef.current;
+      const matching = accumulator.files.filter((file) => isVisible(file.path));
+      const visible = hideSpacing ? matching.filter((file) => !file.spacingOnly) : matching;
       visibleRef.current = visible;
 
       setItems(visible.map((file) => file.item));
@@ -97,7 +112,8 @@ export function usePatchStream({ url, cacheKeyPrefix, include, exclude, model }:
       setState((current) => ({
         ...current,
         stats: sumStats(visible),
-        hiddenCount: accumulator.files.length - visible.length,
+        hiddenCount: accumulator.files.length - matching.length,
+        spacingOnlyCount: matching.length - visible.length,
         includeError: filterRef.current.includeError,
         excludeError: filterRef.current.excludeError,
         pathToItemId,
@@ -167,7 +183,7 @@ export function usePatchStream({ url, cacheKeyPrefix, include, exclude, model }:
       return;
     }
     publish(true);
-  }, [filter, publish]);
+  }, [filter, ignoreWhitespace, publish]);
 
   return { state, items, visibleRef, pathToItemIdRef };
 }
