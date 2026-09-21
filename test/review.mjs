@@ -169,16 +169,56 @@ failures += await check('a comment can be written', async () => {
   return `posted, and the box closed (${before} threads were on screen)`;
 });
 
+
+// The check above posts on the last file and leaves the viewer there. Threads
+// collect on the first file, so the checks that act on one go back and wait for
+// it to render rather than hoping something is still on screen.
+const showAThread = async () => {
+  await frame.locator('[data-item-type="file"]').first().click();
+  await page.waitForTimeout(2500);
+  await frame.locator('.dh-thread').first().waitFor({ timeout: 25000 });
+};
+
 failures += await check('a comment can be replied to', async () => {
   const sent = [];
   page.on('response', (r) => {
     if (r.url().includes('review_comment/create')) sent.push(r.status());
   });
 
-  await frame.locator('[data-dh-thread="reply"]').first().click();
-  await page.waitForTimeout(800);
-  await frame.locator('.dh-thread .dh-editor-text').first().fill(`Replied by the browser test at ${new Date().toISOString()}`);
-  await frame.locator('.dh-thread .dh-composer-send').first().click();
+  await showAThread();
+
+  // Every step stays inside one thread: the new-comment composer shares these
+  // class names, so picking `.first()` per selector can land on two different
+  // conversations once enough of them are on screen.
+  //
+  // The thread is pinned by position rather than by "the one with a reply
+  // button", because clicking that button swaps it for the composer -- a
+  // filter on it stops matching the moment it is used.
+  const threads = frame.locator('.dh-thread');
+  let index = -1;
+  for (let i = 0; i < (await threads.count()); i += 1) {
+    if ((await threads.nth(i).locator('[data-dh-thread="reply"]').count()) > 0) { index = i; break; }
+  }
+  if (index < 0) { console.log('      no thread offered a reply button'); return false; }
+
+  const thread = threads.nth(index);
+  await thread.locator('[data-dh-thread="reply"]').click({ timeout: 10000 });
+  await thread.locator('.dh-editor-text').fill(`Replied by the browser test at ${new Date().toISOString()}`);
+  // The composer opens at the bottom of a long thread, so its buttons can sit
+  // below the fold, where a click never becomes possible.
+  // The send button is checked by hand and then clicked without Playwright's
+  // actionability wait. The diff is virtualised, so rows are re-measured and
+  // moved constantly and the button never counts as settled, even while it is
+  // on screen and perfectly clickable.
+  const send = thread.locator('.dh-composer-send');
+  await send.scrollIntoViewIfNeeded({ timeout: 10000 });
+  if (!(await send.isVisible()) || (await send.isDisabled())) {
+    console.log('      the send button never became usable');
+    return false;
+  }
+  // Dispatched rather than clicked: a forced click still lands wherever the
+  // pointer is, and the virtualiser moves rows under it.
+  await send.dispatchEvent('click');
   await page.waitForTimeout(9000);
 
   const shown = await frame.locator('.dh-thread-error').allTextContents();
@@ -187,35 +227,35 @@ failures += await check('a comment can be replied to', async () => {
   return 'posted through GitHub\'s own reply form';
 });
 
-failures += await check('a conversation can be resolved, if one is on screen', async () => {
+failures += await check('any conversation can be resolved', async () => {
   const sent = [];
   page.on('response', (r) => {
-    if (/\/(resolve|unresolve)$/.test(r.url())) sent.push(`${r.status()} ${r.url().split('/').slice(-2).join('/')}`);
+    if (/page_data\/(un)?resolve_thread$/.test(r.url())) sent.push(`${r.status()} ${r.url().split('/').pop()}`);
   });
 
-  // Only the threads GitHub has rendered a form for can be resolved, so try
-  // them in turn rather than insisting on the first.
-  const buttons = await frame.locator('[data-dh-thread="resolve"]').count();
-  for (let index = 0; index < Math.min(buttons, 4); index += 1) {
-    const button = frame.locator('[data-dh-thread="resolve"]').nth(index);
-    // The viewer recycles what is off screen, so a button may have gone.
-    if (!(await button.isVisible().catch(() => false))) continue;
-    const wasResolved = (await button.textContent())?.includes('Reopen') === true;
-    await button.click({ timeout: 5000 }).catch(() => {});
-    await page.waitForTimeout(7000);
-    if (sent.some((entry) => entry.startsWith('200'))) {
-      const back = frame.locator('[data-dh-thread="resolve"]').nth(index);
-      if (await back.isVisible().catch(() => false)) {
-        await back.click({ timeout: 5000 }).catch(() => {});
-        await page.waitForTimeout(6000);
-      }
-      return `${wasResolved ? 'reopened' : 'resolved'}, then restored`;
-    }
+  await showAThread();
+
+  // Resolving goes through a JSON route that takes the thread id, so it no
+  // longer depends on GitHub having rendered a form for that conversation.
+  // Taking the first button on screen is therefore a fair test of all of them.
+  const button = frame.locator('[data-dh-thread="resolve"]').first();
+  if ((await button.count()) === 0) return false;
+  const wasResolved = (await button.textContent())?.includes('Reopen') === true;
+
+  await button.click({ timeout: 5000 });
+  await page.waitForTimeout(6000);
+  if (!sent.some((entry) => entry.startsWith('200'))) {
+    console.log(`      requests: ${sent.join(', ') || 'none'}`);
+    return false;
   }
-  // Not a failure: resolving needs the form GitHub rendered for that thread,
-  // and it only renders them for conversations it has loaded on the page.
-  console.log('      skipped: GitHub had loaded no resolvable conversation on the page');
-  return 'skipped, no conversation with a form on screen';
+
+  // Put it back the way it was found.
+  const back = frame.locator('[data-dh-thread="resolve"]').first();
+  if (await back.isVisible().catch(() => false)) {
+    await back.click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(5000);
+  }
+  return `${wasResolved ? 'reopened' : 'resolved'} through ${sent[0]?.split(' ')[1]}, then restored`;
 });
 
 // Submits a real review on the fixture pull request, which is what it is for.

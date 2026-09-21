@@ -79,7 +79,7 @@ colourblind ones. A toolbar button switches light and dark on the spot.
 **A whole review, without leaving.** Every conversation on the pull request is
 read from GitHub, including the outdated ones its own page drops, and anchored
 to the line it was written against. Select lines to write a comment, reply to a
-thread, resolve one, and finish with a verdict — approve, request changes, or
+thread, resolve or reopen any of them, and finish with a verdict — approve, request changes, or
 comment. The comment box is GitHub's own formatting toolbar and GitHub's own
 markdown preview, so what you see is what gets posted.
 

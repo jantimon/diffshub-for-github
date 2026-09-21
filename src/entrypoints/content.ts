@@ -97,7 +97,7 @@ export default defineContentScript({
       threads: (_ask, pr) => readThreads(pr),
       comment: (comment, pr) => writeComment(pr, comment),
       reply: ({ inReplyTo, body }, pr) => replyToComment(pr, inReplyTo, body),
-      resolve: ({ threadId }, pr) => resolveThread(pr, threadId),
+      resolve: ({ threadId, resolved }, pr) => resolveThread(pr, threadId, resolved),
       review: async ({ event, body }, pr) => {
         const headSha = readHeadSha();
         if (headSha == null) return { ok: false, error: 'Could not tell which commit to review.' };

@@ -7,9 +7,7 @@ groups, and ends with where each one stands.
 
 **A review can be done here from beginning to end**: read the diff, tick files
 off, comment on a line, reply, resolve a conversation, and approve or ask for
-changes. Every must-have is built, with one qualification: resolving a
-conversation reaches only the threads GitHub has rendered a form for on the
-page behind the overlay. What is otherwise left is the comfort of GitHub's
+changes. Every must-have is built. What is left is the comfort of GitHub's
 page rather than its function -- ignoring whitespace line by line, applying a
 suggested change, and holding a review back until it is submitted.
 
@@ -102,7 +100,7 @@ Worth building once the rest holds.
 | 12 | Read existing review comments | ✅ | Inline, with outdated and resolved marked. Walks both paginated routes, 40 a page, stopping at 800 and saying so |
 | 13 | Write a review comment | ✅ | From the gutter control, posted at once, shown at its line |
 | 14 | Reply to a comment | ✅ | Submits GitHub's own reply form, so no token is invented |
-| 15 | Resolve a conversation | 🟡 | And reopen one, for conversations GitHub has loaded on the page behind the overlay; it renders the form for no others |
+| 15 | Resolve a conversation | ✅ | And reopen one, for any conversation on the pull request, through `page_data/resolve_thread` |
 | 16 | Submit a review | ✅ | Comment, approve or request changes, from the toolbar |
 | 17 | Mark a file viewed | ✅ | Both ways: what GitHub has is read on open, and every tick is sent back |
 
@@ -141,19 +139,22 @@ Worth building once the rest holds.
 
 | Group | ✅ | 🟡 | ❌ | Total |
 | --- | :---: | :---: | :---: | :---: |
-| Must have | 16 | 1 | 0 | 17 |
+| Must have | 17 | 0 | 0 | 17 |
 | Should have | 6 | 3 | 1 | 10 |
 | Nice to have | 1 | 0 | 10 | 11 |
-| **All** | **23** | **4** | **11** | **38** |
+| **All** | **24** | **3** | **11** | **38** |
 
-### Resolving depends on GitHub's page
+### Resolving and replying take different routes
 
-Resolving posts to a conversation's own address, and its token is good for that
-address alone -- a token from anywhere else is refused. The only source is the
-form GitHub rendered for that conversation, and it renders them for the
-conversations it has loaded, not for all of them. When the form is missing the
-reader is told so and pointed at GitHub. Replying does not have this problem:
-every reply posts to one shared action, so any reply form on the page serves.
+Resolving goes through `page_data/resolve_thread`, which takes the thread id
+and the session cookie and nothing else, so it reaches every conversation on
+the pull request. `unresolve_thread` reopens one. The request names the state
+being asked for rather than toggling, because our idea of the current state is
+stale the moment anyone else acts on the thread.
+
+Replying has no such route. It posts to GitHub's own rendered form, which is
+why `page/forms.ts` exists. That costs nothing in reach: every reply posts to
+one shared action, so any reply form on the page serves.
 
 ### Ignoring whitespace stops at the file
 

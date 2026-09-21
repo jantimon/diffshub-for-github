@@ -126,7 +126,7 @@ export function useThreads(
 
   const resolve = useCallback(
     async (thread: ReviewThread): Promise<string | undefined> => {
-      const result = await ask('resolve', { threadId: thread.id });
+      const result = await ask('resolve', { threadId: thread.id, resolved: !thread.isResolved });
       if (!result.ok) return result.error ?? 'GitHub refused that.';
       await reload();
       return undefined;

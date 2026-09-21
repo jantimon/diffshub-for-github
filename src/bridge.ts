@@ -82,8 +82,8 @@ export interface Requests {
   comment: { ask: NewComment; reply: Result };
   /** An answer to an existing comment. */
   reply: { ask: { inReplyTo: string; body: string }; reply: Result };
-  /** Resolving a conversation, or reopening one. */
-  resolve: { ask: { threadId: string }; reply: Result };
+  /** Resolving a conversation, or reopening one. `resolved` is the state wanted. */
+  resolve: { ask: { threadId: string; resolved: boolean }; reply: Result };
   /** The verdict that ends a review. */
   review: { ask: { event: ReviewEvent; body: string }; reply: Result };
   /** GitHub's own rendering of markdown, for the preview tab. */

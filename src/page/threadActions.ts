@@ -1,14 +1,16 @@
 import type { Result } from '@/bridge';
-import { findAnyForm, findForm, findFormEndingWith, submitForm } from '@/page/forms';
+import { findForm, findFormEndingWith, submitForm } from '@/page/forms';
 import { pullPath, type PullRequestRef } from '@/pullRequest';
+import { WRITE_JSON } from '@/page/requests';
 
 /**
- * Replying to a comment and resolving a conversation.
+ * Replying to a comment, and resolving a conversation.
  *
- * Both are form posts rather than the JSON routes the rest of this extension
- * uses, so both go through `formActions`, which submits the form GitHub itself
- * rendered. Read the comment at the top of that file first -- it explains why
- * a token cannot simply be looked up.
+ * The two are not alike. Resolving has a JSON route that takes the thread id
+ * and nothing else, so it reaches every conversation on the pull request.
+ * Replying has no such route, so it submits the form GitHub itself rendered --
+ * read the comment at the top of `forms.ts` for why a token cannot simply be
+ * looked up.
  */
 
 /**
@@ -48,32 +50,44 @@ export async function replyToComment(
 /**
  * Resolves a conversation, or reopens one.
  *
- * The form posts to the thread's own address and carries `_method=put`, which
- * is how Rails spells a PUT through an HTML form. Nothing here needs changing:
- * the form as rendered is the whole request.
+ * `resolved` is the state being asked for, not a toggle: GitHub has separate
+ * routes for the two directions, and our idea of the current state goes stale
+ * the moment anyone else acts on the thread.
+ *
+ * This used to submit the form GitHub rendered beside the conversation, which
+ * limited it to the handful of threads the page underneath had materialised.
+ * The JSON route needs only the id, which `readThreads` already has for every
+ * conversation.
  */
 export async function resolveThread(
   pr: PullRequestRef,
-  threadId: string
+  threadId: string,
+  resolved: boolean
 ): Promise<Result> {
-  const base = `${pullPath(pr)}/threads/${threadId}`;
+  const route = resolved ? 'resolve_thread' : 'unresolve_thread';
 
   try {
-    // Unlike a reply, these tokens are tied to the thread's own address, so no
-    // other form will do. GitHub renders whichever transition is available --
-    // resolve, or reopen -- and that is the one to take: our own idea of the
-    // state goes stale the moment we change it.
-    const form = findAnyForm([`${base}/resolve`, `${base}/unresolve`]);
-    if (form == null) {
-      return {
-        ok: false,
-        error: 'GitHub has not loaded that conversation on this page, so it cannot be resolved from here yet.',
-      };
-    }
+    const response = await fetch(`${pullPath(pr)}/page_data/${route}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: WRITE_JSON,
+      body: JSON.stringify({ threadId }),
+    });
 
-    const result = await submitForm(form);
-    return result.ok ? { ok: true } : { ok: false, error: `GitHub answered ${result.status}.` };
+    if (response.ok) return { ok: true };
+    // GitHub says why in the body -- that the reader may not resolve this
+    // conversation, or that somebody already has.
+    return { ok: false, error: (await reason(response)) ?? `GitHub answered ${response.status}.` };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function reason(response: Response): Promise<string | undefined> {
+  try {
+    const said = (await response.json()) as { message?: string; error?: string };
+    return said?.message ?? said?.error;
+  } catch {
+    return undefined;
   }
 }
