@@ -1,12 +1,9 @@
-import { DEFAULT_THEMES } from '@pierre/diffs';
 import {
   CodeView,
   WorkerPoolContextProvider,
   type CodeViewHandle,
   type CodeViewItem,
   type CodeViewReactOptions,
-  type WorkerInitializationRenderOptions,
-  type WorkerPoolOptions,
 } from '@pierre/diffs/react';
 import { FileTree, useFileTree, useFileTreeSearch } from '@pierre/trees/react';
 import {
@@ -44,94 +41,15 @@ import { useThemeSurfaces } from './useThemeSurfaces';
 import { useShortcuts } from './useShortcuts';
 import { useViewed } from './useViewed';
 import { readSetting, writeSetting } from './storage';
+import {
+  HEADER_CSS,
+  HIGHLIGHTER_OPTIONS,
+  POOL_OPTIONS,
+  SEPARATOR_CSS,
+  TREE_CSS,
+  TREE_STYLE,
+} from './codeViewStyles';
 
-const POOL_OPTIONS: WorkerPoolOptions = {
-  poolSize: Math.min(Math.max(1, (navigator.hardwareConcurrency ?? 1) - 1), 3),
-  totalASTLRUCacheSize: 100,
-  workerFactory: () =>
-    new Worker(new URL('@pierre/diffs/worker/worker.js', import.meta.url), { type: 'module' }),
-};
-
-const HIGHLIGHTER_OPTIONS: WorkerInitializationRenderOptions = {
-  theme: DEFAULT_THEMES,
-  langs: ['tsx', 'typescript', 'css', 'go', 'python', 'rust', 'sh', 'cpp'],
-};
-
-// A moved file's only signal is its header, so give the old path and the arrow
-// enough weight to catch the eye while scrolling.
-// The tree carries its own generous indents; tightening them buys back the
-// width that deep paths need.
-const TREE_STYLE = {
-  '--trees-density-override': 0.9,
-  '--trees-padding-inline-override': 0,
-  '--trees-item-padding-x-override': 2,
-  '--trees-git-renamed-color-override': 'light-dark(#0969da, #4493f8)',
-} as CSSProperties;
-
-const TREE_CSS = `
-[data-file-tree-search-container] {
-  padding-inline: 0;
-  margin-right: 0;
-}
-[data-file-tree-virtualized-scroll='true'] {
-  padding-inline-start: 0;
-}
-
-/* A folder's tick is fainter than a file's: it is a summary of what is inside
-   rather than something ticked off by hand. */
-[data-item-type='folder'] [data-item-section='decoration'] {
-  opacity: 0.45;
-}
-`;
-
-/*
- * The bar reads as a heading rather than a control: a bare chevron and a count.
- * Clicking the label already reveals the whole gap, while the chevrons step
- * through it, so the label is marked as clickable and given a verb. Nothing
- * here may change a row's height -- the viewer measures them.
- */
-const SEPARATOR_CSS = `
-[data-unmodified-lines] {
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-[data-unmodified-lines]:hover {
-  background: color-mix(in srgb, currentColor 12%, transparent);
-  text-decoration: underline;
-}
-
-[data-separator]:hover [data-expand-button] {
-  opacity: 1;
-}
-
-[data-unmodified-lines]::before {
-  content: 'Show ';
-}
-`;
-
-const HEADER_CSS = `
-[data-diffs-header] [data-header-content] {
-  align-items: center;
-}
-
-[data-diffs-header] slot[name='header-prefix'] {
-  display: inline-flex;
-  align-items: center;
-  line-height: 0;
-}
-
-[data-prev-name],
-[data-rename-icon] {
-  color: light-dark(#0969da, #4493f8);
-  font-weight: 600;
-  opacity: 1;
-}
-
-[data-diffs-header]:has([data-prev-name]) [data-title] {
-  font-weight: 600;
-}
-`;
 
 export function Overlay({ pr }: { pr: PullRequestRef }) {
   return (

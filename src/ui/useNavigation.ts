@@ -4,12 +4,18 @@ import type { ReviewThread } from '@/bridge';
 import { useCallback } from 'react';
 
 import type { ParsedFile } from '@/patch/accumulator';
+import { FILE_GAP } from './codeViewStyles';
 
 /**
- * How far past the top edge a file may hang and still count as scrolled past.
- * Rounding and a border are enough to leave a fraction of it showing.
+ * How far below the top of the pane a file may start and still count as the one
+ * being read.
+ *
+ * The gap between files belongs to neither of them, so a file scrolled to the
+ * top of the pane starts that far down; without allowing for it the file just
+ * left looks like the current one and every press lands back on the same file.
+ * The few pixels on top cover rounding and a border.
  */
-const EDGE_TOLERANCE = 4;
+const EDGE_TOLERANCE = FILE_GAP + 4;
 
 /**
  * Where the diff starts on screen.
@@ -53,35 +59,34 @@ export function useNavigation(
     const files = visibleRef.current;
     const rendered = viewerRef.current?.getInstance()?.getRenderedItems() ?? [];
 
-    // The file you are on is the one crossing the top of the diff pane. A file
-    // scrolled past can still hang a pixel or two below that line, so it has to
-    // reach past the tolerance to count -- otherwise the file just left stays
-    // current and every press lands back on the same one.
+    // The file you are on is the last one that has reached the top of the diff
+    // pane. It has to have reached past the tolerance to count, so that the
+    // file just scrolled off does not keep the claim.
     const first = rendered[0];
     if (first == null) return 0;
     const edge = paneTop(first.element) + EDGE_TOLERANCE;
 
-    let covering: string | undefined;
-    let coveringTop = Number.NEGATIVE_INFINITY;
+    let reached: string | undefined;
+    let reachedTop = Number.NEGATIVE_INFINITY;
     let below: string | undefined;
     let belowTop = Number.POSITIVE_INFINITY;
 
     for (const entry of rendered) {
-      const { bottom, top } = entry.element.getBoundingClientRect();
+      const { top } = entry.element.getBoundingClientRect();
       if (top <= edge) {
-        if (bottom > edge && top > coveringTop) {
-          coveringTop = top;
-          covering = entry.id;
+        if (top > reachedTop) {
+          reachedTop = top;
+          reached = entry.id;
         }
       } else if (top < belowTop) {
-        // Nothing crosses the line -- a gap between files, say -- so the next
-        // file down is the one being looked at.
+        // Nothing has reached the top yet, so the first file below it is the
+        // one being read.
         belowTop = top;
         below = entry.id;
       }
     }
 
-    const topId = covering ?? below;
+    const topId = reached ?? below;
     if (topId == null) return 0;
     const index = files.findIndex((file) => file.item.id === topId);
     return index < 0 ? 0 : index;

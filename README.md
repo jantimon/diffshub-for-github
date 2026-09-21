@@ -94,8 +94,7 @@ broke, while the diff keeps rendering.
   pull request page does not carry.
 
 [`docs/capabilities.md`](docs/capabilities.md) lists everything it takes to
-replace GitHub's review page and where each piece stands.
-[`spec.md`](spec.md) has the full plan, and
+replace GitHub's review page and where each piece stands, and
 [`docs/analysis.md`](docs/analysis.md) records how diffshub.com works, read
 from its own source in the submodule.
 

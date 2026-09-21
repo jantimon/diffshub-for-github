@@ -69,13 +69,16 @@ export async function openOverlay(page, url, { noise } = {}) {
   await page.locator('[data-diffshub-marked]').first().click();
   await page.waitForTimeout(VIEWER_SETTLE_MS);
 
-  frame = viewerFrame(page);
-  if (frame != null && noise != null) {
-    frame.on('console', (m) => {
-      if (m.type() === 'error') noise.push(`viewer: ${m.text().slice(0, 160)}`);
+  // Console events are emitted by the page, never by a frame, so this listens
+  // there and keeps only what came from the viewer.
+  if (noise != null) {
+    page.on('console', (message) => {
+      if (message.type() !== 'error') return;
+      const from = message.location().url;
+      if (from.startsWith('chrome-extension://')) noise.push(`viewer: ${message.text().slice(0, 160)}`);
     });
   }
-  return frame;
+  return viewerFrame(page);
 }
 
 export function viewerFrame(page) {
