@@ -45,32 +45,6 @@ page.on('response', (r) => {
   reviewed.push({ status: r.status(), path: body == null ? null : JSON.parse(body).path });
 });
 
-failures += await check('thread renders', async () => {
-  const count = await frame.locator('.dh-thread').count();
-  return count > 0 ? `${count} thread(s)` : false;
-});
-failures += await check('comment shows its author and body', async () => {
-  const text = (await frame.locator('.dh-comment').first().textContent())?.trim() ?? '';
-  return text.includes('jantimon') && text.length > 20 ? text.slice(0, 60) : false;
-});
-failures += await check('a comment renders as GitHub renders it', async () => {
-  const bodies = await frame.locator('.dh-comment .dh-markdown').count();
-  if (bodies === 0) {
-    console.log('      no rendered bodies');
-    return false;
-  }
-  const html = await frame.locator('.dh-comment .dh-markdown').first().innerHTML();
-  return html.includes('<') ? `${bodies} rendered` : false;
-});
-
-failures += await check('thread sits inside the diff', async () => {
-  const inside = await frame.evaluate(() => {
-    const thread = document.querySelector('.dh-thread');
-    return thread != null && thread.closest('.dh-code') != null;
-  });
-  return inside && 'anchored in the viewer';
-});
-
 // The profile persists between runs, so a file left ticked would make the click
 // below an unmark and the assertions meaningless
 await frame.evaluate(() => {
@@ -95,7 +69,7 @@ await page.waitForTimeout(1500);
 
 const marked = await frame.locator('[data-dh-viewed]').first().getAttribute('data-dh-viewed');
 
-// Leaves a real comment on the fixture pull request, which is what it is for
+// Writes into the review box and previews it, without posting
 failures += await check('markdown is written and previewed', async () => {
   await frame.locator('[data-dh-action="review"]').click();
   await page.waitForTimeout(1500);
@@ -135,18 +109,54 @@ failures += await check('markdown is written and previewed', async () => {
   return `${buttons} toolbar buttons, previewed by GitHub`;
 });
 
-/** What the write check posted, so the check after it can find it again and clean it up */
-let written;
+/**
+ * Every conversation below is one this run writes, so the suite does not rely on
+ * the fixture holding threads from an earlier run, and leaves none behind.
+ *
+ * The run's own stamp finds them again: the virtualiser recycles rows, so a
+ * position on screen names a different thread from one moment to the next
+ */
+const stamp = new Date().toISOString();
+const written = `Written by the browser test at ${stamp}`;
+const replied = `Replied by the browser test at ${stamp}`;
+const TEST_TEXT = 'by the browser test at';
+
+/** Markdown GitHub turns into more than a paragraph, so the render check has something to find */
+const WRITTEN_BODY = `${written}\n\n**bold** and \`code\`\n\n- one\n- two`;
+
+// Comments are posted on the last file, so that is where they are looked for
+const mine = () => frame.locator('.dh-thread', { hasText: written }).first();
+const showMine = async () => {
+  await frame.locator('[data-item-type="file"]').last().click();
+  await page.waitForTimeout(2500);
+  await mine().waitFor({ timeout: 25000 });
+};
+
+/** Collects the answers to requests whose url matches, until `stop` is called */
+const watchResponses = (pattern) => {
+  const seen = [];
+  const listener = (r) => {
+    if (pattern.test(r.url())) seen.push(`${r.request().method()} ${r.status()}`);
+  };
+  page.on('response', listener);
+  return { seen, stop: () => page.off('response', listener) };
+};
+
+/**
+ * Deletes a comment through its own buttons. They are dispatched rather than
+ * clicked, for the reason the reply check gives below
+ */
+const deleteComment = async (comment) => {
+  await comment.locator('[data-dh-comment="delete"]').dispatchEvent('click');
+  await comment.locator('[data-dh-comment="confirm-delete"]').dispatchEvent('click');
+  await page.waitForTimeout(8000);
+};
+
+let posted = false;
 
 failures += await check('a comment can be written', async () => {
-  const posted = [];
-  page.on('response', (r) => {
-    if (r.url().includes('create_review_comment')) posted.push(r.status());
-  });
+  const answered = watchResponses(/create_review_comment/);
 
-  const before = await frame.locator('.dh-thread').count();
-
-  // Go to the last file: the first one collects a thread on every run
   await frame.locator('[data-item-type="file"]').last().click();
   await page.waitForTimeout(2000);
 
@@ -156,6 +166,7 @@ failures += await check('a comment can be written', async () => {
   await page.waitForTimeout(900);
   const box = await frame.locator('[data-utility-button]').first().boundingBox();
   if (box == null) {
+    answered.stop();
     console.log('      no gutter control appeared');
     return false;
   }
@@ -165,123 +176,57 @@ failures += await check('a comment can be written', async () => {
   await page.mouse.up();
   await page.waitForTimeout(2000);
   if ((await frame.locator('.dh-composer').count()) === 0) {
+    answered.stop();
     console.log('      the composer did not open');
     return false;
   }
 
-  written = `Written by the browser test at ${new Date().toISOString()}`;
-  await frame.locator('.dh-composer .dh-editor-text').fill(written);
+  await frame.locator('.dh-composer .dh-editor-text').fill(WRITTEN_BODY);
   await frame.locator('.dh-composer-send').click();
   await page.waitForTimeout(9000);
+  answered.stop();
 
-  // The thread lands on whichever file was open, which the viewer may have
-  // scrolled away from, so the count on screen proves nothing
-  if (!posted.includes(200)) {
-    console.log('      GitHub answered', JSON.stringify(posted));
+  if (!answered.seen.some((one) => one.endsWith(' 200'))) {
+    console.log('      GitHub answered', JSON.stringify(answered.seen));
     return false;
   }
+  posted = true;
   if ((await frame.locator('.dh-composer').count()) !== 0) {
     console.log('      the box stayed open');
     return false;
   }
-  return `posted, and the box closed (${before} threads were on screen)`;
+  return 'posted, and the box closed';
 });
 
-/**
- * Rewrites the comment the check above posted, then deletes it.
- *
- * The delete is also the cleanup: without it every run leaves one more comment
- * on the fixture pull request. The buttons are dispatched rather than clicked,
- * for the reason the reply check gives below
- */
-failures += await check('your own comment can be edited and then deleted', async () => {
-  if (written == null) {
-    console.log('      nothing was written to edit');
-    return false;
-  }
-  const answered = [];
-  const watch = (r) => {
-    if (/update_review_comment|page_data\/review_comments\//.test(r.url())) {
-      answered.push(`${r.request().method()} ${r.status()}`);
-    }
-  };
-  page.on('response', watch);
-
-  await frame.locator('[data-item-type="file"]').last().click();
-  await page.waitForTimeout(2500);
-  const mine = frame.locator('.dh-comment', { hasText: written }).first();
-  await mine.waitFor({ timeout: 25000 });
-
-  await mine.locator('[data-dh-comment="edit"]').dispatchEvent('click');
-  const edited = `${written}, then edited`;
-  await mine.locator('.dh-editor-text').fill(edited);
-  await mine.locator('[data-dh-comment="save"]').dispatchEvent('click');
-  await page.waitForTimeout(8000);
-
-  const rewritten = frame.locator('.dh-comment', { hasText: 'then edited' }).first();
-  if ((await rewritten.count()) === 0) {
-    page.off('response', watch);
-    console.log('      the edit did not show', JSON.stringify(answered));
-    return false;
-  }
-
-  await rewritten.locator('[data-dh-comment="delete"]').dispatchEvent('click');
-  await rewritten.locator('[data-dh-comment="confirm-delete"]').dispatchEvent('click');
-  await page.waitForTimeout(8000);
-  page.off('response', watch);
-
-  const gone = (await frame.locator('.dh-comment', { hasText: 'then edited' }).count()) === 0;
-  const edits = answered.some((one) => one === 'PUT 200');
-  const deletes = answered.some((one) => /^DELETE 20[04]$/.test(one));
-  if (!gone || !edits || !deletes) {
-    console.log(`      gone ${gone}, GitHub answered ${JSON.stringify(answered)}`);
-    return false;
-  }
-  return answered.join(', ');
+failures += await check('thread renders', async () => {
+  if (!posted) return false;
+  await showMine();
+  return 'the thread written above came back from GitHub';
 });
 
-// The check above posts on the last file and leaves the viewer there. Threads
-// collect on the first file, so the checks that act on one go back and wait for
-// it to render rather than hoping something is still on screen
-const showAThread = async () => {
-  await frame.locator('[data-item-type="file"]').first().click();
-  await page.waitForTimeout(2500);
-  await frame.locator('.dh-thread').first().waitFor({ timeout: 25000 });
-};
+failures += await check('comment shows its author and body', async () => {
+  const text = (await mine().locator('.dh-comment').first().textContent())?.trim() ?? '';
+  return text.includes('jantimon') && text.includes(written) ? text.slice(0, 60) : false;
+});
+
+failures += await check('a comment renders as GitHub renders it', async () => {
+  const html = await mine().locator('.dh-markdown').first().innerHTML();
+  const rendered = html.includes('<strong>') && html.includes('<code') && html.includes('<li');
+  if (!rendered) console.log('      body came back as', html.slice(0, 160));
+  return rendered && 'bold, code and a list';
+});
+
+failures += await check('thread sits inside the diff', async () => {
+  const inside = await mine().evaluate((thread) => thread.closest('.dh-code') != null);
+  return inside && 'anchored in the viewer';
+});
 
 failures += await check('a comment can be replied to', async () => {
-  const sent = [];
-  page.on('response', (r) => {
-    if (r.url().includes('review_comment/create')) sent.push(r.status());
-  });
+  const answered = watchResponses(/review_comment\/create/);
 
-  await showAThread();
-
-  /**
-   * Every step stays inside one thread: the new-comment composer shares these
-   * class names, so picking `.first()` per selector can land on two different
-   * conversations once enough of them are on screen
-   *
-   * The thread is pinned by position rather than by "the one with a reply
-   * button", because clicking that button swaps it for the composer, and a
-   * filter on it stops matching the moment it is used
-   */
-  const threads = frame.locator('.dh-thread');
-  let index = -1;
-  for (let i = 0; i < (await threads.count()); i += 1) {
-    if ((await threads.nth(i).locator('[data-dh-thread="reply"]').count()) > 0) {
-      index = i;
-      break;
-    }
-  }
-  if (index < 0) {
-    console.log('      no thread offered a reply button');
-    return false;
-  }
-
-  const thread = threads.nth(index);
+  const thread = mine();
   await thread.locator('[data-dh-thread="reply"]').click({ timeout: 10000 });
-  await thread.locator('.dh-editor-text').fill(`Replied by the browser test at ${new Date().toISOString()}`);
+  await thread.locator('.dh-editor-text').fill(replied);
   /**
    * The composer opens at the bottom of a long thread, so its buttons can sit
    * below the fold, where a click never becomes possible
@@ -294,6 +239,7 @@ failures += await check('a comment can be replied to', async () => {
   const send = thread.locator('.dh-composer-send');
   await send.scrollIntoViewIfNeeded({ timeout: 10000 });
   if (!(await send.isVisible()) || (await send.isDisabled())) {
+    answered.stop();
     console.log('      the send button never became usable');
     return false;
   }
@@ -301,50 +247,103 @@ failures += await check('a comment can be replied to', async () => {
   // pointer is, and the virtualiser moves rows under it
   await send.dispatchEvent('click');
   await page.waitForTimeout(9000);
+  answered.stop();
 
   const shown = await frame.locator('.dh-thread-error').allTextContents();
   if (shown.length > 0) {
     console.log('      ', shown.join(' | '));
     return false;
   }
-  if (!sent.includes(200)) {
-    console.log('      GitHub answered', JSON.stringify(sent));
+  if (!answered.seen.some((one) => one.endsWith(' 200'))) {
+    console.log('      GitHub answered', JSON.stringify(answered.seen));
     return false;
   }
-  return "posted through GitHub's own reply form";
+  const shows = (await mine().locator('.dh-comment', { hasText: replied }).count()) > 0;
+  return shows ? "posted through GitHub's own reply form" : false;
 });
 
-failures += await check('any conversation can be resolved', async () => {
-  const sent = [];
-  page.on('response', (r) => {
-    if (/page_data\/(un)?resolve_thread$/.test(r.url()))
-      sent.push(`${r.status()} ${r.url().split('/').pop()}`);
-  });
+failures += await check('a conversation can be resolved and reopened', async () => {
+  const answered = watchResponses(/page_data\/(un)?resolve_thread$/);
 
-  await showAThread();
-
-  // Resolving goes through a JSON route that takes the thread id, so it no
-  // longer depends on GitHub having rendered a form for that conversation
-  // Taking the first button on screen is therefore a fair test of all of them
-  const button = frame.locator('[data-dh-thread="resolve"]').first();
-  if ((await button.count()) === 0) return false;
-  const wasResolved = (await button.textContent())?.includes('Reopen') === true;
-
-  await button.click({ timeout: 5000 });
+  await mine().locator('[data-dh-thread="resolve"]').click({ timeout: 5000 });
   await page.waitForTimeout(6000);
-  if (!sent.some((entry) => entry.startsWith('200'))) {
-    console.log(`      requests: ${sent.join(', ') || 'none'}`);
+  const resolved = await mine().getAttribute('data-resolved');
+
+  await mine().locator('[data-dh-thread="resolve"]').click({ timeout: 5000 });
+  await page.waitForTimeout(6000);
+  const reopened = await mine().getAttribute('data-resolved');
+  answered.stop();
+
+  const accepted = answered.seen.filter((one) => one.endsWith(' 200')).length;
+  if (resolved !== 'true' || reopened !== 'false' || accepted < 2) {
+    console.log(
+      `      resolved ${resolved}, then ${reopened}, GitHub answered ${JSON.stringify(answered.seen)}`,
+    );
+    return false;
+  }
+  return answered.seen.join(', ');
+});
+
+/**
+ * Rewrites the comment, then deletes the reply and the comment. The deletes are
+ * also the cleanup: GitHub drops a thread once its last comment is gone
+ */
+failures += await check('your own comment can be edited and then deleted', async () => {
+  if (!posted) return false;
+  const answered = watchResponses(/update_review_comment|page_data\/review_comments\//);
+
+  const first = mine().locator('.dh-comment', { hasText: written }).first();
+  await first.locator('[data-dh-comment="edit"]').dispatchEvent('click');
+  const edited = `${WRITTEN_BODY}\n\nthen edited`;
+  await first.locator('.dh-editor-text').fill(edited);
+  await first.locator('[data-dh-comment="save"]').dispatchEvent('click');
+  await page.waitForTimeout(8000);
+
+  const shows = (await mine().locator('.dh-comment', { hasText: 'then edited' }).count()) > 0;
+  if (!shows) {
+    answered.stop();
+    console.log('      the edit did not show', JSON.stringify(answered.seen));
     return false;
   }
 
-  // Put it back the way it was found
-  const back = frame.locator('[data-dh-thread="resolve"]').first();
-  if (await back.isVisible().catch(() => false)) {
-    await back.click({ timeout: 5000 }).catch(() => {});
-    await page.waitForTimeout(5000);
+  const reply = mine().locator('.dh-comment', { hasText: replied });
+  if ((await reply.count()) > 0) await deleteComment(reply.first());
+  await deleteComment(mine().locator('.dh-comment', { hasText: 'then edited' }).first());
+  answered.stop();
+
+  const gone = (await frame.locator('.dh-thread', { hasText: written }).count()) === 0;
+  const edits = answered.seen.some((one) => one === 'PUT 200');
+  const deletes = answered.seen.filter((one) => /^DELETE 20[04]$/.test(one)).length;
+  if (!gone || !edits || deletes === 0) {
+    console.log(`      gone ${gone}, GitHub answered ${JSON.stringify(answered.seen)}`);
+    return false;
   }
-  return `${wasResolved ? 'reopened' : 'resolved'} through ${sent[0]?.split(' ')[1]}, then restored`;
+  return answered.seen.join(', ');
 });
+
+/**
+ * Whatever a failed check above left behind, this run's or an earlier one's,
+ * so the fixture starts the next run with nothing on it. Working from the
+ * bottom up deletes each reply before the comment it answers
+ */
+const sweep = async () => {
+  await frame.locator('[data-item-type="file"]').last().click();
+  await page.waitForTimeout(4000);
+  let removed = 0;
+  for (let round = 0; round < 20; round += 1) {
+    const left = frame.locator('.dh-comment', { hasText: TEST_TEXT });
+    const count = await left.count();
+    if (count === 0) break;
+    const last = left.nth(count - 1);
+    if ((await last.locator('[data-dh-comment="delete"]').count()) === 0) break;
+    await deleteComment(last);
+    removed += 1;
+  }
+  return removed;
+};
+
+const swept = await sweep().catch(() => 0);
+if (swept > 0) console.log(`deleted ${swept} comment(s) a failed check left on the fixture`);
 
 // Submits a real review on the fixture pull request, which is what it is for
 failures += await check('a review can be submitted', async () => {
