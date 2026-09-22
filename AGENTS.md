@@ -61,10 +61,21 @@ preference, and none should be copied without the same reason:
 - **Reading `scrollTop`.** The closest observable to "the diff moved", which is
   what a reader sees when they press `j`.
 
-`pnpm test` replays recorded traffic, which is a step away from the real thing
-and buys back a suite that cannot be throttled. `pnpm test:live` is the same
-checks against github.com, and is the one that catches GitHub changing under
-us. Run it before believing a green replay.
+`pnpm test` replays recorded traffic. That is a step away from the real thing,
+and it is the default for a reason worth knowing: a day of automated runs, with
+agents pulling GitHub's bundles alongside them, earned the account a 503 on
+every request. The suite could not tell that from a bug. Fifteen checks failed
+with an empty diff, and the first guess was a change that had nothing to do
+with it. Throttling is on the signed-in session, so a signed-out `curl` kept
+answering 200 the whole time and made it look like GitHub was fine.
+
+Replaying also keeps the traffic down, which is what stops it happening again.
+
+Going live has to be spelled out, so a script written in a hurry cannot reach
+github.com by forgetting a variable. `pnpm test:live` is the same checks
+against github.com and is the one that catches GitHub changing under the
+recording. Run it before believing a green replay, and refresh the recording
+with `pnpm test:record` when it drifts.
 
 ## House rules
 
