@@ -135,6 +135,9 @@ failures += await check('markdown is written and previewed', async () => {
   return `${buttons} toolbar buttons, previewed by GitHub`;
 });
 
+/** What the write check posted, so the check after it can find it again and clean it up */
+let written;
+
 failures += await check('a comment can be written', async () => {
   const posted = [];
   page.on('response', (r) => {
@@ -166,9 +169,8 @@ failures += await check('a comment can be written', async () => {
     return false;
   }
 
-  await frame
-    .locator('.dh-composer .dh-editor-text')
-    .fill(`Written by the browser test at ${new Date().toISOString()}`);
+  written = `Written by the browser test at ${new Date().toISOString()}`;
+  await frame.locator('.dh-composer .dh-editor-text').fill(written);
   await frame.locator('.dh-composer-send').click();
   await page.waitForTimeout(9000);
 
@@ -183,6 +185,59 @@ failures += await check('a comment can be written', async () => {
     return false;
   }
   return `posted, and the box closed (${before} threads were on screen)`;
+});
+
+/**
+ * Rewrites the comment the check above posted, then deletes it.
+ *
+ * The delete is also the cleanup: without it every run leaves one more comment
+ * on the fixture pull request. The buttons are dispatched rather than clicked,
+ * for the reason the reply check gives below
+ */
+failures += await check('your own comment can be edited and then deleted', async () => {
+  if (written == null) {
+    console.log('      nothing was written to edit');
+    return false;
+  }
+  const answered = [];
+  const watch = (r) => {
+    if (/update_review_comment|page_data\/review_comments\//.test(r.url())) {
+      answered.push(`${r.request().method()} ${r.status()}`);
+    }
+  };
+  page.on('response', watch);
+
+  await frame.locator('[data-item-type="file"]').last().click();
+  await page.waitForTimeout(2500);
+  const mine = frame.locator('.dh-comment', { hasText: written }).first();
+  await mine.waitFor({ timeout: 25000 });
+
+  await mine.locator('[data-dh-comment="edit"]').dispatchEvent('click');
+  const edited = `${written}, then edited`;
+  await mine.locator('.dh-editor-text').fill(edited);
+  await mine.locator('[data-dh-comment="save"]').dispatchEvent('click');
+  await page.waitForTimeout(8000);
+
+  const rewritten = frame.locator('.dh-comment', { hasText: 'then edited' }).first();
+  if ((await rewritten.count()) === 0) {
+    page.off('response', watch);
+    console.log('      the edit did not show', JSON.stringify(answered));
+    return false;
+  }
+
+  await rewritten.locator('[data-dh-comment="delete"]').dispatchEvent('click');
+  await rewritten.locator('[data-dh-comment="confirm-delete"]').dispatchEvent('click');
+  await page.waitForTimeout(8000);
+  page.off('response', watch);
+
+  const gone = (await frame.locator('.dh-comment', { hasText: 'then edited' }).count()) === 0;
+  const edits = answered.some((one) => one === 'PUT 200');
+  const deletes = answered.some((one) => /^DELETE 20[04]$/.test(one));
+  if (!gone || !edits || !deletes) {
+    console.log(`      gone ${gone}, GitHub answered ${JSON.stringify(answered)}`);
+    return false;
+  }
+  return answered.join(', ');
 });
 
 // The check above posts on the last file and leaves the viewer there. Threads

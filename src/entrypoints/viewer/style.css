@@ -865,6 +865,45 @@ diffs-container:has(.dh-viewed:focus) {
   text-decoration: underline;
 }
 
+/* Edit and Delete sit with the GitHub link as quiet words, not as buttons: they
+   are for the reader's own comments and should not compete with the text. */
+.dh-comment-act {
+  padding: 0;
+  font: inherit;
+  font-size: 11px;
+  color: var(--dh-muted);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.dh-comment-act:hover {
+  color: var(--dh-accent, #0969da);
+  text-decoration: underline;
+}
+
+/* Pushed to the end of the row when there is no link to do it */
+.dh-comment-act:not(a ~ .dh-comment-act, .dh-comment-act ~ .dh-comment-act) {
+  margin-inline-start: auto;
+}
+
+.dh-comment-confirm {
+  align-items: center;
+  margin-block-start: 8px;
+}
+
+.dh-comment-confirm span {
+  margin-inline-end: auto;
+  font-size: 12px;
+  color: var(--dh-muted);
+}
+
+.dh-comment-delete {
+  font-weight: 600;
+  color: var(--dh-deleted);
+  border-color: color-mix(in srgb, var(--dh-deleted) 45%, transparent) !important;
+}
+
 .dh-badge {
   padding: 0 6px;
   font-size: 10px;

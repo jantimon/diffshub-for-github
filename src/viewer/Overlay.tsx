@@ -292,7 +292,7 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
   });
 
   const comments = useThreads(items, pushToast);
-  const { closeDraft, openDraft, post, reply, resolve } = comments;
+  const { closeDraft, openDraft, post, reply, resolve, edit, remove } = comments;
   const hideComments = comments.hidden;
 
   /**
@@ -321,12 +321,14 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
               thread={thread}
               onReply={(body) => reply(thread, body)}
               onResolve={() => resolve(thread)}
+              onEdit={edit}
+              onDelete={remove}
             />
           )}
         </div>
       );
     },
-    [closeDraft, post, pushToast, reply, resolve],
+    [closeDraft, edit, post, pushToast, remove, reply, resolve],
   );
 
   const reportedError = useRef<string | undefined>(undefined);

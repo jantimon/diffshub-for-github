@@ -19,7 +19,7 @@ import {
 import { readThreads } from '@/page/readThreads';
 import { previewMarkdown } from '@/page/previewMarkdown';
 import { readViewed } from '@/page/readViewed';
-import { replyToComment, resolveThread } from '@/page/threadActions';
+import { deleteComment, editComment, replyToComment, resolveThread } from '@/page/threadActions';
 import { submitReview } from '@/page/submitReview';
 import { writeComment } from '@/page/writeComment';
 import { writeViewed } from '@/page/writeViewed';
@@ -186,6 +186,8 @@ export default defineContentScript({
       comment: (comment, pr) => writeComment(pr, comment),
       reply: ({ inReplyTo, body }, pr) => replyToComment(pr, inReplyTo, body),
       resolve: ({ threadId, resolved }, pr) => resolveThread(pr, threadId, resolved),
+      'edit-comment': ({ databaseId, body }, pr) => editComment(pr, databaseId, body),
+      'delete-comment': ({ databaseId }, pr) => deleteComment(pr, databaseId),
       review: async ({ event, body }, pr) => {
         const headSha = readHeadSha();
         if (headSha == null) return { ok: false, error: 'Could not tell which commit to review.' };

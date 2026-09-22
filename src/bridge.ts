@@ -54,6 +54,10 @@ export interface ReviewComment {
   association?: string;
   /** Changed since it was posted */
   isEdited?: boolean;
+  /** GitHub will let the reader rewrite it, which in practice means it is theirs */
+  canEdit?: boolean;
+  /** GitHub will let the reader take it down */
+  canDelete?: boolean;
   /** The markdown as it was written, for when GitHub sends no rendering */
   body: string;
   /** GitHub's own rendering of the body, which is how a suggestion arrives */
@@ -119,6 +123,10 @@ export interface Requests {
   reply: { ask: { inReplyTo: string; body: string }; reply: Result };
   /** Resolving a conversation, or reopening one. `resolved` is the state wanted. */
   resolve: { ask: { threadId: string; resolved: boolean }; reply: Result };
+  /** Rewriting one of the reader's own comments */
+  'edit-comment': { ask: { databaseId: string; body: string }; reply: Result };
+  /** Taking one of the reader's own comments down */
+  'delete-comment': { ask: { databaseId: string }; reply: Result };
   /** The verdict that ends a review */
   review: { ask: { event: ReviewEvent; body: string }; reply: Result };
   /** GitHub's own rendering of markdown, for the preview tab */
@@ -142,6 +150,8 @@ export const failedReply: { [K in RequestName]: (error: string) => Reply<K> } = 
   comment: (error) => ({ ok: false, error }),
   reply: (error) => ({ ok: false, error }),
   resolve: (error) => ({ ok: false, error }),
+  'edit-comment': (error) => ({ ok: false, error }),
+  'delete-comment': (error) => ({ ok: false, error }),
   review: (error) => ({ ok: false, error }),
   preview: (error) => ({ error }),
 };

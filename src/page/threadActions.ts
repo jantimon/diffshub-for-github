@@ -61,18 +61,48 @@ export async function resolveThread(
   resolved: boolean,
 ): Promise<Result> {
   const route = resolved ? 'resolve_thread' : 'unresolve_thread';
+  return await write(`${pullPath(pr)}/page_data/${route}`, 'POST', { threadId });
+}
 
+/**
+ * Rewrites one of the reader's own comments.
+ *
+ * `commentId` is the comment's database id, sent as a string. The node id
+ * GitHub also hands out answers 404 here, although the route's own type calls
+ * the field a string.
+ */
+export async function editComment(pr: PullRequestRef, databaseId: string, body: string): Promise<Result> {
+  return await write(`${pullPath(pr)}/page_data/update_review_comment`, 'PUT', {
+    body,
+    commentId: databaseId,
+  });
+}
+
+/**
+ * Takes one of the reader's own comments down.
+ *
+ * GitHub's own client no longer names this route, yet the server still
+ * answers it. It is the likeliest of the routes here to go, so a refusal is
+ * reported as it comes rather than smoothed over.
+ */
+export async function deleteComment(pr: PullRequestRef, databaseId: string): Promise<Result> {
+  return await write(`${pullPath(pr)}/page_data/review_comments/${encodeURIComponent(databaseId)}`, 'DELETE');
+}
+
+/**
+ * One JSON write to a `page_data` route. GitHub says why it refused in the body
+ * -- that the reader may not do this, or that somebody already has -- and that
+ * sentence is what reaches the reader
+ */
+async function write(url: string, method: 'POST' | 'PUT' | 'DELETE', body?: unknown): Promise<Result> {
   try {
-    const response = await fetch(`${pullPath(pr)}/page_data/${route}`, {
-      method: 'POST',
+    const response = await fetch(url, {
+      method,
       credentials: 'include',
       headers: WRITE_JSON,
-      body: JSON.stringify({ threadId }),
+      body: body == null ? undefined : JSON.stringify(body),
     });
-
     if (response.ok) return { ok: true };
-    // GitHub says why in the body -- that the reader may not resolve this
-    // conversation, or that somebody already has
     return { ok: false, error: (await refusal(response)) ?? `GitHub answered ${response.status}.` };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };

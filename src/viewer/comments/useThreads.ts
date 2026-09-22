@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { ReviewThread } from '@/bridge';
+import type { ReviewComment, ReviewThread } from '@/bridge';
 import { ask } from '@/viewer/ask';
 import { useChoice } from '@/viewer/settings';
 import type { CodeViewItem } from '@pierre/diffs/react';
@@ -34,6 +34,10 @@ export interface Threads {
   reply: (thread: ReviewThread, body: string) => Promise<string | undefined>;
   /** Settles a conversation, or reopens a settled one */
   resolve: (thread: ReviewThread) => Promise<string | undefined>;
+  /** Rewrites one of the reader's own comments */
+  edit: (comment: ReviewComment, body: string) => Promise<string | undefined>;
+  /** Takes one of the reader's own comments down */
+  remove: (comment: ReviewComment) => Promise<string | undefined>;
   /** Sends the drafted comment to GitHub and closes the composer */
   post: (thread: ReviewThread, text: string) => Promise<string | undefined>;
   /** Re-reads the conversations, for a change made somewhere other than here */
@@ -171,6 +175,26 @@ export function useThreads(
     [reload],
   );
 
+  const edit = useCallback(
+    async (comment: ReviewComment, body: string): Promise<string | undefined> => {
+      const result = await ask('edit-comment', { databaseId: comment.databaseId, body });
+      if (!result.ok) return result.error ?? 'GitHub refused the edit.';
+      await reload();
+      return undefined;
+    },
+    [reload],
+  );
+
+  const remove = useCallback(
+    async (comment: ReviewComment): Promise<string | undefined> => {
+      const result = await ask('delete-comment', { databaseId: comment.databaseId });
+      if (!result.ok) return result.error ?? 'GitHub refused to delete it.';
+      await reload();
+      return undefined;
+    },
+    [reload],
+  );
+
   const post = useCallback(
     async (thread: ReviewThread, text: string): Promise<string | undefined> => {
       const result = await ask('comment', {
@@ -188,5 +212,17 @@ export function useThreads(
     [bumpRevision, reload],
   );
 
-  return { items: withThreads, hidden, toggleHidden, openDraft, closeDraft, reply, resolve, post, reload };
+  return {
+    items: withThreads,
+    hidden,
+    toggleHidden,
+    openDraft,
+    closeDraft,
+    reply,
+    resolve,
+    edit,
+    remove,
+    post,
+    reload,
+  };
 }

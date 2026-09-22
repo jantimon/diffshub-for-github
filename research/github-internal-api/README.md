@@ -199,6 +199,9 @@ PUT /:owner/:repo/pull/:n/page_data/update_review_comment   {"body": "...", "com
   -> 200 {"bodyVersion":"<sha>"}
 ```
 
+**`commentId` is the database id, as a string** — `"4061602195"`. The node id (`PRRC_…`) from
+the same `threads` payload answers `404 {"error":"Not Found"}`. Measured with both on one comment.
+
 The edit is visible in a subsequent `page_data/threads` read. Slice 2 read a wider response type
 for this route (`{body, bodyHTML, bodyVersion, commentDatabaseId, threadId}`); what came back on the
 wire was the single field. Unresolved whether the wider shape is conditional or stale in the types.

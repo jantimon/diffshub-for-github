@@ -57,10 +57,42 @@ function CommentBody({ comment }: { comment: ReviewComment }) {
   return <div className="dh-markdown" dangerouslySetInnerHTML={{ __html: comment.bodyHTML }} />;
 }
 
-function Comment({ comment }: { comment: ReviewComment }) {
+/**
+ * One comment, and for the reader's own, the means to rewrite or take it down.
+ *
+ * Deleting asks once more in place rather than in a dialog: the question sits
+ * where the comment is, and a comment gone cannot be brought back.
+ */
+function Comment({
+  comment,
+  onEdit,
+  onDelete,
+}: {
+  comment: ReviewComment;
+  onEdit: (body: string) => Promise<string | undefined>;
+  onDelete: () => Promise<string | undefined>;
+}) {
   const left = when(comment.createdAt);
   const badge = association(comment.association);
   const avatarUrl = comment.avatarUrl ?? '';
+
+  const [mode, setMode] = useState<'reading' | 'editing' | 'deleting'>('reading');
+  const [draft, setDraft] = useState(comment.body);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | undefined>(undefined);
+
+  const run = async (work: () => Promise<string | undefined>): Promise<void> => {
+    if (busy) return;
+    setBusy(true);
+    setError(undefined);
+    const failed = await work();
+    setBusy(false);
+    if (failed == null) setMode('reading');
+    else setError(failed);
+  };
+
+  const save = (): void => void run(() => onEdit(draft));
+  const unchanged = draft.trim() === '' || draft === comment.body;
 
   return (
     <article className="dh-comment">
@@ -86,8 +118,81 @@ function Comment({ comment }: { comment: ReviewComment }) {
             GitHub
           </a>
         )}
+        {mode === 'reading' && comment.canEdit === true && (
+          <button
+            type="button"
+            className="dh-comment-act"
+            data-dh-comment="edit"
+            onClick={() => {
+              setDraft(comment.body);
+              setMode('editing');
+            }}
+          >
+            Edit
+          </button>
+        )}
+        {mode === 'reading' && comment.canDelete === true && (
+          <button
+            type="button"
+            className="dh-comment-act"
+            data-dh-comment="delete"
+            onClick={() => setMode('deleting')}
+          >
+            Delete
+          </button>
+        )}
       </header>
-      <CommentBody comment={comment} />
+
+      {mode === 'editing' ? (
+        <div className="dh-composer dh-composer-reply">
+          <MarkdownEditor
+            value={draft}
+            onChange={setDraft}
+            rows={4}
+            disabled={busy}
+            focusOnMount
+            onSubmit={() => {
+              if (!unchanged) save();
+            }}
+          />
+          <div className="dh-composer-actions">
+            <button type="button" onClick={() => setMode('reading')} disabled={busy}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="dh-composer-send"
+              data-dh-comment="save"
+              disabled={busy || unchanged}
+              onClick={save}
+            >
+              {busy ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <CommentBody comment={comment} />
+      )}
+
+      {mode === 'deleting' && (
+        <div className="dh-composer-actions dh-comment-confirm">
+          <span>Delete this comment? It cannot be brought back.</span>
+          <button type="button" onClick={() => setMode('reading')} disabled={busy}>
+            Keep it
+          </button>
+          <button
+            type="button"
+            className="dh-comment-delete"
+            data-dh-comment="confirm-delete"
+            disabled={busy}
+            onClick={() => void run(onDelete)}
+          >
+            {busy ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
+      )}
+
+      {error != null && <p className="dh-thread-error">{error}</p>}
     </article>
   );
 }
@@ -97,10 +202,14 @@ export function Thread({
   thread,
   onReply,
   onResolve,
+  onEdit,
+  onDelete,
 }: {
   thread: ReviewThread;
   onReply: (body: string) => Promise<string | undefined>;
   onResolve: () => Promise<string | undefined>;
+  onEdit: (comment: ReviewComment, body: string) => Promise<string | undefined>;
+  onDelete: (comment: ReviewComment) => Promise<string | undefined>;
 }) {
   const [replying, setReplying] = useState(false);
   const [text, setText] = useState('');
@@ -152,7 +261,12 @@ export function Thread({
       {labels.length > 0 && <p className="dh-thread-resolved">{labels.join(' · ')}</p>}
 
       {thread.comments.map((comment) => (
-        <Comment comment={comment} key={comment.databaseId} />
+        <Comment
+          comment={comment}
+          key={comment.databaseId}
+          onEdit={(body) => onEdit(comment, body)}
+          onDelete={() => onDelete(comment)}
+        />
       ))}
 
       {error != null && <p className="dh-thread-error">{error}</p>}

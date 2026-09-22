@@ -3,22 +3,6 @@
 Things worth doing, with enough detail to pick up cold. Not a backlog of
 everything: each of these was found and set aside deliberately.
 
-## Edit and delete your own comment
-
-Capability 32. Both routes are measured and working:
-
-```
-PUT    …/page_data/update_review_comment   {body, commentId}  -> 200 {bodyVersion}
-DELETE …/page_data/review_comments/:id                        -> 204
-```
-
-Delete is **commented out of GitHub's own client registry** yet still answers,
-so it is the likeliest of our routes to disappear. It must fail loudly.
-
-Once this exists, `test/review.mjs` can delete what it wrote through the
-extension, and the cleanup doubles as coverage. Submitted reviews still cannot
-be removed by anyone, so the fixture pull request needs replacing now and then.
-
 ## Viewed state from another tab is lost
 
 `useViewed` sets a `touched` latch on the first tick and never clears it, so

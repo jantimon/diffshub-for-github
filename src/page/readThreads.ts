@@ -36,6 +36,8 @@ interface RawComment {
   author?: { login?: string; avatarUrl?: string; isAgent?: boolean };
   authorAssociation?: string;
   lastUserContentEdit?: unknown;
+  viewerCanUpdate?: boolean;
+  viewerCanDelete?: boolean;
   body?: string;
   createdAt?: string;
   url?: string;
@@ -107,6 +109,8 @@ function toComment(comment: RawComment): ReviewComment {
     isAgent: comment?.author?.isAgent === true,
     association: comment?.authorAssociation ?? '',
     isEdited: comment?.lastUserContentEdit != null,
+    canEdit: comment?.viewerCanUpdate === true,
+    canDelete: comment?.viewerCanDelete === true,
     body: comment?.body ?? '',
     bodyHTML: comment?.bodyHTML ?? '',
     createdAt: comment?.createdAt ?? '',
