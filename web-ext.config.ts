@@ -37,5 +37,23 @@ export default defineWebExtConfig({
     /** Mirror extension console output onto Firefox's stdout */
     'devtools.console.stdout.chrome': true,
     'devtools.console.stdout.content': true,
+
+    /**
+     * Local Network Access gates a request from a secure context to an address
+     * on this machine, and answers it with an automatic denial.
+     *
+     * In development the viewer is an extension page inside a github.com tab
+     * loading its modules from the dev server on localhost, which is exactly
+     * that shape, so every module and the reload socket are refused and the
+     * overlay never starts.
+     *
+     * Turning blocking off alone was not enough, so all three are set
+     * together: the feature switch, the blocking switch and the permission
+     * itself. Only the throwaway dev profile is affected. A built extension
+     * talks to github.com and nothing on this machine.
+     */
+    'network.lna.enabled': false,
+    'network.lna.blocking': false,
+    'permissions.default.local-network': 1,
   },
 });
