@@ -97,6 +97,24 @@ export const SEPARATOR_CSS = `
  * top as you scroll, and padding would leave the stuck bar with a dead band
  * above the filename.
  */
+/**
+ * A lighter tint behind a deleted line, in light mode only.
+ *
+ * The emphasis tint sits on top of the line background, and at the library's
+ * own weight it competes with the code on it. The dark value is unchanged.
+ *
+ * `light-dark` picks the right one because the viewer library sets
+ * `color-scheme` on its shadow host from the resolved theme.
+ */
+export const DIFF_TINT_CSS = `
+:host {
+  --diffs-bg-deletion-emphasis-override: light-dark(
+    rgb(from var(--diffs-deletion-base) r g b / 0.1),
+    rgb(from var(--diffs-deletion-base) r g b / 0.2)
+  );
+}
+`;
+
 export const HEADER_CSS = `
 [data-diffs-header] {
   margin-block-start: ${FILE_GAP}px;

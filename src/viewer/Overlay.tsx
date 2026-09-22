@@ -38,6 +38,7 @@ import { useShortcuts } from '@/viewer/shell/useShortcuts';
 import { useViewed } from '@/viewer/review/useViewed';
 import { readSetting, useChoice, writeSetting } from '@/viewer/settings';
 import {
+  DIFF_TINT_CSS,
   HEADER_CSS,
   HIGHLIGHTER_OPTIONS,
   POOL_OPTIONS,
@@ -394,7 +395,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         if (item.type !== 'diff') return;
         openDraft(item.fileDiff.name, range.start, range.side === 'deletions' ? 'deletions' : 'additions');
       },
-      unsafeCSS: `${HEADER_CSS}\n${SEPARATOR_CSS}`,
+      unsafeCSS: `${HEADER_CSS}\n${SEPARATOR_CSS}\n${DIFF_TINT_CSS}`,
       loadDiffFiles,
     }),
     [diffStyle, themeChoice, page.themeType, page.lightTheme, page.darkTheme, loadDiffFiles, openDraft],

@@ -17,8 +17,8 @@ Raise the mix so the added and deleted tints sit lighter behind the code:
 They are in its shadow root, so the override goes in `codeViewStyles.ts`
 alongside `HEADER_CSS`, not in `viewer/style.css`.
 
-Note: the request named 88% for both, but the dark value is 80% today. Check
-which was meant before changing it.
+Both values were tried in the browser before being written down, so take them
+as given. The dark side reads 80% in the library today, not 88%.
 
 ## Edit and delete your own comment
 
