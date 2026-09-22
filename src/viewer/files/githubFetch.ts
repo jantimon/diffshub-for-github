@@ -11,7 +11,7 @@
  *
  * Every github.com request from there leaves signed out. On a private pull
  * request the framed viewer gets 404 for the patch and the same request
- * through the background gets 200; a public patch downloads either way.
+ * through the background gets 200. A public patch downloads either way.
  *
  * The background script is its own top-level context, so it keeps the real
  * jar. The response is streamed back a chunk at a time, which keeps the patch
@@ -63,7 +63,7 @@ export function githubFetch(url: string, signal?: AbortSignal): Promise<Response
     port.onMessage.addListener((message: unknown) => {
       const reply = message as Reply;
 
-      // The head arrives first and decides the Response; everything after it
+      // The head arrives first and decides the Response. Everything after it
       // belongs to the body stream, which may not exist yet on this turn
       if (reply.type === 'head') {
         if (settled) return;

@@ -2,7 +2,7 @@
  * The headers GitHub's own page sends, and which its routes expect.
  *
  * `x-requested-with` is what marks a request as coming from inside a page
- * rather than from a typed-in address; without it the JSON routes answer with
+ * rather than from a typed-in address. Without it the JSON routes answer with
  * HTML. `github-verified-fetch` is the extra header GitHub's client puts on its
  * JSON writes, and the write routes refuse a request that lacks it.
  *

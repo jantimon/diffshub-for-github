@@ -29,7 +29,7 @@ export default defineConfig({
   manifestVersion: 3,
   /**
    * The submodule is a read-only reference and the screenshots are rebuilt on
-   * every test run; neither belongs in the source archive AMO asks for
+   * every test run. Neither belongs in the source archive AMO asks for
    */
   zip: {
     excludeSources: ['research/**', 'test/screenshots/**', 'test/.profile/**', '.firefox-profile/**'],

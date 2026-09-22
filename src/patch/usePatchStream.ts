@@ -34,7 +34,7 @@ export interface PatchStreamState {
 }
 
 export interface PatchStream {
-  /** Phase, counts and filter errors; a change here redraws the viewer */
+  /** Phase, counts and filter errors. A change here redraws the viewer */
   state: PatchStreamState;
   /** The files a filter lets through, in patch order */
   items: readonly CodeViewItem<ReviewThread>[];

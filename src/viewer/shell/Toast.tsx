@@ -16,7 +16,7 @@ export interface ToastControls {
 
 /**
  * Holds the toasts a feature raises when it degrades. A plain toast clears
- * itself; one carrying an action stays until the user has dealt with it, so
+ * itself. One carrying an action stays until the user has dealt with it, so
  * the link out to GitHub never disappears mid-read.
  */
 export function useToasts(): ToastControls {

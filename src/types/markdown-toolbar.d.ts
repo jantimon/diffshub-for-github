@@ -3,7 +3,7 @@ import type { HTMLAttributes } from 'react';
 /**
  * The custom elements `@github/markdown-toolbar-element` defines.
  *
- * They are ordinary HTML elements at runtime; this only tells TypeScript that
+ * They are ordinary HTML elements at runtime. This only tells TypeScript that
  * they exist so they can be written in JSX.
  */
 type ToolbarButton = HTMLAttributes<HTMLElement>;

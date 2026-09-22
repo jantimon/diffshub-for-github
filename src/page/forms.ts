@@ -28,8 +28,8 @@
  * Every reply form on the page posts to one shared `review_comment/create`
  * action, and a token is good for the action it was minted for rather than the
  * copy it arrived in. Rails masks each render differently, so two copies look
- * unalike while being equally valid. Any of them will do; the comment being
- * answered is set on it.
+ * unalike while being equally valid. Any of them will do, with the comment
+ * being answered set on it.
  *
  * All of this runs in the content script, on github.com's own origin. Tokens
  * never cross into the extension's viewer, and none is stored or logged.

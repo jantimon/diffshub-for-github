@@ -4,7 +4,7 @@ import type { FileDiffMetadata } from '@pierre/diffs';
  * Rebuilds the old version of a file from its new version and the patch.
  *
  * Expanding collapsed context needs both sides in full, and GitHub only serves
- * raw files by commit sha. The pull request page gives us the head sha; the
+ * raw files by commit sha. The pull request page gives us the head sha. The
  * commit the diff was taken against is not addressable, so the old side is
  * derived instead. A patch records every changed line on both sides, and the
  * lines between hunks are the same in both versions, so the result is exact.
@@ -23,7 +23,7 @@ export function reconstructOldFile(fileDiff: FileDiffMetadata, newContents: stri
       oldLines.push(newLines[line] ?? '');
     }
 
-    // The parsed lines keep their line ending; the split above dropped it
+    // The parsed lines keep their line ending, which the split above dropped
     const from = hunk.deletionLineIndex;
     for (let offset = 0; offset < hunk.deletionCount; offset += 1) {
       const line = fileDiff.deletionLines[from + offset] ?? '';

@@ -24,7 +24,7 @@ export default defineWebExtConfig({
   keepProfileChanges: true,
   startUrls: ['https://github.com/nodejs/node/pull/60000'],
   /**
-   * An everyday Firefox is usually already running; without these the launch is
+   * An everyday Firefox is usually already running. Without these the launch is
    * handed to that instance and the new process exits immediately
    */
   firefoxArgs: ['--new-instance', '--no-remote'],

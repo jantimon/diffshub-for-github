@@ -157,7 +157,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         if (id == null || !seen.has(id)) return null;
         return { text: '✓', title: 'Viewed' };
       }
-      // The tree names a folder with a trailing slash; the tally is keyed by
+      // The tree names a folder with a trailing slash. The tally is keyed by
       // the path as it appears in the patch, which has none
       const folder = folders.get(item.path.replace(/\/$/, ''));
       if (folder == null || folder.total === 0 || folder.viewed < folder.total) return null;

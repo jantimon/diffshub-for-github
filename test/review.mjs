@@ -47,7 +47,7 @@ const check = async (name, fn) => {
 
 let failures = 0;
 
-// Marking a file viewed is a real write; remember what to put back
+// Marking a file viewed is a real write, so remember what to put back
 const reviewed = [];
 page.on('response', (r) => {
   if (!r.url().includes('/file_review')) return;
@@ -94,7 +94,7 @@ await page.locator('[data-diffshub-marked]').first().click();
 await page.waitForTimeout(10000);
 frame = page.frames().find((f) => f.url().startsWith('chrome-extension://'));
 
-// The patch streams and the comments arrive in two paginated walks; the write
+// The patch streams and the comments arrive in two paginated walks. The write
 // checks below are about state, so let the overlay settle before touching it
 await frame
   .locator('.dh-loading')

@@ -35,7 +35,7 @@ export const HIGHLIGHTER_OPTIONS: WorkerInitializationRenderOptions = {
 };
 
 /**
- * The tree carries its own generous indents; tightening them buys back the
+ * The tree carries its own generous indents. Tightening them buys back the
  * width that deep paths need
  */
 export const TREE_STYLE = {

@@ -19,7 +19,7 @@ import { refusal, WRITE_JSON } from '@/page/requests';
  * Every thread on the page has its own reply form, all of them posting to the
  * same `review_comment/create` action, so the right one is picked out by the
  * comment it answers. The form already carries the side, the three commit
- * oids, the path and the line; only the text is ours.
+ * oids, the path and the line. Only the text is ours.
  */
 export async function replyToComment(pr: PullRequestRef, inReplyTo: string, body: string): Promise<Result> {
   const action = `${pullPath(pr)}/review_comment/create`;

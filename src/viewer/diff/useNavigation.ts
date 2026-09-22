@@ -11,7 +11,7 @@ import { FILE_GAP } from '@/viewer/diff/codeViewStyles';
  * being read.
  *
  * The gap between files belongs to neither of them, so a file scrolled to the
- * top of the pane starts that far down; without allowing for it the file just
+ * top of the pane starts that far down. Without allowing for it the file just
  * left looks like the current one and every press lands back on the same file.
  * The few pixels on top cover rounding and a border.
  */

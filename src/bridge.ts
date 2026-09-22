@@ -10,7 +10,7 @@
  * asked for over postMessage, and carried out by the content script.
  *
  * Both sides are driven by the `Requests` table below. Adding an action means
- * adding one line to it and one handler in the content script; the envelope,
+ * adding one line to it and one handler in the content script. The envelope,
  * the ids, the timeout and the types all follow from that line.
  */
 
@@ -48,13 +48,13 @@ export interface ReviewThread {
   line: number | null;
   /** Which half of the diff the line belongs to */
   side: 'additions' | 'deletions';
-  /** Settled on GitHub; the viewer labels it, and `resolve` flips it */
+  /** Settled on GitHub. The viewer labels it, and `resolve` flips it */
   isResolved: boolean;
   /** The lines this was written against are no longer in the diff */
   isOutdated: boolean;
   /** Not on GitHub yet: the box the reader is typing into */
   isDraft?: boolean;
-  /** The opening comment and its replies; a reply names the first one */
+  /** The opening comment and its replies. A reply names the first one */
   comments: ReviewComment[];
 }
 

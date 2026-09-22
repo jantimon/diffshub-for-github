@@ -25,7 +25,7 @@ export interface Threads {
   openDraft: (path: string, line: number, side: 'additions' | 'deletions') => void;
   /** Throws away whatever is in the composer and takes it off the diff */
   closeDraft: () => void;
-  /** Answers a conversation; resolves to GitHub's reason for refusing, or nothing */
+  /** Answers a conversation, resolving to GitHub's reason for refusing or to nothing */
   reply: (thread: ReviewThread, body: string) => Promise<string | undefined>;
   /** Settles a conversation, or reopens a settled one */
   resolve: (thread: ReviewThread) => Promise<string | undefined>;

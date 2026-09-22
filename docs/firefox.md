@@ -51,15 +51,13 @@ loses the debugger connection, with ECONNREFUSED and exit 1. Expected, not a
 bug.
 
 **Killing the dev server does not close the browser.** `pkill` on the wxt
-process leaves Firefox running, and the next `pnpm dev:firefox` opens a second
-window against the same profile. Kill both, then delete the lock:
+process leaves Firefox running. Starting again then hits Firefox's own "already
+running" dialog, no debugger port opens, and web-ext dies on ECONNREFUSED, which
+reads as a network fault rather than a browser that is already open.
 
-```sh
-pkill -f "wxt.mjs -b firefox"; pkill -f "Firefox.app.*start-debugger-server"
-rm -f .firefox-profile/.parentlock
-```
-
-**A stale `.firefox-profile/.parentlock` blocks relaunch.** Delete it.
+`pnpm dev:firefox` runs `scripts/free-firefox.mjs` first, which stops whatever
+still holds this repository's dev profile and clears a stale lock. It matches on
+the profile path, so an everyday Firefox is untouched.
 
 ## Testing
 

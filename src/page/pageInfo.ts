@@ -69,7 +69,7 @@ function linkPath(link: HTMLAnchorElement): string {
 
 /**
  * The head commit sha, read from the JSON the pull request page embeds for its
- * own React app. Expanding collapsed context needs it; without it that feature
+ * own React app. Expanding collapsed context needs it. Without it that feature
  * stays off rather than guessing a revision.
  */
 export function readHeadSha(): string | undefined {

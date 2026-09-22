@@ -38,7 +38,7 @@ export function filesUrl(ref: PullRequestRef): string {
 
 /**
  * The paths GitHub's Files-changed tab navigates to. The older pull request
- * page uses `/files`; the React one uses `/changes`.
+ * page uses `/files`, the React one `/changes`.
  */
 export function filesPaths(ref: PullRequestRef): string[] {
   const base = pullPath(ref);
