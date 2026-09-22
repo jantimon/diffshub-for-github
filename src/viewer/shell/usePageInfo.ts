@@ -11,7 +11,7 @@ const FALLBACK: PageInfo = {
 
 /**
  * The viewer runs on the extension's origin, so anything only the GitHub page
- * knows -- its title, its active theme -- arrives over the bridge.
+ * knows -- its title, its active theme -- arrives over the bridge
  */
 export function usePageInfo(): PageInfo {
   const [info, setInfo] = useState<PageInfo>(FALLBACK);

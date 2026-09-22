@@ -13,17 +13,19 @@ import type { CSSProperties, JSX } from 'react';
 import type { DiffStats } from '@/patch/accumulator';
 import { TREE_STYLE } from '@/viewer/diff/codeViewStyles';
 
+/**
+ * How big the change is overall.
+ *
+ * The bar is decoration and is hidden from screen readers: the figures under
+ * it carry the same split in numbers, so announcing both says it twice.
+ */
 function DiffStatsPanel({ stats }: { stats: DiffStats }) {
   const churn = stats.addedLines + stats.deletedLines;
   const addedShare = churn === 0 ? 0 : Math.round((stats.addedLines / churn) * 100);
 
   return (
     <section className="dh-diffstats">
-      <div
-        className="dh-diffstats-bar"
-        role="img"
-        aria-label={`${addedShare}% of changed lines are additions`}
-      >
+      <div className="dh-diffstats-bar" aria-hidden="true">
         <span className="dh-diffstats-added" style={{ width: `${addedShare}%` }} />
         <span className="dh-diffstats-deleted" style={{ width: `${100 - addedShare}%` }} />
       </div>

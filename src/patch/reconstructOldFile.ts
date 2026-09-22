@@ -16,14 +16,14 @@ export function reconstructOldFile(fileDiff: FileDiffMetadata, newContents: stri
 
   for (const hunk of fileDiff.hunks) {
     // A hunk with no lines on a side is an insertion point, which sits after
-    // the line the header names rather than at it.
+    // the line the header names rather than at it
     const hunkStart = hunk.additionCount === 0 ? hunk.additionStart : hunk.additionStart - 1;
 
     for (let line = cursor; line < hunkStart && line < newLines.length; line += 1) {
       oldLines.push(newLines[line] ?? '');
     }
 
-    // The parsed lines keep their line ending; the split above dropped it.
+    // The parsed lines keep their line ending; the split above dropped it
     const from = hunk.deletionLineIndex;
     for (let offset = 0; offset < hunk.deletionCount; offset += 1) {
       const line = fileDiff.deletionLines[from + offset] ?? '';

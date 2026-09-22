@@ -16,7 +16,7 @@ import {
   type PatchAccumulator,
 } from './accumulator';
 
-/** Publish cadence, mirroring what diffshub.com settled on. */
+/** Publish cadence, mirroring what diffshub.com settled on */
 const WORK_BUDGET_MS = 8;
 const PUBLISH_INTERVAL_MS = 100;
 const PUBLISH_FILE_COUNT = 25;
@@ -26,7 +26,7 @@ export interface PatchStreamState {
   error?: string;
   stats: DiffStats;
   hiddenCount: number;
-  /** Files held back because nothing in them changed but spacing. */
+  /** Files held back because nothing in them changed but spacing */
   spacingOnlyCount: number;
   includeError?: string;
   excludeError?: string;
@@ -34,12 +34,13 @@ export interface PatchStreamState {
 }
 
 export interface PatchStream {
+  /** Phase, counts and filter errors; a change here redraws the viewer */
   state: PatchStreamState;
-  /** The files a filter lets through, in patch order. */
+  /** The files a filter lets through, in patch order */
   items: readonly CodeViewItem<ReviewThread>[];
+  /** The same files for the key handlers, which need the current list without a redraw */
   visibleRef: { current: readonly ParsedFile[] };
-  /** Updated as files are published, ahead of the React commit. */
-  pathToItemIdRef: { current: ReadonlyMap<string, string> };
+  /** Updated as files are published, ahead of the React commit */
 }
 
 interface Options {
@@ -49,6 +50,8 @@ interface Options {
   exclude: string;
   ignoreWhitespace: boolean;
   model: FileTree;
+  /** Filled in as files are published, and read by the tree to draw its ticks */
+  pathToItemIdRef: { current: ReadonlyMap<string, string> };
 }
 
 const EMPTY_STATS: DiffStats = { addedLines: 0, deletedLines: 0, fileCount: 0, totalLines: 0 };
@@ -60,6 +63,7 @@ export function usePatchStream({
   exclude,
   ignoreWhitespace,
   model,
+  pathToItemIdRef,
 }: Options): PatchStream {
   const [items, setItems] = useState<readonly CodeViewItem<ReviewThread>[]>([]);
   const [state, setState] = useState<PatchStreamState>({
@@ -72,15 +76,12 @@ export function usePatchStream({
 
   const accumulatorRef = useRef<PatchAccumulator>(createAccumulator());
   const visibleRef = useRef<readonly ParsedFile[]>([]);
-  const pathToItemIdRef = useRef<ReadonlyMap<string, string>>(new Map());
   const filter = useMemo(() => compileFilters(include, exclude), [include, exclude]);
   const filterRef = useRef(filter);
-  filterRef.current = filter;
   const ignoreWhitespaceRef = useRef(ignoreWhitespace);
-  ignoreWhitespaceRef.current = ignoreWhitespace;
 
   // The whole patch stays parsed in memory, so changing a filter is a
-  // recalculation rather than another 20 MB download.
+  // recalculation rather than another 20 MB download
   const publish = useCallback(
     (resetTree: boolean) => {
       const accumulator = accumulatorRef.current;
@@ -93,6 +94,15 @@ export function usePatchStream({
       visibleRef.current = visible;
 
       setItems(visible.map((file) => file.item));
+
+      /**
+       * The tree renders rows inside the model calls below, and every row looks
+       * its file up by path to decide whether to draw a tick. The map has to be
+       * current first, or a file that has just become visible is drawn against
+       * the previous one and shows no tick until something else redraws it.
+       */
+      const pathToItemId = new Map(visible.map((file) => [file.path, file.item.id]));
+      pathToItemIdRef.current = pathToItemId;
 
       if (resetTree || visible.length < previous.length) {
         model.resetPaths(visible.map((file) => file.path));
@@ -110,8 +120,6 @@ export function usePatchStream({
         }
       }
 
-      const pathToItemId = new Map(visible.map((file) => [file.path, file.item.id]));
-      pathToItemIdRef.current = pathToItemId;
       setState((current) => ({
         ...current,
         stats: sumStats(visible),
@@ -122,16 +130,15 @@ export function usePatchStream({
         pathToItemId,
       }));
     },
-    [model],
+    [model, pathToItemIdRef],
   );
 
   useEffect(() => {
     const controller = new AbortController();
+    // Publishing the fresh accumulator clears the list, the tree and the
+    // counts together, so nothing from the previous patch is left on show
     accumulatorRef.current = createAccumulator();
-    visibleRef.current = [];
-    model.resetPaths([]);
-    model.setGitStatus([]);
-    setItems([]);
+    publish(true);
 
     let sincePublish = 0;
     let lastPublishedAt = 0;
@@ -176,11 +183,15 @@ export function usePatchStream({
     });
 
     return () => controller.abort();
-  }, [url, cacheKeyPrefix, model, publish]);
+  }, [url, cacheKeyPrefix, publish]);
 
-  // A filter change only changes which of the parsed files are on show.
+  // A filter change only changes which of the parsed files are on show. The
+  // refs carry the choice into publish: the streaming effect depends on
+  // publish, so rebuilding it would start the download again
   const firstFilter = useRef(true);
   useEffect(() => {
+    filterRef.current = filter;
+    ignoreWhitespaceRef.current = ignoreWhitespace;
     if (firstFilter.current) {
       firstFilter.current = false;
       return;
@@ -188,7 +199,7 @@ export function usePatchStream({
     publish(true);
   }, [filter, ignoreWhitespace, publish]);
 
-  return { state, items, visibleRef, pathToItemIdRef };
+  return { state, items, visibleRef };
 }
 
 function yieldToBrowser(): Promise<void> {

@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type JSX,
-  type MouseEvent,
-  type SyntheticEvent,
-} from 'react';
+import { useCallback, useEffect, useRef, useState, type JSX, type SyntheticEvent } from 'react';
 
 import { blobUrl, rawUrl, type FileRefs } from '@/viewer/files/fileLinks';
 import { githubFetch } from '@/viewer/files/githubFetch';
@@ -42,7 +34,7 @@ function formatBytes(size: number): string {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** A 404 is how a side that does not exist — added or deleted — announces itself. */
+/** A 404 is how a side that does not exist, added or deleted, announces itself */
 async function readSide(url: string, signal: AbortSignal): Promise<SideState> {
   const response = await githubFetch(url, signal);
   if (response.status === 404) {
@@ -74,33 +66,40 @@ export function BinaryCompare({
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
-    dialogRef.current?.showModal();
+    const dialog = dialogRef.current;
+    if (dialog == null) return;
+    dialog.showModal();
+
+    // A click on the backdrop lands on the dialog itself. Esc is the keyboard
+    // way out and the browser handles that one
+    const onBackdropClick = (event: Event): void => {
+      if (event.target === dialog) dialog.close();
+    };
+    dialog.addEventListener('click', onBackdropClick);
+    return () => dialog.removeEventListener('click', onBackdropClick);
   }, []);
 
   const close = useCallback(() => dialogRef.current?.close(), []);
 
-  const onBackdropClick = useCallback((event: MouseEvent<HTMLDialogElement>) => {
-    if (event.target === dialogRef.current) dialogRef.current?.close();
-  }, []);
-
   const preview = isImagePath(path);
 
+  // Without a base revision there is nothing to compare against. The new file
+  // shown twice, once labelled "Before", would say it had not changed
+  const hasBase = refs.baseSha != null;
+
   return (
-    <dialog className="dh-binary" ref={dialogRef} onClose={onClose} onClick={onBackdropClick}>
+    <dialog className="dh-binary" ref={dialogRef} onClose={onClose}>
       <header className="dh-binary-header">
         <strong className="dh-binary-path">{path}</strong>
         <button type="button" className="dh-binary-close" onClick={close} title="Close (Esc)">
           ✕
         </button>
       </header>
-      {/* Without a base revision there is nothing to compare against. Showing
-          the new file twice, once labelled "Before", would say the file had not
-          changed when it had. */}
       <div className="dh-binary-sides">
-        {refs.baseSha != null && <BinarySide refs={refs} path={path} side="base" preview={preview} />}
+        {hasBase && <BinarySide refs={refs} path={path} side="base" preview={preview} />}
         <BinarySide refs={refs} path={path} side="head" preview={preview} />
       </div>
-      {refs.baseSha == null && (
+      {!hasBase && (
         <p className="dh-binary-note">
           GitHub has not said which commit this diff starts at, so only the new file is shown.
         </p>
@@ -129,14 +128,14 @@ function BinarySide({
   useEffect(() => {
     const controller = new AbortController();
     let live = true;
-    readSide(url, controller.signal).then(
-      (next) => {
+    void (async () => {
+      try {
+        const next = await readSide(url, controller.signal);
         if (live) setState(next);
-      },
-      () => {
+      } catch {
         if (live) setState({ status: 'error' });
-      },
-    );
+      }
+    })();
     return () => {
       live = false;
       controller.abort();

@@ -15,7 +15,7 @@ import type { FileDiffMetadata } from '@pierre/diffs';
  * the number GitHub gave it, so anchors stay sound.
  */
 
-/** Everything that is not a space, tab, carriage return or newline. */
+/** Everything that is not a space, tab, carriage return or newline */
 function withoutSpacing(line: string): string {
   return line.replace(/\s+/g, '');
 }

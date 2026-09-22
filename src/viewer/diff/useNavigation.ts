@@ -61,7 +61,7 @@ export function useNavigation(
 
     // The file you are on is the last one that has reached the top of the diff
     // pane. It has to have reached past the tolerance to count, so that the
-    // file just scrolled off does not keep the claim.
+    // file just scrolled off does not keep the claim
     const first = rendered[0];
     if (first == null) return 0;
     const edge = paneTop(first.element) + EDGE_TOLERANCE;
@@ -80,7 +80,7 @@ export function useNavigation(
         }
       } else if (top < belowTop) {
         // Nothing has reached the top yet, so the first file below it is the
-        // one being read.
+        // one being read
         belowTop = top;
         below = entry.id;
       }
@@ -113,10 +113,9 @@ export function useNavigation(
       const viewer = viewerRef.current;
       if (viewer == null) return;
 
-      // Which hunk to step from is worked out from how far down the file the
-      // viewport has reached, rather than by measuring each hunk: the viewer
-      // renders a file as one element, so the hunks inside it cannot be
-      // measured separately from here.
+      // How far down the file the viewport has reached picks the hunk to step
+      // from: the viewer renders a file as one element, so the hunks inside it
+      // cannot be measured separately from here
       const rendered = viewer.getInstance()?.getRenderedItems() ?? [];
       const element = rendered.find((entry) => entry.id === file.item.id)?.element;
       const offset = element == null ? 0 : -element.getBoundingClientRect().top;

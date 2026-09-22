@@ -6,7 +6,7 @@ import { processFile } from '@pierre/diffs';
 import { changesOnlyWhitespace } from '../src/patch/whitespace.ts';
 
 // Real `git diff` output is the input: the patches are not hand-written, so a
-// change in how git emits hunks shows up here rather than in the browser.
+// change in how git emits hunks shows up here rather than in the browser
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'diffshub-whitespace-'));
 const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
 git('init', '-q');

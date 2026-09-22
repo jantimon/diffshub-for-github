@@ -74,7 +74,7 @@ export async function readThreads(
       out.push({
         id,
         path,
-        // A comment on the file as a whole carries no line.
+        /** A comment on the file as a whole carries no line */
         line: preview?.subjectType === 'FILE' ? null : (preview?.line ?? null),
         side: preview?.diffSide === 'LEFT' ? 'deletions' : 'additions',
         isResolved: thread?.isResolved === true,

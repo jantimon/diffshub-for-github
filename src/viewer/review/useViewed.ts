@@ -31,13 +31,17 @@ function read(key: string): Stored {
  * The revision is stored alongside instead, and a push clears the list.
  */
 export function useViewed(key: string, headSha: string | undefined, onFailure: (message: string) => void) {
-  const [viewed, setViewed] = useState<ReadonlySet<string>>(() => new Set(read(key).ids));
+  const [stored] = useState(() => read(key));
+  const [viewed, setViewed] = useState<ReadonlySet<string>>(() => new Set(stored.ids));
   // The commit the diff starts at. GitHub reports it on the same request as the
   // ticks, so it is taken from there rather than fetched again: the route that
-  // carries it is over a megabyte on a large pull request.
+  // carries it is over a megabyte on a large pull request
   const [baseSha, setBaseSha] = useState<string | undefined>(undefined);
+
   const viewedRef = useRef(viewed);
-  viewedRef.current = viewed;
+  useEffect(() => {
+    viewedRef.current = viewed;
+  }, [viewed]);
 
   const persist = useCallback(
     (ids: ReadonlySet<string>, sha: string | undefined) => {
@@ -48,10 +52,11 @@ export function useViewed(key: string, headSha: string | undefined, onFailure: (
 
   // What GitHub already has wins over the local copy, but only before the
   // reader has ticked anything: a tick made while this is in flight would
-  // otherwise be thrown away when it lands.
+  // otherwise be thrown away when it lands
   const touched = useRef(false);
   useEffect(() => {
-    void ask('viewed').then(({ paths, baseSha: base }) => {
+    void (async () => {
+      const { paths, baseSha: base } = await ask('viewed');
       setBaseSha(base);
       if (touched.current || paths.length === 0) return;
       setViewed((current) => {
@@ -59,22 +64,22 @@ export function useViewed(key: string, headSha: string | undefined, onFailure: (
         for (const path of paths) merged.add(path);
         return merged;
       });
-    });
-  }, [key]);
+    })();
+  }, []);
 
-  // A push replaces the diff, so what was read no longer applies to it.
-  const checkedRevision = useRef(false);
+  // A push replaces the diff, so what was read no longer applies to it. The
+  // head sha reaches the overlay a moment after it opens, so this waits for
+  // the first one to arrive
+  const [knownHead, setKnownHead] = useState<string | undefined>(undefined);
+  if (headSha != null && knownHead == null) {
+    setKnownHead(headSha);
+    if (stored.sha != null && stored.sha !== headSha) setViewed(new Set());
+  }
+
   useEffect(() => {
-    if (headSha == null || checkedRevision.current) return;
-    checkedRevision.current = true;
-    const stored = read(key);
-    if (stored.sha != null && stored.sha !== headSha) {
-      setViewed(new Set());
-      persist(new Set(), headSha);
-      return;
-    }
-    persist(viewedRef.current, headSha);
-  }, [headSha, key, persist]);
+    if (knownHead == null) return;
+    persist(viewedRef.current, knownHead);
+  }, [knownHead, persist]);
 
   const apply = useCallback(
     (id: string, next: boolean) => {
@@ -90,17 +95,18 @@ export function useViewed(key: string, headSha: string | undefined, onFailure: (
   );
 
   // The tick lands at once and is taken back, with a toast, if GitHub refuses
-  // it, so the two never quietly disagree.
+  // it, so the two never quietly disagree
   const toggle = useCallback(
     (id: string, path: string) => {
       touched.current = true;
       const next = !viewedRef.current.has(id);
       apply(id, next);
-      void ask('file-review', { path, viewed: next }).then(({ ok, error }) => {
+      void (async () => {
+        const { ok, error } = await ask('file-review', { path, viewed: next });
         if (ok) return;
         apply(id, !next);
         onFailure(error ?? `GitHub did not record ${path} as ${next ? 'viewed' : 'not viewed'}.`);
-      });
+      })();
     },
     [apply, onFailure],
   );

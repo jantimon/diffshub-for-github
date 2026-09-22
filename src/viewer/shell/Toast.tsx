@@ -66,7 +66,7 @@ export function ToastStack({
   onDismiss: (id: number) => void;
 }): JSX.Element {
   return (
-    <div className="dh-toast-stack" role="status" aria-live="polite">
+    <output className="dh-toast-stack" aria-live="polite">
       {toasts.map((toast) => (
         <div key={toast.id} className="dh-toast">
           <span className="dh-toast-message">{toast.message}</span>
@@ -85,6 +85,6 @@ export function ToastStack({
           </button>
         </div>
       ))}
-    </div>
+    </output>
   );
 }

@@ -9,7 +9,7 @@
 
 import { filesPaths, type PullRequestRef } from '@/pullRequest';
 
-/** The PR title, from the page if it exposes one and from the tab title if not. */
+/** The PR title, from the page if it exposes one and from the tab title if not */
 export function readPullRequestTitle(): string {
   const heading = document
     .querySelector('.js-issue-title, [data-testid="issue-title"], [data-component="PH_Title"] bdi')
@@ -28,7 +28,7 @@ export function readBranchPair(): { base: string; head: string } | undefined {
   return { base, head };
 }
 
-/** Whether a click landed on a link to this pull request's Files-changed tab. */
+/** Whether a click landed on a link to this pull request's Files-changed tab */
 export function findFilesChangedLink(
   target: EventTarget | null,
   ref: PullRequestRef,

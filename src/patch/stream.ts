@@ -12,6 +12,8 @@ export async function streamPatchFiles(
   onFile: (fileText: string) => void | Promise<void>,
   signal?: AbortSignal,
 ): Promise<void> {
+  // TextDecoderStream declares a writable of BufferSource, wider than the
+  // Uint8Array chunks pipeThrough insists on
   const decoder = new TextDecoderStream() as unknown as ReadableWritablePair<string, Uint8Array>;
   const reader = body.pipeThrough(decoder).getReader();
   let buffer = '';
@@ -28,7 +30,7 @@ export async function streamPatchFiles(
       for (;;) {
         const boundary = buffer.indexOf(FILE_BOUNDARY, searchFrom);
         if (boundary === -1) {
-          // A boundary can straddle two chunks, so keep the tail searchable.
+          // A boundary can straddle two chunks, so keep the tail searchable
           searchFrom = Math.max(0, buffer.length - FILE_BOUNDARY.length);
           break;
         }

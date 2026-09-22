@@ -10,13 +10,13 @@
  * reader's own session the thing acting. No token is held anywhere.
  */
 
-/** Reading one of the `page_data` routes. */
+/** Reading one of the `page_data` routes */
 export const READ_JSON = {
   accept: 'application/json',
   'x-requested-with': 'XMLHttpRequest',
 };
 
-/** Writing through one of the `page_data` routes. */
+/** Writing through one of the `page_data` routes */
 export const WRITE_JSON = {
   accept: 'application/json',
   'content-type': 'application/json',

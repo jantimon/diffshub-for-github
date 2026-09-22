@@ -5,13 +5,13 @@
  * nothing but `fetch` with credentials.
  *
  * Firefox needs the detour. The viewer is an extension iframe inside a
- * github.com page, and Total Cookie Protection -- on by default, which is
- * `network.cookie.cookieBehavior` 5 -- partitions its cookie jar by the
- * top-level site. Every github.com request from there leaves signed out: a
- * public patch still downloads, a private one comes back 404. Measured on a
- * private pull request in Firefox 156: the framed viewer reads github.com as
- * signed out and the patch answers 404, while the same request through the
- * background answers 200.
+ * github.com page, and Total Cookie Protection (on by default, which is
+ * `network.cookie.cookieBehavior` 5) partitions its cookie jar by the
+ * top-level site.
+ *
+ * Every github.com request from there leaves signed out. On a private pull
+ * request the framed viewer gets 404 for the patch and the same request
+ * through the background gets 200; a public patch downloads either way.
  *
  * The background script is its own top-level context, so it keeps the real
  * jar. The response is streamed back a chunk at a time, which keeps the patch
@@ -31,7 +31,7 @@ type Reply =
   | { type: 'end' }
   | { type: 'error'; message: string };
 
-/** Bodyless by spec, so a stream must not be attached to them. */
+/** These statuses are bodyless by spec, so a stream must not be attached */
 function allowsBody(status: number): boolean {
   return status !== 204 && status !== 205 && status !== 304;
 }
@@ -64,7 +64,7 @@ export function githubFetch(url: string, signal?: AbortSignal): Promise<Response
       const reply = message as Reply;
 
       // The head arrives first and decides the Response; everything after it
-      // belongs to the body stream, which may not exist yet on this turn.
+      // belongs to the body stream, which may not exist yet on this turn
       if (reply.type === 'head') {
         if (settled) return;
         settled = true;
@@ -110,7 +110,7 @@ export function githubFetch(url: string, signal?: AbortSignal): Promise<Response
 }
 
 /**
- * Serves {@link githubFetch} from the background script. Firefox only — on every
+ * Serves {@link githubFetch} from the background script. Firefox only: on every
  * other browser the viewer fetches for itself and nothing connects here.
  */
 export function serveGithubFetch(): void {
@@ -126,7 +126,7 @@ export function serveGithubFetch(): void {
         return true;
       } catch {
         // The viewer went away mid-stream, which is ordinary: the reader closed
-        // the overlay or navigated.
+        // the overlay or navigated away
         controller.abort();
         return false;
       }

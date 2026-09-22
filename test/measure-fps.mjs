@@ -16,7 +16,7 @@ const context = await chromium.launchPersistentContext(
   },
 );
 
-// Scrolls for a fixed number of frames and reports how long each one took.
+// Scrolls for a fixed number of frames and reports how long each one took
 const SCROLL = (selector) => `
   new Promise((resolve) => {
     const target = ${selector};

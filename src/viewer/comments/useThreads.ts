@@ -19,15 +19,19 @@ import { ask } from '@/viewer/ask';
 import type { CodeViewItem } from '@pierre/diffs/react';
 
 export interface Threads {
-  /** The diff's items with each conversation hung on the file it belongs to. */
+  /** The diff's items with each conversation hung on the file it belongs to */
   items: readonly CodeViewItem<ReviewThread>[];
-  /** Opens the composer against one line. */
+  /** Opens the composer against one line */
   openDraft: (path: string, line: number, side: 'additions' | 'deletions') => void;
+  /** Throws away whatever is in the composer and takes it off the diff */
   closeDraft: () => void;
+  /** Answers a conversation; resolves to GitHub's reason for refusing, or nothing */
   reply: (thread: ReviewThread, body: string) => Promise<string | undefined>;
+  /** Settles a conversation, or reopens a settled one */
   resolve: (thread: ReviewThread) => Promise<string | undefined>;
+  /** Sends the drafted comment to GitHub and closes the composer */
   post: (thread: ReviewThread, text: string) => Promise<string | undefined>;
-  /** Re-reads the conversations, for a change made somewhere other than here. */
+  /** Re-reads the conversations, for a change made somewhere other than here */
   reload: () => Promise<void>;
 }
 
@@ -38,33 +42,42 @@ export function useThreads(
   const [threads, setThreads] = useState<readonly ReviewThread[]>([]);
   const [draft, setDraft] = useState<ReviewThread | undefined>(undefined);
 
+  /**
+   * Counts up every time the conversations change, and feeds the item version
+   * the viewer compares against.
+   *
+   * It has to keep rising rather than describe the current state: resolving a
+   * conversation and reopening it would land back on a version the viewer has
+   * already drawn, and it would not redraw. Every change comes from one of the
+   * writers below, so this is bumped there rather than while rendering.
+   */
+  const [revision, setRevision] = useState(0);
+  const bumpRevision = useCallback(() => setRevision((count) => count + 1), []);
+
   const asked = useRef(false);
   useEffect(() => {
     if (asked.current) return;
     asked.current = true;
-    void ask('threads').then((result) => {
+    void (async () => {
+      const result = await ask('threads');
       setThreads(result.threads);
+      bumpRevision();
       if (result.error != null) onNotice(`Comments: ${result.error}`);
       else if (result.truncated) {
         onNotice('GitHub returned only the most recent comments on this pull request.');
       }
-    });
-  }, [onNotice]);
+    })();
+  }, [bumpRevision, onNotice]);
 
   const reload = useCallback(async (): Promise<void> => {
     const result = await ask('threads');
     setThreads(result.threads);
+    bumpRevision();
     if (result.error != null) onNotice(`Comments: ${result.error}`);
-  }, [onNotice]);
+  }, [bumpRevision, onNotice]);
 
-  // The viewer ignores an item whose version it has already seen, and the
-  // version is worked out from the item the stream produced, so it has to count
-  // up by itself rather than from what that item carries.
-  const revision = useRef(0);
-
-  // Annotations live on the item, so hang each thread on the file it belongs to.
+  // Annotations live on the item, so hang each thread on the file it belongs to
   const withThreads = useMemo(() => {
-    revision.current += 1;
     const all = draft == null ? threads : [...threads, draft];
     if (all.length === 0) return items;
 
@@ -84,37 +97,42 @@ export function useThreads(
         annotations: list
           .map((thread) => ({
             side: thread.side,
-            // A comment on the file, or one whose lines have since changed,
-            // goes to the top of the file rather than to a line it no longer
-            // fits.
+            /** A comment on the file, or on lines that have since changed, goes to the top */
             lineNumber: thread.isOutdated || thread.line == null ? 0 : thread.line,
             metadata: thread,
           }))
-          .sort((a, b) => a.lineNumber - b.lineNumber),
-        version: (item.version ?? 0) + revision.current,
+          .toSorted((a, b) => a.lineNumber - b.lineNumber),
+        version: (item.version ?? 0) + revision,
       };
     });
-  }, [draft, items, threads]);
+  }, [draft, items, revision, threads]);
 
-  const openDraft = useCallback((path: string, line: number, side: 'additions' | 'deletions') => {
-    setDraft({
-      id: 'draft',
-      path,
-      line,
-      side,
-      isResolved: false,
-      isOutdated: false,
-      isDraft: true,
-      comments: [],
-    });
-  }, []);
+  const openDraft = useCallback(
+    (path: string, line: number, side: 'additions' | 'deletions') => {
+      setDraft({
+        id: 'draft',
+        path,
+        line,
+        side,
+        isResolved: false,
+        isOutdated: false,
+        isDraft: true,
+        comments: [],
+      });
+      bumpRevision();
+    },
+    [bumpRevision],
+  );
 
-  const closeDraft = useCallback(() => setDraft(undefined), []);
+  const closeDraft = useCallback(() => {
+    setDraft(undefined);
+    bumpRevision();
+  }, [bumpRevision]);
 
   const reply = useCallback(
     async (thread: ReviewThread, body: string): Promise<string | undefined> => {
       // A reply answers the first comment in the thread, which is what GitHub's
-      // own reply form names.
+      // own reply form names
       const inReplyTo = thread.comments[0]?.databaseId ?? '';
       const result = await ask('reply', { inReplyTo, body });
       if (!result.ok) return result.error ?? 'GitHub refused the reply.';
@@ -144,10 +162,11 @@ export function useThreads(
       });
       if (!result.ok) return result.error ?? 'GitHub refused the comment.';
       setDraft(undefined);
+      bumpRevision();
       await reload();
       return undefined;
     },
-    [reload],
+    [bumpRevision, reload],
   );
 
   return { items: withThreads, openDraft, closeDraft, reply, resolve, post, reload };

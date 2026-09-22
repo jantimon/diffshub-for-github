@@ -26,7 +26,7 @@ export function MarkdownEditor({
   placeholder,
   rows = 4,
   disabled = false,
-  autoFocus = false,
+  focusOnMount = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -34,7 +34,8 @@ export function MarkdownEditor({
   placeholder?: string;
   rows?: number;
   disabled?: boolean;
-  autoFocus?: boolean;
+  /** Put the cursor in the box as soon as it appears, for a box the reader asked for */
+  focusOnMount?: boolean;
 }): JSX.Element {
   const id = useId();
   const box = useRef<HTMLTextAreaElement>(null);
@@ -43,8 +44,8 @@ export function MarkdownEditor({
   const [error, setError] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    if (autoFocus) box.current?.focus();
-  }, [autoFocus]);
+    if (focusOnMount) box.current?.focus();
+  }, [focusOnMount]);
 
   const showPreview = async (): Promise<void> => {
     setPreviewing(true);
@@ -62,6 +63,10 @@ export function MarkdownEditor({
       onSubmit();
     }
   };
+
+  // GitHub renders and sanitises this, and the extension's content security
+  // policy allows no inline script, so nothing in it can run
+  const rendered = html == null ? undefined : <div dangerouslySetInnerHTML={{ __html: html }} />;
 
   return (
     <div className="dh-editor">
@@ -91,10 +96,7 @@ export function MarkdownEditor({
           {error != null && <p className="dh-editor-error">{error}</p>}
           {error == null && html == null && value.trim() !== '' && <p>Rendering…</p>}
           {value.trim() === '' && <p className="dh-editor-empty">Nothing to preview yet.</p>}
-          {/* GitHub's own rendering of the text, sanitised by GitHub. The
-              extension's content security policy allows no inline script, so
-              nothing in it can run. */}
-          {html != null && <div dangerouslySetInnerHTML={{ __html: html }} />}
+          {rendered}
         </div>
       ) : (
         <>

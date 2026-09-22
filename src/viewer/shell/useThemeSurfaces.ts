@@ -3,9 +3,9 @@ import { themeToTreeStyles, type TreeThemeStyles } from '@pierre/trees';
 import { useEffect, useState, type CSSProperties } from 'react';
 
 export interface ThemeSurfaces {
-  /** Custom properties for the overlay's own chrome. */
+  /** Custom properties for the overlay's own chrome */
   overlay: CSSProperties;
-  /** Custom properties the file tree reads for its shadow DOM. */
+  /** Custom properties the file tree reads for its shadow DOM */
   tree: TreeThemeStyles;
 }
 
@@ -23,8 +23,9 @@ export function useThemeSurfaces(themeName: string): ThemeSurfaces {
 
   useEffect(() => {
     let live = true;
-    void resolveTheme(themeName as DiffsThemeNames)
-      .then((theme) => {
+    void (async () => {
+      try {
+        const theme = await resolveTheme(themeName as DiffsThemeNames);
         if (!live) return;
         const colors: Record<string, string | undefined> = theme.colors ?? {};
         const background = colors['editor.background'] ?? theme.bg;
@@ -47,10 +48,10 @@ export function useThemeSurfaces(themeName: string): ThemeSurfaces {
             '--dh-accent': colors['textLink.foreground'] ?? colors['focusBorder'] ?? '#0969da',
           } as CSSProperties,
         });
-      })
-      .catch(() => {
+      } catch {
         if (live) setSurfaces(EMPTY);
-      });
+      }
+    })();
     return () => {
       live = false;
     };

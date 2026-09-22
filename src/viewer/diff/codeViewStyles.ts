@@ -34,8 +34,10 @@ export const HIGHLIGHTER_OPTIONS: WorkerInitializationRenderOptions = {
   langs: ['tsx', 'typescript', 'css', 'go', 'python', 'rust', 'sh', 'cpp'],
 };
 
-// The tree carries its own generous indents; tightening them buys back the
-// width that deep paths need.
+/**
+ * The tree carries its own generous indents; tightening them buys back the
+ * width that deep paths need
+ */
 export const TREE_STYLE = {
   '--trees-density-override': 0.9,
   '--trees-padding-inline-override': 0,
@@ -59,7 +61,7 @@ export const TREE_CSS = `
 }
 `;
 
-/*
+/**
  * The bar reads as a heading rather than a control: a bare chevron and a count.
  * Clicking the label already reveals the whole gap, while the chevrons step
  * through it, so the label is marked as clickable and given a verb. Nothing
@@ -85,7 +87,7 @@ export const SEPARATOR_CSS = `
 }
 `;
 
-/*
+/**
  * Where one file ends and the next begins. In a long diff the eye needs the
  * break more than it needs the density: a rule and a clear gap above the
  * header, the path in a heavier weight than the code under it, and the change

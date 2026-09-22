@@ -34,7 +34,7 @@ let nextId = 0;
 
 export function ask<K extends RequestName>(
   name: K,
-  // A request whose `ask` is `void` is called with the name alone.
+  // A request whose `ask` is `void` is called with the name alone
   ...[payload]: Ask<K> extends void ? [] : [ask: Ask<K>]
 ): Promise<Reply<K>> {
   return new Promise((resolve) => {

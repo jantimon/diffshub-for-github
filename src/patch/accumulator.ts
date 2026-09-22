@@ -4,13 +4,13 @@ import type { GitStatusEntry } from '@pierre/trees';
 import type { ReviewThread } from '@/bridge';
 import { changesOnlyWhitespace } from './whitespace';
 
-/** What happened to a file, in the words a reviewer filters by. */
+/** What happened to a file, in the words a reviewer filters by */
 export type ChangeKind = 'added' | 'modified' | 'deleted' | 'renamed';
 
 export interface ParsedFile {
   item: CodeViewItem<ReviewThread>;
   path: string;
-  /** Nothing changed here but spacing. */
+  /** Nothing changed here but spacing */
   spacingOnly: boolean;
   changeKind: ChangeKind;
   status?: GitStatusEntry['status'];
@@ -27,8 +27,9 @@ export interface DiffStats {
 }
 
 export interface PatchAccumulator {
-  /** Every file in the patch, in patch order, whether or not a filter hides it. */
+  /** Every file in the patch, in patch order, whether or not a filter hides it */
   readonly files: ParsedFile[];
+  /** Ids already handed out, so a path the patch lists twice still gets one of its own */
   readonly ids: Set<string>;
 }
 
@@ -45,7 +46,7 @@ const KIND_BY_CHANGE_TYPE: Record<string, ChangeKind> = {
 
 /**
  * The tree paints a file by its status, and treats a modified one as the
- * ordinary case with no mark of its own.
+ * ordinary case with no mark of its own
  */
 const TREE_STATUS: Record<ChangeKind, GitStatusEntry['status'] | undefined> = {
   added: 'added',
@@ -54,7 +55,7 @@ const TREE_STATUS: Record<ChangeKind, GitStatusEntry['status'] | undefined> = {
   modified: undefined,
 };
 
-/** Parses one file's patch text and adds it to the accumulator. */
+/** Parses one file's patch text and adds it to the accumulator */
 export function appendFile(
   accumulator: PatchAccumulator,
   fileText: string,

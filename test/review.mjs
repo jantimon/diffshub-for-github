@@ -47,7 +47,7 @@ const check = async (name, fn) => {
 
 let failures = 0;
 
-// Marking a file viewed is a real write; remember what to put back.
+// Marking a file viewed is a real write; remember what to put back
 const reviewed = [];
 page.on('response', (r) => {
   if (!r.url().includes('/file_review')) return;
@@ -82,7 +82,7 @@ failures += await check('thread sits inside the diff', async () => {
 });
 
 // The profile persists between runs, so a file left ticked would make the click
-// below an unmark and the assertions meaningless.
+// below an unmark and the assertions meaningless
 await frame.evaluate(() => {
   for (const key of Object.keys(localStorage)) {
     if (key.startsWith('diffshub-for-github.')) localStorage.removeItem(key);
@@ -95,7 +95,7 @@ await page.waitForTimeout(10000);
 frame = page.frames().find((f) => f.url().startsWith('chrome-extension://'));
 
 // The patch streams and the comments arrive in two paginated walks; the write
-// checks below are about state, so let the overlay settle before touching it.
+// checks below are about state, so let the overlay settle before touching it
 await frame
   .locator('.dh-loading')
   .waitFor({ state: 'detached', timeout: 30000 })
@@ -105,7 +105,7 @@ await page.waitForTimeout(1500);
 
 const marked = await frame.locator('[data-dh-viewed]').first().getAttribute('data-dh-viewed');
 
-// Leaves a real comment on the fixture pull request, which is what it is for.
+// Leaves a real comment on the fixture pull request, which is what it is for
 failures += await check('markdown is written and previewed', async () => {
   await frame.locator('[data-dh-action="review"]').click();
   await page.waitForTimeout(1500);
@@ -116,7 +116,7 @@ failures += await check('markdown is written and previewed', async () => {
     return false;
   }
 
-  // GitHub's own toolbar element, working on the text box.
+  // GitHub's own toolbar element, working on the text box
   const box = frame.locator('.dh-review-panel .dh-editor-text');
   await box.fill('bold me and `code`');
   await box.evaluate((el) => {
@@ -131,7 +131,7 @@ failures += await check('markdown is written and previewed', async () => {
     return false;
   }
 
-  // GitHub renders the preview, so it matches what will be posted.
+  // GitHub renders the preview, so it matches what will be posted
   await frame.locator('.dh-review-panel [data-dh-tab="preview"]').click();
   await page.waitForTimeout(6000);
   const html = await frame.locator('.dh-review-panel [data-dh-preview]').innerHTML();
@@ -153,7 +153,7 @@ failures += await check('a comment can be written', async () => {
 
   const before = await frame.locator('.dh-thread').count();
 
-  // Go to the last file: the first one collects a thread on every run.
+  // Go to the last file: the first one collects a thread on every run
   await frame.locator('[data-item-type="file"]').last().click();
   await page.waitForTimeout(2000);
 
@@ -183,7 +183,7 @@ failures += await check('a comment can be written', async () => {
   await page.waitForTimeout(9000);
 
   // The thread lands on whichever file was open, which the viewer may have
-  // scrolled away from, so the count on screen proves nothing.
+  // scrolled away from, so the count on screen proves nothing
   if (!posted.includes(200)) {
     console.log('      GitHub answered', JSON.stringify(posted));
     return false;
@@ -197,7 +197,7 @@ failures += await check('a comment can be written', async () => {
 
 // The check above posts on the last file and leaves the viewer there. Threads
 // collect on the first file, so the checks that act on one go back and wait for
-// it to render rather than hoping something is still on screen.
+// it to render rather than hoping something is still on screen
 const showAThread = async () => {
   await frame.locator('[data-item-type="file"]').first().click();
   await page.waitForTimeout(2500);
@@ -212,13 +212,15 @@ failures += await check('a comment can be replied to', async () => {
 
   await showAThread();
 
-  // Every step stays inside one thread: the new-comment composer shares these
-  // class names, so picking `.first()` per selector can land on two different
-  // conversations once enough of them are on screen.
-  //
-  // The thread is pinned by position rather than by "the one with a reply
-  // button", because clicking that button swaps it for the composer -- a
-  // filter on it stops matching the moment it is used.
+  /**
+   * Every step stays inside one thread: the new-comment composer shares these
+   * class names, so picking `.first()` per selector can land on two different
+   * conversations once enough of them are on screen
+   *
+   * The thread is pinned by position rather than by "the one with a reply
+   * button", because clicking that button swaps it for the composer, and a
+   * filter on it stops matching the moment it is used
+   */
   const threads = frame.locator('.dh-thread');
   let index = -1;
   for (let i = 0; i < (await threads.count()); i += 1) {
@@ -235,12 +237,15 @@ failures += await check('a comment can be replied to', async () => {
   const thread = threads.nth(index);
   await thread.locator('[data-dh-thread="reply"]').click({ timeout: 10000 });
   await thread.locator('.dh-editor-text').fill(`Replied by the browser test at ${new Date().toISOString()}`);
-  // The composer opens at the bottom of a long thread, so its buttons can sit
-  // below the fold, where a click never becomes possible.
-  // The send button is checked by hand and then clicked without Playwright's
-  // actionability wait. The diff is virtualised, so rows are re-measured and
-  // moved constantly and the button never counts as settled, even while it is
-  // on screen and perfectly clickable.
+  /**
+   * The composer opens at the bottom of a long thread, so its buttons can sit
+   * below the fold, where a click never becomes possible
+   *
+   * The send button is checked by hand and then clicked without Playwright's
+   * actionability wait: the diff is virtualised, so rows are re-measured and
+   * moved constantly and the button never counts as settled, even while it is
+   * on screen and clickable
+   */
   const send = thread.locator('.dh-composer-send');
   await send.scrollIntoViewIfNeeded({ timeout: 10000 });
   if (!(await send.isVisible()) || (await send.isDisabled())) {
@@ -248,7 +253,7 @@ failures += await check('a comment can be replied to', async () => {
     return false;
   }
   // Dispatched rather than clicked: a forced click still lands wherever the
-  // pointer is, and the virtualiser moves rows under it.
+  // pointer is, and the virtualiser moves rows under it
   await send.dispatchEvent('click');
   await page.waitForTimeout(9000);
 
@@ -274,8 +279,8 @@ failures += await check('any conversation can be resolved', async () => {
   await showAThread();
 
   // Resolving goes through a JSON route that takes the thread id, so it no
-  // longer depends on GitHub having rendered a form for that conversation.
-  // Taking the first button on screen is therefore a fair test of all of them.
+  // longer depends on GitHub having rendered a form for that conversation
+  // Taking the first button on screen is therefore a fair test of all of them
   const button = frame.locator('[data-dh-thread="resolve"]').first();
   if ((await button.count()) === 0) return false;
   const wasResolved = (await button.textContent())?.includes('Reopen') === true;
@@ -287,7 +292,7 @@ failures += await check('any conversation can be resolved', async () => {
     return false;
   }
 
-  // Put it back the way it was found.
+  // Put it back the way it was found
   const back = frame.locator('[data-dh-thread="resolve"]').first();
   if (await back.isVisible().catch(() => false)) {
     await back.click({ timeout: 5000 }).catch(() => {});
@@ -296,7 +301,7 @@ failures += await check('any conversation can be resolved', async () => {
   return `${wasResolved ? 'reopened' : 'resolved'} through ${sent[0]?.split(' ')[1]}, then restored`;
 });
 
-// Submits a real review on the fixture pull request, which is what it is for.
+// Submits a real review on the fixture pull request, which is what it is for
 failures += await check('a review can be submitted', async () => {
   const sent = [];
   page.on('response', (r) => {
@@ -351,7 +356,7 @@ failures += await check('viewed state reaches GitHub', async () => {
 failures += await check('the tick survives', async () => {
   // Marking moves on to the next file, so that header is scrolled away and
   // recycled. The tally in the header is the durable evidence: a write GitHub
-  // refused would have taken the tick back.
+  // refused would have taken the tick back
   const text = (await frame.locator('.dh-stats span').first().textContent())?.trim() ?? '';
   const viewed = Number(text.split('/')[0].replace(/[^0-9]/g, ''));
   if (viewed < 1) console.log('      tally:', JSON.stringify(text), 'writes:', JSON.stringify(reviewed));
@@ -367,13 +372,13 @@ failures += await check('the tree marks it', async () => {
 
 await page.screenshot({ path: path.join(shots, 'comments.png') });
 
-// Leave the pull request as we found it.
+// Leave the pull request as we found it
 const touched = [...new Set(reviewed.map((entry) => entry.path).filter(Boolean))];
 if (touched.length > 0) {
   const cleaned = await page.evaluate(
     async ({ paths, endpoint }) => {
       const results = [];
-      for (const path of paths) {
+      for (const filePath of paths) {
         const res = await fetch(endpoint, {
           method: 'POST',
           credentials: 'include',
@@ -382,7 +387,7 @@ if (touched.length > 0) {
             'x-requested-with': 'XMLHttpRequest',
             'github-verified-fetch': 'true',
           },
-          body: JSON.stringify({ path, viewed: 'unviewed' }),
+          body: JSON.stringify({ path: filePath, viewed: 'unviewed' }),
         });
         results.push(res.status);
       }

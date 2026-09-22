@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { MarkdownEditor } from '@/viewer/comments/MarkdownEditor';
 
-/** The box for writing one comment, shown at the line it will be left on. */
+/** The box for writing one comment, shown at the line it will be left on */
 export function CommentComposer({
   onSubmit,
   onCancel,
@@ -30,7 +30,7 @@ export function CommentComposer({
         placeholder="Leave a comment"
         rows={3}
         disabled={sending}
-        autoFocus
+        focusOnMount
       />
       <div className="dh-composer-actions">
         <button type="button" onClick={onCancel} disabled={sending}>

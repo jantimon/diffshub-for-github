@@ -15,9 +15,9 @@ import path from 'node:path';
 export const root = path.dirname(fileURLToPath(import.meta.url));
 export const dist = path.resolve(root, '../.output/chrome-mv3');
 
-/** How long GitHub's own page needs before its tab strip is there to click. */
+/** How long GitHub's own page needs before its tab strip is there to click */
 const PAGE_SETTLE_MS = 3500;
-/** How long the viewer needs to stream a patch and lay out the first files. */
+/** How long the viewer needs to stream a patch and lay out the first files */
 const VIEWER_SETTLE_MS = 12_000;
 
 export async function launch({ viewport = { width: 1600, height: 1000 } } = {}) {
@@ -70,7 +70,7 @@ export async function openOverlay(page, url, { noise } = {}) {
   await page.waitForTimeout(VIEWER_SETTLE_MS);
 
   // Console events are emitted by the page, never by a frame, so this listens
-  // there and keeps only what came from the viewer.
+  // there and keeps only what came from the viewer
   if (noise != null) {
     page.on('console', (message) => {
       if (message.type() !== 'error') return;
@@ -87,7 +87,7 @@ export function viewerFrame(page) {
 
 /**
  * Screenshots of each step, kept out of git, so a run can be looked over after
- * it finishes rather than only watched.
+ * it finishes rather than only watched
  */
 export function screenshots(page) {
   const dir = path.resolve(root, 'screenshots');
@@ -127,7 +127,7 @@ export function checker() {
     }
   };
 
-  /** Prints the tally and leaves with a status that says whether it passed. */
+  /** Prints the tally and leaves with a status that says whether it passed */
   const finish = async (context, noise = []) => {
     if (noise.length > 0) console.log('\nconsole noise:\n' + [...new Set(noise)].slice(0, 8).join('\n'));
     console.log(failures === 0 ? '\nALL PASS' : `\n${failures} failing`);

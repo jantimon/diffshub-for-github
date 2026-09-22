@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type JSX, type KeyboardEvent, type MouseEvent } from 'react';
+import { useCallback, useEffect, useRef, type JSX } from 'react';
 
 export const SHORTCUTS: readonly { keys: string; action: string }[] = [
   { keys: 'j / k', action: 'Next / previous file' },
@@ -19,32 +19,32 @@ export function ShortcutHelp({ onClose }: { onClose: () => void }): JSX.Element 
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
-    dialogRef.current?.showModal();
+    const dialog = dialogRef.current;
+    if (dialog == null) return undefined;
+    dialog.showModal();
+
+    const onBackdropClick = (event: MouseEvent) => {
+      if (event.target === dialog) dialog.close();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      event.stopPropagation();
+      if (event.key === '?') {
+        event.preventDefault();
+        dialog.close();
+      }
+    };
+    dialog.addEventListener('click', onBackdropClick);
+    dialog.addEventListener('keydown', onKeyDown);
+    return () => {
+      dialog.removeEventListener('click', onBackdropClick);
+      dialog.removeEventListener('keydown', onKeyDown);
+    };
   }, []);
 
   const close = useCallback(() => dialogRef.current?.close(), []);
 
-  const onBackdropClick = useCallback((event: MouseEvent<HTMLDialogElement>) => {
-    if (event.target === dialogRef.current) dialogRef.current?.close();
-  }, []);
-
-  const onKeyDown = useCallback((event: KeyboardEvent<HTMLDialogElement>) => {
-    event.stopPropagation();
-    if (event.key === '?') {
-      event.preventDefault();
-      dialogRef.current?.close();
-    }
-  }, []);
-
   return (
-    <dialog
-      className="dh-help"
-      ref={dialogRef}
-      aria-label="Keyboard shortcuts"
-      onClose={onClose}
-      onClick={onBackdropClick}
-      onKeyDown={onKeyDown}
-    >
+    <dialog className="dh-help" ref={dialogRef} aria-label="Keyboard shortcuts" onClose={onClose}>
       <div className="dh-help-panel">
         <div className="dh-help-header">
           <strong>Keyboard shortcuts</strong>

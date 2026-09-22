@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 // Opens the profile the tests use so you can sign in to github.com once. The
-// session is kept in test/.profile, which is gitignored.
+// session is kept in test/.profile, which is gitignored
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(root, '../.output/chrome-mv3');
 

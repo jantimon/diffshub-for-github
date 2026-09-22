@@ -1,6 +1,5 @@
 import { IconCheck, IconComment, IconConflict, IconCopy, IconFile, IconX } from '@pierre/icons';
-import type { ComponentType } from 'react';
-import { useEffect, useRef, useState, type JSX } from 'react';
+import { useEffect, useRef, useState, type ComponentType, type JSX } from 'react';
 
 import type { ReviewEvent } from '@/bridge';
 import { MarkdownEditor } from '@/viewer/comments/MarkdownEditor';
@@ -26,7 +25,7 @@ const VERDICTS: {
   },
 ];
 
-/** Says where the reading stands, without inventing praise for it. */
+/** Says where the reading stands, without inventing praise for it */
 function progressNote(remaining: number, total: number): string {
   if (total === 0) return 'Nothing to read.';
   if (remaining === 0) return 'Every file read.';
@@ -34,8 +33,14 @@ function progressNote(remaining: number, total: number): string {
   return `${remaining} files still to read.`;
 }
 
-/** GitHub turns away a "request changes" with nothing written in it. */
+/** GitHub turns away a "request changes" with nothing written in it */
 const NEEDS_A_NOTE: ReviewEvent = 'request changes';
+
+/**
+ * Not GitHub's batched review: a line comment written here is posted the moment
+ * it is written, so there is nothing held back
+ */
+const POSTED_NOTE = 'Comments you left on lines are already posted. This adds the verdict.';
 
 export function ReviewDialog({
   repo,
@@ -66,7 +71,17 @@ export function ReviewDialog({
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    dialogRef.current?.showModal();
+    const dialog = dialogRef.current;
+    if (dialog == null) return;
+    dialog.showModal();
+
+    // A click on the backdrop lands on the dialog itself. Esc is the keyboard
+    // way out and the browser handles that one
+    const onBackdropClick = (click: Event): void => {
+      if (click.target === dialog) dialog.close();
+    };
+    dialog.addEventListener('click', onBackdropClick);
+    return () => dialog.removeEventListener('click', onBackdropClick);
   }, []);
 
   const remaining = Math.max(total - viewed, 0);
@@ -88,9 +103,6 @@ export function ReviewDialog({
       ref={dialogRef}
       className="dh-review"
       onClose={onClose}
-      onClick={(click) => {
-        if (click.target === dialogRef.current) dialogRef.current?.close();
-      }}
       onKeyDown={(key) => {
         if (key.key === 'Enter' && (key.metaKey || key.ctrlKey)) {
           key.preventDefault();
@@ -103,7 +115,7 @@ export function ReviewDialog({
           <img
             className="dh-review-mascot"
             // The viewer is served from the extension root, so this resolves
-            // without needing the extension id.
+            // without needing the extension id
             src="./review-celebrate.png"
             alt=""
             width={72}
@@ -146,7 +158,7 @@ export function ReviewDialog({
             <p>
               Files viewed <span className="dh-review-progress-note">{progressNote(remaining, total)}</span>
             </p>
-            <div className="dh-review-bar" role="img" aria-label={`${viewed} of ${total} files viewed`}>
+            <div className="dh-review-bar" aria-hidden="true">
               <span style={{ width: `${read}%` }} />
             </div>
           </div>
@@ -219,11 +231,7 @@ export function ReviewDialog({
         {error != null && <p className="dh-review-error">{error}</p>}
 
         <footer className="dh-review-foot">
-          {/* Not GitHub's batched review: a line comment written here is posted
-              the moment it is written, so there is nothing held back. */}
-          <p className="dh-review-note">
-            Comments you left on lines are already posted. This adds the verdict.
-          </p>
+          <p className="dh-review-note">{POSTED_NOTE}</p>
           <div className="dh-review-actions">
             <button type="button" onClick={() => dialogRef.current?.close()} disabled={sending}>
               Cancel

@@ -27,11 +27,11 @@ export function writeSetting(key: string, value: string): void {
   try {
     localStorage.setItem(PREFIX + key, value);
   } catch {
-    // A blocked storage partition is not worth failing the overlay over.
+    // A blocked storage partition is not worth failing the overlay over
   }
 }
 
-/** A setting held as the text it is stored as. */
+/** A setting held as the text it is stored as */
 export function useSetting(key: string, fallback: string): [string, (next: string) => void] {
   const [value, setValue] = useState(() => readSetting(key, fallback));
   const set = useCallback(

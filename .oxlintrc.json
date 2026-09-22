@@ -80,9 +80,30 @@
 
   "overrides": [
     {
+      "files": ["src/viewer/Overlay.tsx"],
+      "rules": {
+        // Two writes here put the current viewed set where the file tree can
+        // reach it. The tree renders its rows inside its own commit, and a
+        // child's effects run before its parent's, so moving these into an
+        // effect would draw every row against the previous set. That is the
+        // bug where ticking a file appeared to do nothing.
+        "react/refs": "off",
+
+        // The sidebar handle is a drag target, which is the ARIA window
+        // splitter pattern. `hr` is a thematic break and means something else.
+        "jsx-a11y/prefer-tag-over-role": "off"
+      }
+    },
+    {
       "files": ["test/**/*.mjs"],
       "rules": {
-        "typescript/consistent-type-imports": "off"
+        "typescript/consistent-type-imports": "off",
+
+        // A helper declared inside a `page.evaluate` callback cannot be
+        // hoisted: Playwright serialises that callback and runs it in the
+        // browser, so a function moved to module scope stays in Node where
+        // the page cannot see it. Twenty of these callbacks run here.
+        "unicorn/consistent-function-scoping": "off"
       }
     }
   ]

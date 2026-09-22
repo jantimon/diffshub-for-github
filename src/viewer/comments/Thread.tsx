@@ -2,9 +2,19 @@ import { useState } from 'react';
 
 import { MarkdownEditor } from '@/viewer/comments/MarkdownEditor';
 
-import type { ReviewThread } from '@/bridge';
+import type { ReviewComment, ReviewThread } from '@/bridge';
 
-/** One review thread, at the line it was left on. */
+/**
+ * GitHub's own rendering of a comment, which is the only way a suggested change
+ * arrives as anything but raw markdown. GitHub sanitises it, and the extension's
+ * content security policy allows no inline script, so nothing in it can run.
+ */
+function CommentBody({ comment }: { comment: ReviewComment }) {
+  if (comment.bodyHTML === '') return <p>{comment.body}</p>;
+  return <div className="dh-comment-body" dangerouslySetInnerHTML={{ __html: comment.bodyHTML }} />;
+}
+
+/** One review thread, at the line it was left on */
 export function Thread({
   thread,
   onReply,
@@ -38,8 +48,8 @@ export function Thread({
     <aside className="dh-thread" data-resolved={thread.isResolved}>
       {labels.length > 0 && <p className="dh-thread-resolved">{labels.join(' · ')}</p>}
 
-      {thread.comments.map((comment, index) => (
-        <article className="dh-comment" key={`${thread.id}-${index}`}>
+      {thread.comments.map((comment) => (
+        <article className="dh-comment" key={comment.databaseId}>
           <header>
             {comment.author !== '' && <strong>{comment.author}</strong>}
             {comment.createdAt !== '' && (
@@ -51,16 +61,7 @@ export function Thread({
               </a>
             )}
           </header>
-          {/* GitHub's own rendering, which is the only way a suggested change
-              arrives as anything but raw markdown. It is sanitised by GitHub,
-              and the extension's content security policy allows no inline
-              script, so nothing in it can run. Falls back to the plain text
-              when GitHub sends no HTML. */}
-          {comment.bodyHTML !== '' ? (
-            <div className="dh-comment-body" dangerouslySetInnerHTML={{ __html: comment.bodyHTML }} />
-          ) : (
-            <p>{comment.body}</p>
-          )}
+          <CommentBody comment={comment} />
         </article>
       ))}
 
@@ -74,7 +75,7 @@ export function Thread({
             placeholder="Reply"
             rows={3}
             disabled={busy}
-            autoFocus
+            focusOnMount
             onSubmit={() =>
               void run(async () => {
                 const failed = await onReply(text);

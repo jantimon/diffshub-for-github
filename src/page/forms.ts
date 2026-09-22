@@ -18,11 +18,12 @@
  *
  * This goes one step further and never handles the token at all: it takes the
  * whole form GitHub already rendered for that action, changes only what the
- * reader typed, and posts it back to the form's own action. So a token can only
- * reach the route it was minted for -- sending it elsewhere is not expressible
- * here -- and no field name or commit sha is invented, because GitHub fills in
- * the side, the three commit oids, the path and the line, and this carries them
- * along untouched.
+ * reader typed, and posts it back to the form's own action.
+ *
+ * So a token can only reach the route it was minted for -- sending it
+ * elsewhere is not expressible here -- and no field name or commit sha is
+ * invented, because GitHub fills in the side, the three commit oids, the path
+ * and the line, and this carries them along untouched.
  *
  * Every reply form on the page posts to one shared `review_comment/create`
  * action, and a token is good for the action it was minted for rather than the
@@ -53,7 +54,7 @@ export function findFormEndingWith(
   return undefined;
 }
 
-/** Finds a form GitHub has already rendered, by the action it posts to. */
+/** Finds a form GitHub has already rendered, by the action it posts to */
 export function findForm(
   action: string,
   match?: (form: HTMLFormElement) => boolean,
@@ -87,7 +88,7 @@ export async function submitForm(
   return { ok: response.ok, status: response.status };
 }
 
-/** Escapes a value for use inside an attribute selector. */
+/** Escapes a value for use inside an attribute selector */
 function cssEscape(value: string): string {
   return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
 }

@@ -56,6 +56,7 @@ export function Overlay({ pr }: { pr: PullRequestRef }) {
 function Viewer({ pr }: { pr: PullRequestRef }) {
   const page = usePageInfo();
   const toasts = useToasts();
+  const pushToast = toasts.push;
   const viewerRef = useRef<CodeViewHandle<ReviewThread, undefined> | null>(null);
 
   const [layout = 'split', setLayout] = useChoice('layout', ['split', 'unified'] as const, 'split');
@@ -66,31 +67,33 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   const ignoreWhitespace = whitespace === 'ignore';
 
   const [sidebarWidth, setSidebarWidth] = useState(() => Number(readSetting('sidebarWidth', '280')) || 280);
-  const sidebarWidthRef = useRef(sidebarWidth);
-  sidebarWidthRef.current = sidebarWidth;
 
-  const startResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = sidebarWidthRef.current;
-    const onMove = (move: globalThis.PointerEvent) => {
-      setSidebarWidth(Math.min(Math.max(startWidth + move.clientX - startX, 160), 720));
-    };
-    const onUp = () => {
-      removeEventListener('pointermove', onMove);
-      removeEventListener('pointerup', onUp);
-      document.body.style.cursor = '';
-      writeSetting('sidebarWidth', String(sidebarWidthRef.current));
-    };
-    document.body.style.cursor = 'col-resize';
-    addEventListener('pointermove', onMove);
-    addEventListener('pointerup', onUp);
-  }, []);
+  const startResize = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const startX = event.clientX;
+      let width = sidebarWidth;
+      const onMove = (move: globalThis.PointerEvent) => {
+        width = Math.min(Math.max(sidebarWidth + move.clientX - startX, 160), 720);
+        setSidebarWidth(width);
+      };
+      const onUp = () => {
+        removeEventListener('pointermove', onMove);
+        removeEventListener('pointerup', onUp);
+        document.body.style.cursor = '';
+        writeSetting('sidebarWidth', String(width));
+      };
+      document.body.style.cursor = 'col-resize';
+      addEventListener('pointermove', onMove);
+      addEventListener('pointerup', onUp);
+    },
+    [sidebarWidth],
+  );
   const [helpOpen, setHelpOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   // Reading code in light while GitHub sits in dark is a fair preference, so
   // once this is set it wins over the page. Light or dark, nothing automatic:
-  // no stored choice means the page decides.
+  // no stored choice means the page decides
   const [themeChoice, setThemeChoice] = useChoice('theme', ['light', 'dark'] as const, undefined);
   const [comparing, setComparing] = useState<string | undefined>(undefined);
 
@@ -115,6 +118,13 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     viewed: ReadonlySet<string>;
     folders: ReadonlyMap<string, { total: number; viewed: number }>;
   }>({ viewed: new Set(), folders: new Map() });
+
+  /**
+   * Which item in the diff each path belongs to, kept by the patch stream and
+   * read by the tree. It is declared here rather than returned by the stream
+   * because the tree's callbacks are built first and both of them need it.
+   */
+  const pathToItemIdRef = useRef<ReadonlyMap<string, string>>(new Map());
 
   const onSelectionChange = useCallback((selectedPaths: readonly string[]) => {
     if (selectedPaths.length !== 1) return;
@@ -147,7 +157,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         return { text: '✓', title: 'Viewed' };
       }
       // The tree names a folder with a trailing slash; the tally is keyed by
-      // the path as it appears in the patch, which has none.
+      // the path as it appears in the patch, which has none
       const folder = folders.get(item.path.replace(/\/$/, ''));
       if (folder == null || folder.total === 0 || folder.viewed < folder.total) return null;
       return { text: '✓', title: `All ${folder.total} files viewed` };
@@ -155,23 +165,24 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   });
   const search = useFileTreeSearch(model);
 
-  const { state, items, visibleRef, pathToItemIdRef } = usePatchStream({
+  const { state, items, visibleRef } = usePatchStream({
     url: patchUrl(pr),
     cacheKeyPrefix: `${pr.owner}/${pr.repo}/${pr.number}`,
     include,
     exclude,
     ignoreWhitespace,
     model,
+    pathToItemIdRef,
   });
 
   const navigation = useNavigation(viewerRef, visibleRef);
   const { viewed, toggle, baseSha } = useViewed(
     `${pr.owner}/${pr.repo}/${pr.number}`,
     page.headSha,
-    useCallback((message: string) => toasts.push(message), [toasts]),
+    pushToast,
   );
 
-  // A folder is marked once every file under it has been read.
+  // A folder is marked once every file under it has been read
   const folders = useMemo(() => {
     const tally = new Map<string, { total: number; viewed: number }>();
     for (const [path, id] of state.pathToItemId) {
@@ -198,25 +209,25 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   viewedRef.current = viewed;
 
   // Decorations are worked out as rows render, so redraw when a file is ticked
-  // off rather than waiting for the next scroll.
-  const firstDraw = useRef(true);
+  // off rather than waiting for the next scroll
+  const drawnViewed = useRef(viewed);
   useEffect(() => {
-    if (firstDraw.current) {
-      firstDraw.current = false;
-      return;
-    }
+    if (drawnViewed.current === viewed) return;
+    drawnViewed.current = viewed;
     model.render({});
-  }, [viewed, model]);
+  });
 
-  // Ticking a file off moves to the next one still to read and puts the
-  // keyboard on its eye, so the whole review is space, read, space. Files
-  // already read are skipped: stopping on one would mean ticking it off again
-  // or stepping past it by hand. Unticking a file leaves you on it, because
-  // you went back to it on purpose.
+  /**
+   * Ticking a file off moves to the next one still to read and puts the
+   * keyboard on its eye, so the whole review is space, read, space. Files
+   * already read are skipped: stopping on one would mean ticking it off again
+   * or stepping past it by hand. Unticking a file leaves you on it, because
+   * you went back to it on purpose.
+   */
   const markViewed = useCallback(
     (id: string) => {
       // Read through a ref: the header this button lives in is rendered by the
-      // viewer and can hold an older copy of this callback.
+      // viewer and can hold an older copy of this callback
       const wasViewed = viewedRef.current.has(id);
       const files = visibleRef.current;
       toggle(id, files.find((file) => file.item.id === id)?.path ?? id);
@@ -226,7 +237,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       const next =
         files.slice(from + 1).find((file) => !seen.has(file.item.id)) ??
         // Nothing unread below, so fall back to anything unread above: the
-        // reader may have worked through the list out of order.
+        // reader may have worked through the list out of order
         files.slice(0, from).find((file) => !seen.has(file.item.id));
       if (next == null) return;
       viewerRef.current?.scrollTo({ type: 'item', id: next.item.id, align: 'start', behavior: 'smooth' });
@@ -248,8 +259,8 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     close: closeViewer,
   });
 
-  const pushToast = toasts.push;
   const comments = useThreads(items, pushToast);
+  const { closeDraft, openDraft, post, reply, resolve } = comments;
 
   const renderAnnotation = useCallback(
     (annotation: { metadata?: ReviewThread }) => {
@@ -258,9 +269,9 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       if (thread.isDraft === true) {
         return (
           <CommentComposer
-            onCancel={comments.closeDraft}
+            onCancel={closeDraft}
             onSubmit={async (text) => {
-              const failed = await comments.post(thread, text);
+              const failed = await post(thread, text);
               if (failed != null) pushToast(failed);
               return failed == null;
             }}
@@ -268,14 +279,10 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         );
       }
       return (
-        <Thread
-          thread={thread}
-          onReply={(body) => comments.reply(thread, body)}
-          onResolve={() => comments.resolve(thread)}
-        />
+        <Thread thread={thread} onReply={(body) => reply(thread, body)} onResolve={() => resolve(thread)} />
       );
     },
-    [comments, pushToast],
+    [closeDraft, post, pushToast, reply, resolve],
   );
 
   const reportedError = useRef<string | undefined>(undefined);
@@ -283,12 +290,12 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     if (state.phase !== 'error' || state.error == null) return;
     if (reportedError.current === state.error) return;
     reportedError.current = state.error;
-    toasts.push(state.error, { label: 'Open on GitHub', href: filesUrl(pr) });
-  }, [state.phase, state.error, toasts, pr]);
+    pushToast(state.error, { label: 'Open on GitHub', href: filesUrl(pr) });
+  }, [state.phase, state.error, pushToast, pr]);
 
   // The two revisions a binary file is compared across. Without the base there
   // is nothing to compare against, so the viewer shows the new file alone
-  // rather than the same image twice under two headings.
+  // rather than the same image twice under two headings
   const refs = useMemo<FileRefs | undefined>(
     () =>
       page.headSha == null ? undefined : { owner: pr.owner, repo: pr.repo, baseSha, headSha: page.headSha },
@@ -302,7 +309,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
 
   // An open eye means still to read, a closed one means done. A button rather
   // than a tick box, so space works on it the same way and reviewing a pull
-  // request is space, read, space.
+  // request is space, read, space
   const renderHeaderPrefix = useCallback(
     (item: CodeViewItem<ReviewThread>) => {
       const isViewed = viewed.has(item.id);
@@ -322,6 +329,14 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     [markViewed, viewed],
   );
 
+  const copyToClipboard = useCallback(
+    async (path: string) => {
+      const copied = await copyPath(path);
+      pushToast(copied ? 'Path copied.' : 'The clipboard is blocked here.');
+    },
+    [pushToast],
+  );
+
   const renderHeaderMetadata = useCallback(
     (item: CodeViewItem<ReviewThread>) => {
       if (item.type !== 'diff') return null;
@@ -339,9 +354,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           <button
             type="button"
             onClick={() => {
-              void copyPath(path).then((copied) => {
-                toasts.push(copied ? 'Path copied.' : 'The clipboard is blocked here.');
-              });
+              void copyToClipboard(path);
             }}
           >
             Copy path
@@ -359,7 +372,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         </span>
       );
     },
-    [refs, toasts],
+    [copyToClipboard, refs],
   );
 
   const options = useMemo<CodeViewReactOptions<ReviewThread, undefined>>(
@@ -379,16 +392,12 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       ) {
         const item = context.item;
         if (item.type !== 'diff') return;
-        comments.openDraft(
-          item.fileDiff.name,
-          range.start,
-          range.side === 'deletions' ? 'deletions' : 'additions',
-        );
+        openDraft(item.fileDiff.name, range.start, range.side === 'deletions' ? 'deletions' : 'additions');
       },
       unsafeCSS: `${HEADER_CSS}\n${SEPARATOR_CSS}`,
       loadDiffFiles,
     }),
-    [diffStyle, themeChoice, page.themeType, page.lightTheme, page.darkTheme, loadDiffFiles],
+    [diffStyle, themeChoice, page.themeType, page.lightTheme, page.darkTheme, loadDiffFiles, openDraft],
   );
 
   const toggleLayout = useCallback(
@@ -483,7 +492,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           viewed={viewedOnShow}
           total={stats.fileCount}
           onViewRemaining={() => {
-            // Jump to the first file still to be read.
+            // Jump to the first file still to be read
             const next = visibleRef.current.find((file) => !viewed.has(file.item.id));
             if (next == null) return;
             viewerRef.current?.scrollTo({
@@ -497,7 +506,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
           onSubmit={async (verdict, body) => {
             const result = await ask('review', { event: verdict, body });
             if (!result.ok) return result.error ?? 'GitHub refused the review.';
-            toasts.push('Review submitted.');
+            pushToast('Review submitted.');
             void comments.reload();
             return undefined;
           }}

@@ -41,7 +41,7 @@ function compile(input: string): { match?: (path: string) => boolean; error?: st
 
   try {
     // A bare `*.test.ts` reads as "anywhere", the way a search box is expected
-    // to behave; a pattern with a slash stays anchored to the whole path.
+    // to behave; a pattern with a slash stays anchored to the whole path
     const expanded = patterns.flatMap((pattern) =>
       pattern.includes('/') ? [pattern] : [pattern, `**/${pattern}`],
     );

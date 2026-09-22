@@ -5,7 +5,7 @@ import path from 'node:path';
 
 // web-ext does not export this, but it is the client `web-ext run` itself uses
 // to install a temporary add-on over the remote debugging protocol. Playwright
-// has no way to load an extension into Firefox without it.
+// has no way to load an extension into Firefox without it
 const { connect } = await import(
   pathToFileURL(path.resolve('node_modules/web-ext/lib/firefox/remote.js')).href
 );
@@ -17,7 +17,7 @@ const PORT = 6794;
 
 // Playwright's Firefox profile ships cookieBehavior 4, which is Total Cookie
 // Protection turned off. Firefox itself defaults to 5. Testing on 4 makes the
-// background fetch proxy look unnecessary, so pin the real default here.
+// background fetch proxy look unnecessary, so pin the real default here
 const COOKIE_BEHAVIOUR = 5;
 
 const profile = process.env.DIFFSHUB_FIREFOX_PROFILE;
@@ -94,7 +94,7 @@ await check('a private patch renders', async () => {
 });
 
 // The reason the background proxy exists. If this ever succeeds, Firefox has
-// changed and the proxy can go.
+// changed and the proxy can go
 await check('the viewer alone cannot reach a private patch', async () => {
   const result = await frame.evaluate(async (target) => {
     const response = await fetch(target, { credentials: 'include' });

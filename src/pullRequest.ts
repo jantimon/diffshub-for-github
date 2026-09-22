@@ -16,7 +16,7 @@ export interface PullRequestRef {
 
 const PULL_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/|$)/;
 
-/** Where the pull request lives, which every one of its routes hangs off. */
+/** Where the pull request lives, which every one of its routes hangs off */
 export function pullPath(ref: PullRequestRef): string {
   return `/${ref.owner}/${ref.repo}/pull/${ref.number}`;
 }

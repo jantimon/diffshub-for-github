@@ -6,7 +6,7 @@ import { processFile } from '@pierre/diffs';
 import { reconstructOldFile } from '../src/patch/reconstructOldFile.ts';
 
 // Real `git diff` output is the input: the patches are not hand-written, so a
-// change in how git emits hunks shows up here rather than in the browser.
+// change in how git emits hunks shows up here rather than in the browser
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'diffshub-reconstruct-'));
 fs.rmSync(dir, { recursive: true, force: true });
 fs.mkdirSync(dir, { recursive: true });

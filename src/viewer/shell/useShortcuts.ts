@@ -11,7 +11,7 @@ export interface ShortcutHandlers {
   close(): void;
 }
 
-// composedPath sees through a shadow root, which event.target does not.
+// composedPath sees through a shadow root, which event.target does not
 function isTyping(event: KeyboardEvent): boolean {
   const target = event.composedPath()[0] ?? event.target;
   if (!(target instanceof HTMLElement)) return false;
@@ -21,7 +21,7 @@ function isTyping(event: KeyboardEvent): boolean {
 
 /**
  * GitHub's review keys, so there is nothing new to learn. Typing in a filter or
- * a comment box never triggers one, and neither does a chord — except Shift,
+ * a comment box never triggers one, and neither does a chord, except Shift,
  * which `?` needs.
  *
  * The handlers live in a ref, so the listener binds once however often the

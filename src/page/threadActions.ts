@@ -25,10 +25,9 @@ export async function replyToComment(pr: PullRequestRef, inReplyTo: string, body
   const action = `${pullPath(pr)}/review_comment/create`;
 
   try {
-    // Every thread has its own copy of this one form, and a token is good for
-    // the action it was minted for rather than the copy it came in. So the
-    // thread's own form is preferred, and any other copy will do -- with the
-    // comment it answers set to the one being replied to.
+    // A token is good for the action it was minted for rather than the copy
+    // it came in, so the thread's own form is preferred and any other copy
+    // will do, with the comment it answers set to the one being replied to
     const form =
       findForm(
         action,
@@ -52,10 +51,9 @@ export async function replyToComment(pr: PullRequestRef, inReplyTo: string, body
  * routes for the two directions, and our idea of the current state goes stale
  * the moment anyone else acts on the thread.
  *
- * This used to submit the form GitHub rendered beside the conversation, which
- * limited it to the handful of threads the page underneath had materialised.
- * The JSON route needs only the id, which `readThreads` already has for every
- * conversation.
+ * The JSON route needs only the id, which `readThreads` has for every
+ * conversation. A form would do instead, but only for the few threads the page
+ * underneath has rendered.
  */
 export async function resolveThread(
   pr: PullRequestRef,
@@ -74,7 +72,7 @@ export async function resolveThread(
 
     if (response.ok) return { ok: true };
     // GitHub says why in the body -- that the reader may not resolve this
-    // conversation, or that somebody already has.
+    // conversation, or that somebody already has
     return { ok: false, error: (await reason(response)) ?? `GitHub answered ${response.status}.` };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };

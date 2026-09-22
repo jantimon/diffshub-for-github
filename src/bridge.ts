@@ -4,9 +4,10 @@
  * The viewer is an extension page in an iframe, so it has its own origin. That
  * is what lets it run module workers and split its code, but it also means
  * GitHub treats it as a stranger: a write from that origin is refused, and on
- * Firefox the session cookie is not even sent. So anything that has to happen
- * as the reader, on github.com, is named here, asked for over postMessage, and
- * carried out by the content script.
+ * Firefox the session cookie is not even sent.
+ *
+ * So anything that has to happen as the reader, on github.com, is named here,
+ * asked for over postMessage, and carried out by the content script.
  *
  * Both sides are driven by the `Requests` table below. Adding an action means
  * adding one line to it and one handler in the content script; the envelope,
@@ -23,32 +24,37 @@ export interface PageInfo {
   base?: string;
   head?: string;
   headSha?: string;
-  /** The login of whoever opened the pull request. */
+  /** The login of whoever opened the pull request */
   author?: string;
 }
 
 export interface ReviewComment {
-  /** GitHub's own id for the comment, which a reply has to name. */
+  /** GitHub's own id for the comment, which a reply has to name */
   databaseId: string;
   author: string;
   body: string;
-  /** GitHub's own rendering of the body, which is how a suggestion arrives. */
+  /** GitHub's own rendering of the body, which is how a suggestion arrives */
   bodyHTML: string;
   createdAt: string;
   url: string;
 }
 
 export interface ReviewThread {
+  /** GitHub's own id for the conversation, which resolving has to name */
   id: string;
+  /** The file the comment is on, as the diff names it */
   path: string;
-  /** Null for a comment on the file rather than a line. */
+  /** Null for a comment on the file rather than a line */
   line: number | null;
+  /** Which half of the diff the line belongs to */
   side: 'additions' | 'deletions';
+  /** Settled on GitHub; the viewer labels it, and `resolve` flips it */
   isResolved: boolean;
-  /** The lines this was written against are no longer in the diff. */
+  /** The lines this was written against are no longer in the diff */
   isOutdated: boolean;
-  /** Not on GitHub yet: the box the reader is typing into. */
+  /** Not on GitHub yet: the box the reader is typing into */
   isDraft?: boolean;
+  /** The opening comment and its replies; a reply names the first one */
   comments: ReviewComment[];
 }
 
@@ -61,7 +67,7 @@ export interface NewComment {
 
 export type ReviewEvent = 'comment' | 'approve' | 'request changes';
 
-/** The answer from an action that only has to say whether it worked. */
+/** The answer from an action that only has to say whether it worked */
 export interface Result {
   ok: boolean;
   error?: string;
@@ -72,21 +78,21 @@ export interface Result {
  * back. `void` means the request carries nothing beyond its name.
  */
 export interface Requests {
-  /** Which files GitHub already has ticked off, and the commit the diff starts at. */
+  /** Which files GitHub already has ticked off, and the commit the diff starts at */
   viewed: { ask: void; reply: { paths: string[]; baseSha?: string; error?: string } };
-  /** Ticking one file off, or putting it back. */
+  /** Ticking one file off, or putting it back */
   'file-review': { ask: { path: string; viewed: boolean }; reply: Result };
-  /** Every review comment on the pull request. */
+  /** Every review comment on the pull request */
   threads: { ask: void; reply: { threads: ReviewThread[]; truncated: boolean; error?: string } };
-  /** A new comment on one line. */
+  /** A new comment on one line */
   comment: { ask: NewComment; reply: Result };
-  /** An answer to an existing comment. */
+  /** An answer to an existing comment */
   reply: { ask: { inReplyTo: string; body: string }; reply: Result };
   /** Resolving a conversation, or reopening one. `resolved` is the state wanted. */
   resolve: { ask: { threadId: string; resolved: boolean }; reply: Result };
-  /** The verdict that ends a review. */
+  /** The verdict that ends a review */
   review: { ask: { event: ReviewEvent; body: string }; reply: Result };
-  /** GitHub's own rendering of markdown, for the preview tab. */
+  /** GitHub's own rendering of markdown, for the preview tab */
   preview: { ask: { text: string }; reply: { html?: string; error?: string } };
 }
 

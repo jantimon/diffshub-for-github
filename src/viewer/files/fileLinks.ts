@@ -12,7 +12,7 @@ export interface FileRefs {
   headSha: string;
 }
 
-/** Encode per segment so the slashes survive and everything else is escaped. */
+/** Encode per segment so the slashes survive and everything else is escaped */
 function encodePath(path: string): string {
   return path.split('/').map(encodeURIComponent).join('/');
 }
@@ -32,7 +32,7 @@ export function blameUrl(refs: FileRefs, path: string): string {
 /**
  * A file at one revision, in the `/raw/` form on github.com rather than on
  * raw.githubusercontent.com, so the request carries the session cookie and
- * private repositories work.
+ * private repositories work
  */
 export function rawFileUrl(ref: { owner: string; repo: string }, sha: string, path: string): string {
   return `${GITHUB_ORIGIN}/${ref.owner}/${ref.repo}/raw/${sha}/${encodePath(path)}`;

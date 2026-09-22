@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 // A pull request that mixes a reindented file with a real edit, so the toggle
-// has something to hide and something to keep.
+// has something to hide and something to keep
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(root, '../.output/chrome-mv3');
 const url = process.argv[2] ?? 'https://github.com/jantimon/diffshub-for-github/pull/2';
@@ -34,7 +34,7 @@ if (frame == null) {
   process.exit(1);
 }
 
-// The toggle is remembered, so start from a known state.
+// The toggle is remembered, so start from a known state
 await frame.evaluate(() => {
   for (const key of Object.keys(localStorage)) {
     if (key.startsWith('diffshub-for-github.')) localStorage.removeItem(key);

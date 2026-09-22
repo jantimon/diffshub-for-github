@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 // Presentation screenshots for the README. Unlike run-spike.mjs these are kept
-// in git, so they go to docs/images and are shot at a large viewport.
+// in git, so they go to docs/images and are shot at a large viewport
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(root, '../.output/chrome-mv3');
 const images = path.resolve(root, '../docs/images');
@@ -31,7 +31,7 @@ const shoot = async (name, options) => {
   console.log(`  wrote docs/images/${name}.png`);
 };
 
-/** GitHub's own attributes are what the content script reads when it opens. */
+/** GitHub's own attributes are what the content script reads when it opens */
 const setColorMode = (mode) =>
   page.evaluate((value) => {
     const html = document.documentElement;
@@ -53,7 +53,7 @@ const loadPullRequest = async (url) => {
 
 const viewerFrame = () => page.frames().find((f) => f.url().startsWith('chrome-extension://'));
 
-/** Shiki writes a styled span per token, so these count the highlighting. */
+/** Shiki writes a styled span per token, so these count the highlighting */
 const tokenCount = (frame) =>
   frame
     .locator('span[style]')
@@ -98,13 +98,13 @@ const waitForRenderedDiff = async () => {
  */
 const findHighlightedCode = async (frame) => {
   await page.mouse.move(1100, 600);
-  // Past the dotfiles and build config at the top, quickly.
+  // Past the dotfiles and build config at the top, quickly
   for (let step = 0; step < 24; step += 1) {
     await page.mouse.wheel(0, 3000);
     await page.waitForTimeout(400);
   }
   // Then on, a screen at a time. Highlighting runs in a worker and lands after
-  // the lines do, so give each position time to colour before scrolling past.
+  // the lines do, so give each position time to colour before scrolling past
   for (let step = 0; step < 30; step += 1) {
     for (let settle = 0; settle < 6; settle += 1) {
       if ((await tokenCount(frame)) > 400) {
@@ -142,7 +142,7 @@ await setColorMode('dark');
 await page.waitForTimeout(600);
 const tab = await page.locator('[data-diffshub-marked]').first();
 const box = await tab.boundingBox();
-// Crop from the start of the tab strip, so no neighbouring tab is cut in half.
+// Crop from the start of the tab strip, so no neighbouring tab is cut in half
 const strip = await tab.evaluate((el) => {
   const nav = el.closest('nav, ul') ?? el.parentElement;
   const rect = nav.getBoundingClientRect();
@@ -159,7 +159,7 @@ await shoot('files-changed-tab', {
 });
 
 // The overlay remembers a chosen theme, which would outrank GitHub's. Drop
-// everything this profile remembers, so each shot starts from the page.
+// everything this profile remembers, so each shot starts from the page
 await page.locator('[data-diffshub-marked]').first().click();
 await page.waitForFunction(() => document.getElementById('diffshub-for-github-viewer') != null, {
   timeout: 30000,
@@ -186,7 +186,7 @@ await page.keyboard.press('Escape');
 await page.waitForTimeout(1000);
 
 // 4. The exclude filter, with the hidden count. Cropped to the sidebar and the
-//    first column of the diff, so the count is legible.
+//    first column of the diff, so the count is legible
 await frame.locator('.dh-field input').nth(1).fill('deps/**, test/**');
 await frame.locator('.dh-hidden').waitFor({ timeout: 30000 });
 await page.waitForTimeout(5000);

@@ -29,7 +29,7 @@ await check(
 );
 await check('diff stats panel', async () => (await frame.locator('.dh-diffstats').isVisible()) && 'visible');
 // Reaching into the viewer's nested shadow roots directly: a plain locator
-// does not resolve the separator reliably while files are still settling.
+// does not resolve the separator reliably while files are still settling
 const inViewer = (action) =>
   frame.evaluate((what) => {
     const find = (root, depth) => {
@@ -79,8 +79,8 @@ await check('exclude filter', async () => {
 
 await check('a folder is ticked once every file under it is read', async () => {
   // The tree names a folder with a trailing slash and a file without one, and
-  // the two are counted separately, so this is worth pinning: when the tally
-  // and the tree disagreed about the name, no folder was ever ticked.
+  // counts the two separately. If the tally and the tree disagree on the name,
+  // no folder ever gets ticked
   const ticks = () =>
     frame.evaluate(() => {
       const out = { file: 0, folder: 0 };
@@ -99,9 +99,8 @@ await check('a folder is ticked once every file under it is read', async () => {
     });
 
   // Only the files on screen have an eye, and GitHub may already have marked
-  // them viewed, so rather than hunting for an unread one this unticks a file
-  // and ticks it again. The second click is the transition being checked, and
-  // the pair leaves the pull request as it was found.
+  // them viewed, so this unticks a file and ticks it again: the second click
+  // is the change being checked, and the pair leaves the pull request as found
   const eye = frame.locator('[data-dh-viewed][aria-pressed="true"]').first();
   if ((await eye.count()) === 0) return false;
 
@@ -115,7 +114,7 @@ await check('a folder is ticked once every file under it is read', async () => {
   await shoot('folder-ticked');
 
   // Ticking a file jumps to the next one still to read, so put the view back
-  // at the top for the checks that follow.
+  // at the top for the checks that follow
   await frame.locator('.dh-code').evaluate((pane) => pane.scrollTo({ top: 0 }));
   await page.waitForTimeout(1500);
 
@@ -182,9 +181,9 @@ await check('shortcut help', async () => {
 await page.keyboard.press('Escape');
 await page.waitForTimeout(400);
 
-// The virtualiser owns the scrolling element, so it is found by behaviour --
-// the thing with somewhere to scroll -- rather than by a class name that is
-// not ours to depend on.
+// The virtualiser owns the scrolling element, so this finds it by behaviour:
+// the thing with somewhere to scroll, rather than by a class name that is not
+// ours to depend on
 const scrolled = () =>
   frame.evaluate(() => {
     let furthest = 0;
@@ -207,8 +206,8 @@ await check('j keeps moving down the diff', async () => {
   await page.keyboard.press('j');
   await page.waitForTimeout(1200);
   const twice = await scrolled();
-  // Pressing it a second time has to move again: staying put is the bug this
-  // guards, and a check that only pressed once would not have seen it.
+  // Pressing it a second time has to move again: a check that pressed once
+  // would pass even if the diff stopped moving after the first press
   if (!(once > start && twice > once)) {
     console.log(`      ${start} -> ${once} -> ${twice}`);
     return false;

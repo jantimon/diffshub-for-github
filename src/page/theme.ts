@@ -17,7 +17,7 @@ const PIERRE_THEME_BY_GITHUB: Record<string, string> = {
 
 /**
  * Reads GitHub's active theme off `<html>` once, when the overlay opens, and
- * maps it to the closest Pierre pair.
+ * maps it to the closest Pierre pair
  */
 export function readGitHubTheme(): GitHubTheme {
   const root = document.documentElement;
