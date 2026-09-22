@@ -552,15 +552,24 @@ body {
 }
 
 /* A review thread, shown at the line it was left on. */
+/*
+ * A conversation has to be findable while scrolling. The viewer gives an
+ * annotation row the same background it gives unchanged code, and in split view
+ * the row sits in one column beside the diff, so a thread styled as a faint
+ * tint reads as more code. The raised surface, the accent edge and the shadow
+ * are what lift it off the diff.
+ */
 .dh-thread {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin: 6px 12px;
-  padding: 10px 12px;
-  background: color-mix(in srgb, currentColor 5%, transparent);
-  border: 1px solid var(--dh-border);
+  margin: 8px 12px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, currentColor 10%, var(--dh-surface, transparent));
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-inline-start: 3px solid light-dark(#0969da, #4493f8);
   border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 22%);
 }
 
 .dh-thread[data-resolved='true'] {
