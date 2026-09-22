@@ -39,6 +39,23 @@ const VIEWER_SETTLE_MS = 12_000;
 const MODE = process.env.DIFFSHUB_HAR ?? 'replay';
 const harFile = path.resolve(root, 'har', 'overlay.har');
 
+/**
+ * A recording is written beside the good one and only takes its place once the
+ * run has finished without being refused. A run cut short by throttling would
+ * otherwise leave a half-written file where a working recording used to be.
+ */
+const partialFile = `${harFile}.partial`;
+
+/** How long to wait between the steps of a recording, so it asks gently */
+const RECORDING_PACE_MS = Number(process.env.DIFFSHUB_PACE_MS ?? 4000);
+
+/**
+ * What github.com says when it has had enough. The throttling is on the
+ * session rather than the address, and it arrives as a plain status rather
+ * than anything that reads like an explanation.
+ */
+const REFUSED = new Set([429, 502, 503, 504]);
+
 export async function launch({ viewport = { width: 1600, height: 1000 }, har = false } = {}) {
   if (!fs.existsSync(dist)) {
     console.log(`No build at ${dist}. Run \`pnpm build\` first.`);
@@ -61,17 +78,33 @@ export async function launch({ viewport = { width: 1600, height: 1000 }, har = f
 
   if (recording) {
     fs.mkdirSync(path.dirname(harFile), { recursive: true });
-    await context.routeFromHAR(harFile, {
+    const target = MODE === 'record' ? partialFile : harFile;
+    await context.routeFromHAR(target, {
       url: '**/*github*/**',
       update: MODE === 'record',
       notFound: MODE === 'record' ? 'fallback' : 'abort',
     });
-    console.log(`${MODE === 'record' ? 'recording' : 'replaying'} github.com traffic: ${harFile}`);
+    console.log(`${MODE === 'record' ? 'recording' : 'replaying'} github.com traffic: ${target}`);
   }
 
   const page = context.pages()[0] ?? (await context.newPage());
   const noise = [];
   page.on('pageerror', (error) => noise.push(`github: ${error.message.slice(0, 160)}`));
+
+  // A recording made while github.com is refusing requests is worse than none:
+  // it would replay the refusals as if they were the answers
+  if (MODE === 'record') {
+    page.on('response', (response) => {
+      if (!REFUSED.has(response.status())) return;
+      if (!/github/.test(new URL(response.url()).host)) return;
+
+      console.log(`\ngithub.com answered ${response.status()} for ${response.url().slice(0, 90)}`);
+      console.log('stopping: a recording of refusals is worse than no recording');
+      fs.rmSync(partialFile, { force: true });
+      void context.close().finally(() => process.exit(2));
+    });
+  }
+
   return { context, page, noise };
 }
 
@@ -83,10 +116,16 @@ export async function launch({ viewport = { width: 1600, height: 1000 }, har = f
  * before the run's first assertion or the last run's filters are still on.
  */
 export async function openOverlay(page, url, { noise } = {}) {
+  // Recording asks github.com for everything on the page, so it goes slowly
+  // A burst is what gets a session throttled, and a throttled recording is a
+  // recording of refusals
+  const pace = MODE === 'record' ? RECORDING_PACE_MS : 0;
+  if (MODE === 'record') await refuseToRecordWhileRefused(url);
+
   await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(PAGE_SETTLE_MS);
+  await page.waitForTimeout(PAGE_SETTLE_MS + pace);
   await page.locator('[data-diffshub-marked]').first().click();
-  await page.waitForTimeout(VIEWER_SETTLE_MS);
+  await page.waitForTimeout(VIEWER_SETTLE_MS + pace);
 
   let frame = viewerFrame(page);
   if (frame == null) return undefined;
@@ -98,9 +137,9 @@ export async function openOverlay(page, url, { noise } = {}) {
   });
 
   await page.reload();
-  await page.waitForTimeout(PAGE_SETTLE_MS);
+  await page.waitForTimeout(PAGE_SETTLE_MS + pace);
   await page.locator('[data-diffshub-marked]').first().click();
-  await page.waitForTimeout(VIEWER_SETTLE_MS);
+  await page.waitForTimeout(VIEWER_SETTLE_MS + pace);
 
   // Console events are emitted by the page, never by a frame, so this listens
   // there and keeps only what came from the viewer
@@ -139,6 +178,31 @@ export function stripCredentials(file = harFile) {
   }
   fs.writeFileSync(file, JSON.stringify(har));
   return removed;
+}
+
+/**
+ * Stops a recording before it starts if github.com is turning requests away.
+ *
+ * The patch is the one request the whole suite rests on, and it comes from a
+ * host of its own that can refuse while github.com itself answers, so asking
+ * for the page proves nothing. One request, before a browser is launched.
+ */
+async function refuseToRecordWhileRefused(url) {
+  const patch = `${url.replace(/\/+$/, '')}.diff`;
+  let status;
+  try {
+    status = (await fetch(patch, { redirect: 'follow' })).status;
+  } catch (error) {
+    console.log(`could not reach ${patch}: ${String(error).slice(0, 80)}`);
+    process.exit(2);
+  }
+
+  if (REFUSED.has(status)) {
+    console.log(`github.com answered ${status} for the patch, so there is nothing worth recording`);
+    console.log('the previous recording is untouched; try again later');
+    process.exit(2);
+  }
+  console.log(`patch answered ${status}, recording`);
 }
 
 export function viewerFrame(page) {
@@ -195,7 +259,14 @@ export function checker() {
     // cleaned afterwards
     await context.close();
     if (MODE === 'record') {
-      console.log(`recording cleaned: ${stripCredentials()} credential header(s) removed`);
+      if (failures > 0) {
+        console.log('kept the previous recording: this run had failures');
+        fs.rmSync(partialFile, { force: true });
+      } else {
+        console.log(`recording cleaned: ${stripCredentials(partialFile)} credential header(s) removed`);
+        fs.renameSync(partialFile, harFile);
+        console.log(`recording replaced: ${harFile}`);
+      }
     }
     process.exit(failures === 0 ? 0 : 1);
   };

@@ -66,8 +66,10 @@ and it is the default for a reason worth knowing: a day of automated runs, with
 agents pulling GitHub's bundles alongside them, earned the account a 503 on
 every request. The suite could not tell that from a bug. Fifteen checks failed
 with an empty diff, and the first guess was a change that had nothing to do
-with it. Throttling is on the signed-in session, so a signed-out `curl` kept
-answering 200 the whole time and made it look like GitHub was fine.
+with it. The patch comes from a host of its own,
+`patch-diff.githubusercontent.com`, which refuses while github.com keeps
+answering 200, so asking for the page says nothing about whether the suite can
+run.
 
 Replaying also keeps the traffic down, which is what stops it happening again.
 

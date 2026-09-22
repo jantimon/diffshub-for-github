@@ -61,10 +61,10 @@ the profile path, so an everyday Firefox is untouched.
 
 ## Testing
 
-github.com answers 503 to a session that has been asking too often, and it is
-the **session** that is throttled, not the address: a signed-out `curl` keeps
-answering 200 while the browser sees nothing. An empty viewer with a 503 toast
-is that, not a broken build.
+github.com answers 503 when it has had enough. Asking for the pull request page
+proves nothing: the patch comes from `patch-diff.githubusercontent.com`, which
+refuses on its own while github.com still answers 200. An empty viewer with a
+503 toast is that, not a broken build.
 
 `pnpm test:firefox` needs `DIFFSHUB_FIREFOX_PROFILE` pointing at a profile
 signed in to github.com. Playwright cannot load an extension into Firefox, so
