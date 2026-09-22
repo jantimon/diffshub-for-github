@@ -101,6 +101,9 @@ including the dev server.
 
 ## Other docs
 
+- [docs/caching.md](docs/caching.md) what is kept and where, why a stale diff
+  cannot be served, and the measured ceilings. **Read it before changing
+  anything that fetches**
 - [docs/todo.md](docs/todo.md) open items, each with enough detail to pick up cold
 - [docs/capabilities.md](docs/capabilities.md) what it takes to replace GitHub's
   review page, and where each piece stands

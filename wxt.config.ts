@@ -63,6 +63,12 @@ export default defineConfig({
      * patch on the user's own session cookie. Nothing else is contacted
      */
     host_permissions: ['https://github.com/*', 'https://*.githubusercontent.com/*'],
+    /**
+     * `storage` alone, and only `storage.session` of it: an in-memory copy of
+     * what github.com answered, gone when the browser closes. Nothing is
+     * written to disk and nothing is synced
+     */
+    permissions: ['storage'],
     action: { default_title: 'Open this pull request in DiffsHub' },
     browser_specific_settings: {
       gecko: {

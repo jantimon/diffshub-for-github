@@ -1,5 +1,6 @@
 import { BRIDGE_CHANNEL } from '@/bridge';
 import { serveGithubFetch } from '@/viewer/files/githubFetch';
+import { serveResponseCache } from '@/viewer/files/responseCache';
 
 const GITHUB_ORIGINS = ['https://github.com/*', 'https://*.githubusercontent.com/*'];
 
@@ -29,6 +30,12 @@ async function watchHostAccess(): Promise<void> {
 /** The toolbar button is a second way in, for when the tab strip is off screen */
 export default defineBackground(() => {
   if (import.meta.env.FIREFOX) serveGithubFetch();
+  /**
+   * Unconditional, unlike the fetch proxy: a viewer framed by github.com may be
+   * refused the storage api whichever browser it is in, and asking here costs
+   * nothing when it is not needed. `docs/caching.md` explains which store wins
+   */
+  serveResponseCache();
   void watchHostAccess();
 
   browser.action.onClicked.addListener((tab) => {

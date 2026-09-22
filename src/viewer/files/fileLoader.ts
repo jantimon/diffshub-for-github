@@ -37,6 +37,15 @@ async function load(
   fileDiff: Parameters<FileDiffContentsLoader>[0],
 ): Promise<FileDiffLoadedFiles> {
   const url = rawFileUrl(pr, headSha, fileDiff.name);
+  /**
+   * Not cached across reloads, deliberately.
+   *
+   * These are a few kilobytes each and there can be dozens of them, so sharing
+   * one budget with the patch means expanding enough collapsed sections evicts
+   * the 740 KB the cache exists to keep. The map above already stops the same
+   * file being asked for twice, and the overlay is held for five minutes after
+   * it closes, which covers the rest.
+   */
   const response = await githubFetch(url);
   if (!response.ok) {
     throw new Error(`GitHub answered ${response.status} for ${fileDiff.name}.`);

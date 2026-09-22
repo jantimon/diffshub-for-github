@@ -11,4 +11,11 @@ const pr: PullRequestRef = {
   number: Number(params.get('number') ?? '0'),
 };
 
-createRoot(document.getElementById('root')!).render(<Overlay pr={pr} />);
+/**
+ * Forty hex characters or nothing. This url is the extension's own, but a value
+ * read out of one and then put into a storage key is worth checking anyway
+ */
+const sha = params.get('sha');
+const openedAtSha = sha != null && /^[0-9a-f]{40}$/.test(sha) ? sha : undefined;
+
+createRoot(document.getElementById('root')!).render(<Overlay pr={pr} openedAtSha={openedAtSha} />);

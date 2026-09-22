@@ -5,7 +5,7 @@
  * needs no login. The checks that write have their own suite in `review.mjs`.
  */
 
-import { checker, launch, openOverlay, screenshots } from './browser.mjs';
+import { checker, launch, openOverlay, screenshots, viewerFrame } from './browser.mjs';
 
 /**
  * A pull request big enough that the viewer recycles rows as you scroll, and
@@ -313,6 +313,39 @@ await check('closing and reopening asks GitHub for nothing', async () => {
 await frame.locator('[data-dh-action="sidebar"]').click();
 await page.waitForTimeout(500);
 await shoot('sidebar-hidden');
+
+/**
+ * Last, because it reloads the page and every frame handle above it goes stale.
+ *
+ * The check before this one proves the overlay is kept rather than rebuilt, so
+ * it cannot see a download either way. A reload is the case that used to cost
+ * the whole patch again -- 740 KB, from the host that refuses under load.
+ */
+await check('a reload reuses the patch instead of fetching it again', async () => {
+  const asked = [];
+  const watch = (request) => {
+    if (/patch-diff|\.diff(\?|$)/.test(request.url())) asked.push(request.url().slice(-60));
+  };
+
+  await page.reload();
+  await page.waitForTimeout(3500);
+  page.on('request', watch);
+  await page.locator('[data-diffshub-marked]').first().click();
+  await page.waitForTimeout(12000);
+  page.off('request', watch);
+
+  const reopened = viewerFrame(page);
+  const files = reopened == null ? 0 : await reopened.locator('[data-item-type="file"]').count();
+  if (files === 0) {
+    console.log('      the viewer did not come back, so nothing was proved');
+    return false;
+  }
+  if (asked.length > 0) {
+    console.log(`      fetched ${asked.length}: ${asked.slice(0, 2).join(', ')}`);
+    return false;
+  }
+  return `${files} files, no patch fetched`;
+});
 
 console.log(`\nscreenshots: ${dir}`);
 await finish(context, noise);

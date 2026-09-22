@@ -153,6 +153,14 @@ export default defineContentScript({
       url.searchParams.set('owner', pr.owner);
       url.searchParams.set('repo', pr.repo);
       url.searchParams.set('number', String(pr.number));
+      /**
+       * The commit the page is showing, read out of markup GitHub has already
+       * embedded. It travels on the url rather than over the bridge because the
+       * viewer needs it at its first render: the bridge answers a tick later,
+       * by which time the patch is already downloading
+       */
+      const openedAtSha = readHeadSha();
+      if (openedAtSha != null) url.searchParams.set('sha', openedAtSha);
 
       frame = document.createElement('iframe');
       frame.id = FRAME_ID;
@@ -261,6 +269,22 @@ export default defineContentScript({
     // An overlay open over one pull request has no business surviving a route
     // change to another, or to anywhere that is not a pull request at all
     let markedPath = readPullRequestRef()?.number;
+    /**
+     * Noticing a push while the overlay is open.
+     *
+     * The sha is read out of the page's own markup, so this costs no request at
+     * all. The viewer is only told. It raises a notice and leaves the diff
+     * alone, because swapping it out from under someone mid-review would lose
+     * their place and their ticks.
+     */
+    ctx.addEventListener(document, 'visibilitychange', () => {
+      if (document.visibilityState !== 'visible' || frame == null) return;
+      frame.contentWindow?.postMessage(
+        { channel: BRIDGE_CHANNEL, type: 'page-info', info: collectPageInfo() },
+        '*',
+      );
+    });
+
     ctx.addEventListener(window, 'wxt:locationchange', () => {
       const next = readPullRequestRef()?.number;
       if (next !== markedPath) destroy();

@@ -4,7 +4,7 @@ import type { FileTree } from '@pierre/trees';
 import type { ReviewThread } from '@/bridge';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { githubFetch } from '@/viewer/files/githubFetch';
+import { cachedGithubFetch } from '@/viewer/files/cachedGithubFetch';
 import { compileFilters, type MatchOptions } from './filters';
 import { streamPatchFiles } from './stream';
 import {
@@ -45,6 +45,11 @@ export interface PatchStream {
 
 interface Options {
   url: string;
+  /**
+   * The commit this patch belongs to, which is what a kept copy is keyed on.
+   * `docs/caching.md` says what that buys and what it rules out
+   */
+  sha: string | undefined;
   cacheKeyPrefix: string;
   include: string;
   exclude: string;
@@ -60,6 +65,7 @@ const EMPTY_STATS: DiffStats = { addedLines: 0, deletedLines: 0, fileCount: 0, t
 
 export function usePatchStream({
   url,
+  sha,
   cacheKeyPrefix,
   include,
   exclude,
@@ -151,7 +157,7 @@ export function usePatchStream({
     let lastPublishedAt = 0;
 
     const run = async (): Promise<void> => {
-      const response = await githubFetch(url, controller.signal);
+      const response = await cachedGithubFetch(url, { sha, signal: controller.signal });
       if (!response.ok) throw new Error(`GitHub answered ${response.status} for this patch.`);
       if (response.body == null) throw new Error('GitHub returned no patch body.');
 
@@ -176,6 +182,16 @@ export function usePatchStream({
         controller.signal,
       );
 
+      /**
+       * A run that was given up on says nothing about the one that replaced it.
+       *
+       * Reading a kept copy never throws when it is abandoned -- the stream just
+       * stops being pulled -- so unlike a download this reaches the end with the
+       * signal already aborted, and would mark the newer commit's download ready
+       * before a byte of it had arrived.
+       */
+      if (controller.signal.aborted) return;
+
       publish(false);
       setState((current) => ({ ...current, phase: 'ready' }));
     };
@@ -190,7 +206,7 @@ export function usePatchStream({
     });
 
     return () => controller.abort();
-  }, [url, cacheKeyPrefix, publish]);
+  }, [url, sha, cacheKeyPrefix, publish]);
 
   // A filter change only changes which of the parsed files are on show. The
   // refs carry the choice into publish: the streaming effect depends on

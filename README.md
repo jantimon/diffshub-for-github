@@ -94,6 +94,12 @@ markdown preview, so what you see is what gets posted.
 Every write goes to github.com on your session cookie, from the GitHub tab
 itself. There is no token and no third party in the path.
 
+**Reading a pull request twice is free.** The patch is kept, compressed, against
+the commit it came from, so reopening one you have already read costs nothing —
+and a push makes a new key, so what you are shown is never behind the page you
+are on. It is gone when the browser closes. See
+[`docs/caching.md`](docs/caching.md).
+
 **The rest.** Split and unified layouts. Collapsed context expands in place —
 the old side of a file is rebuilt from the patch, because GitHub serves raw
 files only by commit sha and the base commit is not on the page. Copy path, open
@@ -122,6 +128,8 @@ broke, while the diff keeps rendering.
   GitHub's review page, and where each piece stands. Every must-have is built
 - [`docs/firefox.md`](docs/firefox.md) what Firefox does differently, and the
   traps. Each one cost real time to find
+- [`docs/caching.md`](docs/caching.md) what is kept and where, why a stale diff
+  cannot be served, and the measured limits
 - [`research/github-internal-api/`](research/github-internal-api/) the
   undocumented API this extension runs on, read out of GitHub's own published
   sourcemaps. As far as we can tell, nobody else has written it down

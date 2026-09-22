@@ -47,15 +47,15 @@ import {
   TREE_CSS,
 } from '@/viewer/diff/codeViewStyles';
 
-export function Overlay({ pr }: { pr: PullRequestRef }) {
+export function Overlay({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string }) {
   return (
     <WorkerPoolContextProvider poolOptions={POOL_OPTIONS} highlighterOptions={HIGHLIGHTER_OPTIONS}>
-      <Viewer pr={pr} />
+      <Viewer pr={pr} openedAtSha={openedAtSha} />
     </WorkerPoolContextProvider>
   );
 }
 
-function Viewer({ pr }: { pr: PullRequestRef }) {
+function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string }) {
   const page = usePageInfo();
   const toasts = useToasts();
   const pushToast = toasts.push;
@@ -189,9 +189,27 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   });
   const search = useFileTreeSearch(model);
 
+  /**
+   * The commit on show, which is not always the commit the page has.
+   *
+   * It is seeded from the frame's own url, so it is known at the first render
+   * -- before the patch starts downloading, which is the whole point, because a
+   * kept copy has to be looked for before the download begins. `page.headSha`
+   * cannot be used for it: that arrives a tick later and would change the key
+   * under a running effect, downloading the patch a second time.
+   *
+   * It moves only when the reader asks for a newer commit, so a push cannot
+   * rebuild the diff under someone in the middle of reading it.
+   */
+  const [showingSha, setShowingSha] = useState(openedAtSha);
+
   const { state, items, visibleRef } = usePatchStream({
     url: patchUrl(pr),
-    cacheKeyPrefix: `${pr.owner}/${pr.repo}/${pr.number}`,
+    sha: showingSha,
+    cacheKeyPrefix:
+      showingSha == null
+        ? `${pr.owner}/${pr.repo}/${pr.number}`
+        : `${pr.owner}/${pr.repo}/${pr.number}@${showingSha}`,
     include,
     exclude,
     includeOptions,
@@ -323,6 +341,26 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     [closeDraft, post, pushToast, reply, resolve],
   );
 
+  /**
+   * Telling the reader a push landed, without acting on it.
+   *
+   * The content script re-reads the page's own markup whenever the tab comes
+   * back to the front, so noticing costs no request. What it costs to act on is
+   * the whole patch again, and the reader's place in it, so that is offered
+   * rather than taken.
+   */
+  const announcedSha = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const latest = page.headSha;
+    if (latest == null || showingSha == null || latest === showingSha) return;
+    if (announcedSha.current === latest) return;
+    announcedSha.current = latest;
+    pushToast('New commits were pushed to this pull request.', {
+      label: 'Show them',
+      onAct: () => setShowingSha(latest),
+    });
+  }, [page.headSha, showingSha, pushToast]);
+
   const reportedError = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (state.phase !== 'error' || state.error == null) return;
@@ -331,18 +369,28 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
     pushToast(state.error, { label: 'Open on GitHub', href: filesUrl(pr) });
   }, [state.phase, state.error, pushToast, pr]);
 
+  /**
+   * The revision everything beside the patch is read at.
+   *
+   * It has to be the commit on show, not the one the page has. Expanding
+   * collapsed context rebuilds the old side by applying this diff's hunks to
+   * the file fetched here, so a file fetched at a newer commit than the diff
+   * was cut from lines up against nothing. A push noticed mid-review moves
+   * `page.headSha` and deliberately does not move this.
+   */
+  const readingSha = showingSha ?? page.headSha;
+
   // The two revisions a binary file is compared across. Without the base there
   // is nothing to compare against, so the viewer shows the new file alone
   // rather than the same image twice under two headings
   const refs = useMemo<FileRefs | undefined>(
-    () =>
-      page.headSha == null ? undefined : { owner: pr.owner, repo: pr.repo, baseSha, headSha: page.headSha },
-    [baseSha, page.headSha, pr.owner, pr.repo],
+    () => (readingSha == null ? undefined : { owner: pr.owner, repo: pr.repo, baseSha, headSha: readingSha }),
+    [baseSha, readingSha, pr.owner, pr.repo],
   );
 
   const loadDiffFiles = useMemo(
-    () => (page.headSha == null ? undefined : createFileLoader(pr, page.headSha)),
-    [page.headSha, pr],
+    () => (readingSha == null ? undefined : createFileLoader(pr, readingSha)),
+    [readingSha, pr],
   );
 
   // An open eye means still to read, a closed one means done. A button rather
