@@ -10,6 +10,7 @@
 import { chromium } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 export const root = path.dirname(fileURLToPath(import.meta.url));
@@ -20,21 +21,49 @@ const PAGE_SETTLE_MS = 3500;
 /** How long the viewer needs to stream a patch and lay out the first files */
 const VIEWER_SETTLE_MS = 12_000;
 
-export async function launch({ viewport = { width: 1600, height: 1000 } } = {}) {
+/**
+ * Where a recorded run is kept, and which mode this run is in.
+ *
+ * `replay` serves github.com from the recording, so the suite is fast, works
+ * offline, and cannot be throttled. `record` refreshes the recording against
+ * the real thing. `live` ignores the recording altogether.
+ *
+ * The recording is made signed out, against a public pull request, so it
+ * carries no cookie and nothing private. Anything needing a session has to run
+ * live.
+ */
+const MODE = process.env.DIFFSHUB_HAR ?? 'live';
+const harFile = path.resolve(root, 'har', 'overlay.har');
+
+export async function launch({ viewport = { width: 1600, height: 1000 }, har = false } = {}) {
   if (!fs.existsSync(dist)) {
     console.log(`No build at ${dist}. Run \`pnpm build\` first.`);
     process.exit(1);
   }
 
-  const context = await chromium.launchPersistentContext(
-    process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'),
-    {
-      channel: 'chromium',
-      headless: false,
-      viewport,
-      args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
-    },
-  );
+  // A recorded run must not carry a signed-in session into the recording, so it
+  // gets a profile of its own that is thrown away afterwards
+  const recording = har && MODE !== 'live';
+  const profile = recording
+    ? fs.mkdtempSync(path.join(os.tmpdir(), 'diffshub-har-'))
+    : (process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'));
+
+  const context = await chromium.launchPersistentContext(profile, {
+    channel: 'chromium',
+    headless: false,
+    viewport,
+    args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
+  });
+
+  if (recording) {
+    fs.mkdirSync(path.dirname(harFile), { recursive: true });
+    await context.routeFromHAR(harFile, {
+      url: '**/*github*/**',
+      update: MODE === 'record',
+      notFound: MODE === 'record' ? 'fallback' : 'abort',
+    });
+    console.log(`${MODE === 'record' ? 'recording' : 'replaying'} github.com traffic: ${harFile}`);
+  }
 
   const page = context.pages()[0] ?? (await context.newPage());
   const noise = [];

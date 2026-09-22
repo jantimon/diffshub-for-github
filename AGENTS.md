@@ -21,7 +21,8 @@ cookie.
 ## Commands
 
 ```sh
-pnpm build && pnpm test   # the viewer on a public pull request, writes nothing
+pnpm build && pnpm test   # the viewer, replayed from test/har: offline, no GitHub
+pnpm test:live            # the same against real github.com, run it less often
 pnpm test:review          # comments, replies, verdicts: writes to a throwaway PR
 pnpm test:units           # offline, fast, no browser
 pnpm lint                 # oxlint

@@ -9,7 +9,7 @@ import { checker, launch, openOverlay, screenshots } from './browser.mjs';
 
 const url = process.argv[2] ?? 'https://github.com/nodejs/node/pull/60000';
 
-const { context, page, noise } = await launch();
+const { context, page, noise } = await launch({ har: true });
 const { dir, shoot } = screenshots(page);
 const { check, finish } = checker();
 
@@ -98,11 +98,19 @@ await check('a folder is ticked once every file under it is read', async () => {
       return out;
     });
 
-  // Only the files on screen have an eye, and GitHub may already have marked
-  // them viewed, so this unticks a file and ticks it again: the second click
-  // is the change being checked, and the pair leaves the pull request as found
+  /**
+   * Only the files on screen have an eye, and GitHub may already have marked
+   * them viewed, so this unticks a file and ticks it again. The second click is
+   * the change being checked, and the pair leaves the pull request as found.
+   *
+   * A tick needs a signed-in reader, and the recorded run is signed out so the
+   * recording carries no session, so there it reports nothing to do.
+   */
   const eye = frame.locator('[data-dh-viewed][aria-pressed="true"]').first();
-  if ((await eye.count()) === 0) return false;
+  if ((await eye.count()) === 0) {
+    console.log('      skipped: no file is ticked, which needs a signed-in session');
+    return 'skipped, needs a session';
+  }
 
   await eye.click();
   await page.waitForTimeout(2500);

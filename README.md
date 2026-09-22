@@ -169,7 +169,9 @@ the code branches on the browser only where the platforms genuinely differ.
 Everything runs through a real browser against real github.com.
 
 ```sh
-pnpm build && pnpm test   # the viewer, on a public pull request: nothing is written
+pnpm build && pnpm test   # the viewer, replayed from a recording: offline, no GitHub
+pnpm test:live            # the same, against real github.com
+pnpm test:record          # refresh the recording
 pnpm test:review          # comments, replies, verdicts and viewed state: these write
 pnpm test:firefox         # that the Firefox fetch path is still needed, and works
 pnpm test:whitespace      # hiding files that changed only in spacing
@@ -180,7 +182,10 @@ pnpm lint                 # oxlint, with every no-comment-slop rule on
 pnpm format               # oxfmt, at Prettier's own defaults
 ```
 
-`pnpm test` only reads, so it runs against any public pull request.
+`pnpm test` replays github.com from `test/har/`, so it needs no network and
+cannot be throttled. Record it once with `pnpm test:record`, which runs signed
+out against a public pull request so the recording carries no session. Run
+`pnpm test:live` now and then to catch GitHub changing under the recording.
 `pnpm test:review` posts comments and submits reviews, so it runs against a
 pull request kept for the purpose — pass another as an argument if you want a
 different one. `pnpm test:units` needs no browser and no network.
