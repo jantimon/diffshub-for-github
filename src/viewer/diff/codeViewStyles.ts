@@ -107,6 +107,17 @@ export const SEPARATOR_CSS = `
  * `color-scheme` on its shadow host from the resolved theme.
  */
 export const DIFF_TINT_CSS = `
+/*
+ * How far a changed line's background is mixed towards the decoration colour.
+ * The viewer's own values leave the tint strong enough to read through, and
+ * these were tried in a browser before being chosen.
+ */
+[data-line],
+[data-no-newline] {
+  --mix-light: 95%;
+  --mix-dark: 94%;
+}
+
 :host {
   --diffs-bg-deletion-emphasis-override: light-dark(
     rgb(from var(--diffs-deletion-base) r g b / 0.1),

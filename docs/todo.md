@@ -3,23 +3,6 @@
 Things worth doing, with enough detail to pick up cold. Not a backlog of
 everything: each of these was found and set aside deliberately.
 
-## Diff line contrast
-
-Raise the mix so the added and deleted tints sit lighter behind the code:
-
-```
---mix-light: 95%   (currently 88%)
---mix-dark:  94%   (currently 80%)
-```
-
-`@pierre/diffs` sets these on `[data-line], [data-no-newline]` inside
-`:where([data-background])` (`research/pierre/packages/diffs/src/style.css:464`).
-They are in its shadow root, so the override goes in `codeViewStyles.ts`
-alongside `HEADER_CSS`, not in `viewer/style.css`.
-
-Both values were tried in the browser before being written down, so take them
-as given. The dark side reads 80% in the library today, not 88%.
-
 ## Edit and delete your own comment
 
 Capability 32. Both routes are measured and working:
