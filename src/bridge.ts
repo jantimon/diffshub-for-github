@@ -23,7 +23,6 @@ export interface PageInfo {
   darkTheme: string;
   base?: string;
   head?: string;
-  headSha?: string;
   /** The login of whoever opened the pull request */
   author?: string;
 }

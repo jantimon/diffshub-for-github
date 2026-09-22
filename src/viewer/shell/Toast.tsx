@@ -5,11 +5,7 @@ const DISMISS_AFTER_MS = 8000;
 export interface Toast {
   id: number;
   message: string;
-  /**
-   * What to do about it. A link goes out to GitHub, a handler acts inside
-   * the viewer for a notice whose answer is here rather than there
-   */
-  action?: { label: string; href: string } | { label: string; onAct: () => void };
+  action?: { label: string; href: string };
 }
 
 export interface ToastControls {
@@ -74,24 +70,11 @@ export function ToastStack({
       {toasts.map((toast) => (
         <div key={toast.id} className="dh-toast">
           <span className="dh-toast-message">{toast.message}</span>
-          {toast.action != null &&
-            ('href' in toast.action ? (
-              <a className="dh-toast-action" href={toast.action.href} target="_top">
-                {toast.action.label}
-              </a>
-            ) : (
-              <button
-                type="button"
-                className="dh-toast-action"
-                onClick={() => {
-                  const act = toast.action;
-                  if (act != null && 'onAct' in act) act.onAct();
-                  onDismiss(toast.id);
-                }}
-              >
-                {toast.action.label}
-              </button>
-            ))}
+          {toast.action != null && (
+            <a className="dh-toast-action" href={toast.action.href} target="_top">
+              {toast.action.label}
+            </a>
+          )}
           <button
             type="button"
             className="dh-toast-close"

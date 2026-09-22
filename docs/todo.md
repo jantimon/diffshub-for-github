@@ -61,26 +61,13 @@ A sender check against `browser.runtime.getURL('/viewer.html')` and an origin
 allowlist is a few lines. Worth doing **before** anything moves Chrome onto the
 same port, which would hand Chrome the same capability.
 
-## Push detection may never fire
-
-`content.ts` re-reads `readHeadSha()` on `visibilitychange` to notice a push, and
-that reads JSON GitHub embedded in the page. **Nobody has confirmed GitHub ever
-rewrites that JSON without a navigation.** If it does not, the value is frozen at
-load, the toast never appears, and the whole "noticed but not applied" path is
-dead code that reads as though it works.
-
-Check it live: open a pull request, push to it from elsewhere, switch tabs back,
-and see whether the toast arrives. If it does not, either drop the feature or
-find something on the page that does change.
-
 ## Smaller things
 
 - `usePatchStream` never sets `phase` back to `loading` when the patch url
-  changes, so a new patch keeps a stale `ready` or `error`. Probably
-  unreachable: the viewer gets one pull request per document.
+  changes, so a new patch would keep a stale `ready` or `error`. Unreachable
+  today: the viewer gets one pull request and one commit per document.
 - `readThreads` falls back to `databaseId ?? ''`. That id is what a reply names,
   so an empty one breaks replying, and nothing downstream handles it.
 - `useViewed`'s set holds item ids from ticking and paths from GitHub. They
   coincide unless a patch names one path twice, when `uniqueId` returns
   `path?2`.
-- `content.ts` calls a variable `markedPath` which holds a pull request number.

@@ -46,7 +46,6 @@ const collectPageInfo = (): PageInfo => {
     darkTheme: theme.theme.dark,
     base: branches?.base,
     head: branches?.head,
-    headSha: readHeadSha(),
     author: readAuthor(),
   };
 };
@@ -108,10 +107,10 @@ export default defineContentScript({
     /**
      * Puts the overlay away without throwing it out.
      *
-     * Closing used to remove the iframe, which threw away the parsed patch, the
-     * rendered diff and every conversation with it, so coming back paid for the
-     * whole download again. On a large pull request that is twenty megabytes to
-     * read something you had open a moment ago.
+     * Removing the iframe would throw away the parsed patch, the rendered diff
+     * and every conversation with it, so coming back would pay for the whole
+     * download again: twenty megabytes, on a large pull request, to read
+     * something open a moment ago.
      *
      * Hidden, it holds that memory, so it is let go after a while. Moving to
      * another pull request drops it at once, because none of it applies there.
@@ -268,27 +267,11 @@ export default defineContentScript({
 
     // An overlay open over one pull request has no business surviving a route
     // change to another, or to anywhere that is not a pull request at all
-    let markedPath = readPullRequestRef()?.number;
-    /**
-     * Noticing a push while the overlay is open.
-     *
-     * The sha is read out of the page's own markup, so this costs no request at
-     * all. The viewer is only told. It raises a notice and leaves the diff
-     * alone, because swapping it out from under someone mid-review would lose
-     * their place and their ticks.
-     */
-    ctx.addEventListener(document, 'visibilitychange', () => {
-      if (document.visibilityState !== 'visible' || frame == null) return;
-      frame.contentWindow?.postMessage(
-        { channel: BRIDGE_CHANNEL, type: 'page-info', info: collectPageInfo() },
-        '*',
-      );
-    });
-
+    let markedNumber = readPullRequestRef()?.number;
     ctx.addEventListener(window, 'wxt:locationchange', () => {
       const next = readPullRequestRef()?.number;
-      if (next !== markedPath) destroy();
-      markedPath = next;
+      if (next !== markedNumber) destroy();
+      markedNumber = next;
       markTab();
     });
 
