@@ -48,6 +48,7 @@ including the dev server.
 
 ## Other docs
 
+- [docs/todo.md](docs/todo.md) open items, each with enough detail to pick up cold
 - [docs/capabilities.md](docs/capabilities.md) what it takes to replace GitHub's
   review page, and where each piece stands
 - [docs/analysis.md](docs/analysis.md) how diffshub.com works
