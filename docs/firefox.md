@@ -25,19 +25,45 @@ watches `browser.permissions` and marks the toolbar button when it goes.
 
 ## Development
 
-**Local Network Access blocks the dev server.** Firefox gates a secure context
-reaching this machine and answers with an automatic denial, so every module and
-the reload socket are refused and the overlay never starts. The console shows a
-failed WebSocket; the cause is `Loading failed for the module` above it.
-`web-ext.config.ts` sets `network.lna.enabled`, `network.lna.blocking` and
-`permissions.default.local-network`. Blocking alone was not enough.
+**There is no dev server for Firefox, and there cannot be.** Firefox will not
+run an extension page's scripts from a remote origin, so every script the dev
+server serves is refused and the viewer renders as a white panel. The Browser
+Console names the real cause:
 
-**Content scripts are registered over the dev socket**, not declared in the dev
-manifest. No socket means nothing injects: no tab marker, and the toolbar button
-has nobody to message. The extension looks dead rather than broken.
+```
+Content-Security-Policy: The page's settings blocked a script (script-src-elem)
+at http://localhost:3198/src/entrypoints/viewer/main.tsx from being executed
+because it violates the following directive: "script-src 'self'"
+```
 
-**The dev server must bind IPv4.** Left alone it binds `::1`; Firefox resolves
-`ws://localhost:3197` to 127.0.0.1. `wxt.config.ts` sets `dev.server.host`.
+The dev manifest asks for `script-src 'self' 'wasm-unsafe-eval'
+http://localhost:3198`. Firefox discards that and applies the default, because
+a remote source is not allowed there. Chrome grants the same request. MV2 does
+not help: its dev manifest carries the localhost origin too and Firefox refuses
+it the same way. Nothing in the config changes this.
+
+So `pnpm dev:firefox` builds the extension instead. `nodemon` rebuilds on every
+change under `src`, and `web-ext run` reloads the add-on. Slower than Chrome's
+hot reload, and it is a real build, which is the point. Chrome keeps WXT's dev
+server.
+
+**Reload the page after a change.** Reloading the add-on replaces the extension
+Firefox holds, not the tabs already running the old one. A content script stays
+injected from the previous version and an open viewer keeps the code it started
+with, so the change appears only on the next page load. The terminal saying
+`Last extension reload` means the new build is installed, not that you are
+looking at it.
+
+**The watch is pinned to `.output/.reload-stamp`**, a file the build touches
+once it has finished, rather than to anything inside the output. Watching the
+output directory reloads mid-build, since web-ext debounces for a hard-coded
+500ms and a build takes about twice that. Watching a file inside it breaks
+after one rebuild, since `wxt build` recreates the directory and leaves the
+watch on a dead inode.
+
+**web-ext is driven by its own config**, `web-ext-config.mjs`, not by WXT. The
+Local Network Access preferences that used to live here are gone with the dev
+server they existed for.
 
 **`firefoxProfile` must be an absolute path.** web-ext reads a relative value as
 a profile *name*, passes `-P <name>`, and Firefox opens the profile manager. No

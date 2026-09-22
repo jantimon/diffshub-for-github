@@ -146,6 +146,12 @@ pnpm dev:firefox     # Firefox
 `pnpm dev` starts [WXT](https://wxt.dev), which builds the extension and opens a
 browser with it already loaded.
 
+`pnpm dev:firefox` has no dev server behind it. Firefox will not run an
+extension page's scripts from one, so the script builds on every change and
+reloads the add-on instead. Reload the page to see the change: reloading the
+add-on does not touch tabs already running the old one.
+[docs/firefox.md](docs/firefox.md) has the why.
+
 ## Building
 
 ```sh
