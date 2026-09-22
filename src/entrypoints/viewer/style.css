@@ -49,11 +49,27 @@ body {
   border-bottom: 1px solid var(--dh-border);
 }
 
+/*
+ * The name sits beside an avatar and a row of icons, so it lines up with them
+ * rather than on a shared text baseline: an avatar aligned on the baseline
+ * hangs its whole box below the text and reads as too low.
+ *
+ * Centring boxes alone still leaves the text high, because a line box carries
+ * half its leading above the capitals. `text-box` trims that, so what is
+ * centred is the text a reader sees rather than the box around it. Browsers
+ * without it fall back to the centred box, which is the better of the two
+ * anyway.
+ */
 .dh-identity {
   display: flex;
   gap: 8px;
-  align-items: baseline;
+  align-items: center;
   min-width: 0;
+}
+
+.dh-identity strong,
+.dh-title {
+  text-box: trim-both cap alphabetic;
 }
 
 .dh-title {
@@ -190,12 +206,24 @@ body {
   min-height: 0;
 }
 
+/*
+ * Room under the last file, so the end of a diff can be read at a comfortable
+ * height instead of against the bottom edge, the way an editor leaves space
+ * past the final line.
+ */
 .dh-code {
   flex: 1;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
   contain: strict;
+  scroll-padding-block-end: 30vh;
+}
+
+.dh-code::after {
+  display: block;
+  block-size: 30vh;
+  content: '';
 }
 
 .dh-binary {

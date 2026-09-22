@@ -28,11 +28,15 @@ const VIEWER_SETTLE_MS = 12_000;
  * offline, and cannot be throttled. `record` refreshes the recording against
  * the real thing. `live` ignores the recording altogether.
  *
+ * Replay is the default, so a script written in a hurry cannot reach
+ * github.com by forgetting to ask for the recording. Going live has to be
+ * spelled out.
+ *
  * The recording is made signed out, against a public pull request, so it
  * carries no cookie and nothing private. Anything needing a session has to run
  * live.
  */
-const MODE = process.env.DIFFSHUB_HAR ?? 'live';
+const MODE = process.env.DIFFSHUB_HAR ?? 'replay';
 const harFile = path.resolve(root, 'har', 'overlay.har');
 
 export async function launch({ viewport = { width: 1600, height: 1000 }, har = false } = {}) {
