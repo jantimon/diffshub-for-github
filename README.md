@@ -175,7 +175,7 @@ pnpm test:record          # refresh the recording
 pnpm test:review          # comments, replies, verdicts and viewed state: these write
 pnpm test:firefox         # that the Firefox fetch path is still needed, and works
 pnpm test:whitespace      # hiding files that changed only in spacing
-pnpm test:units           # offline: rebuilding a file's old side, globs, path matching
+pnpm test:units           # offline: old-side rebuild, globs, paths, recording safety
 pnpm test:fps             # frame times, against GitHub's own view
 pnpm capture:readme       # the screenshots above, into docs/images
 pnpm lint                 # oxlint, with every no-comment-slop rule on
@@ -184,7 +184,9 @@ pnpm format               # oxfmt, at Prettier's own defaults
 
 `pnpm test` replays github.com from `test/har/`, so it needs no network and
 cannot be throttled. Record it once with `pnpm test:record`, which runs signed
-out against a public pull request so the recording carries no session. Run
+out against a public pull request and strips the credential headers GitHub
+hands out anyway. The recording is gitignored, and `pnpm test:units` proves the
+stripping works. Run
 `pnpm test:live` now and then to catch GitHub changing under the recording.
 `pnpm test:review` posts comments and submits reviews, so it runs against a
 pull request kept for the purpose — pass another as an argument if you want a

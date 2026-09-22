@@ -110,6 +110,33 @@ export async function openOverlay(page, url, { noise } = {}) {
   return viewerFrame(page);
 }
 
+/**
+ * Takes the credentials back out of a fresh recording.
+ *
+ * Recording runs signed out, but github.com still hands an anonymous session to
+ * anyone who asks, so the file would otherwise carry `Cookie` and `Set-Cookie`
+ * for every request. It is gitignored as well. This is so the bytes are
+ * harmless even when the file is copied somewhere else.
+ */
+export function stripCredentials(file = harFile) {
+  if (!fs.existsSync(file)) return 0;
+
+  const har = JSON.parse(fs.readFileSync(file, 'utf8'));
+  let removed = 0;
+  for (const entry of har.log.entries) {
+    for (const side of [entry.request, entry.response]) {
+      const before = side.headers.length;
+      side.headers = side.headers.filter(
+        (header) => !['cookie', 'set-cookie', 'authorization'].includes(header.name.toLowerCase()),
+      );
+      removed += before - side.headers.length;
+      side.cookies = [];
+    }
+  }
+  fs.writeFileSync(file, JSON.stringify(har));
+  return removed;
+}
+
 export function viewerFrame(page) {
   return page.frames().find((f) => f.url().startsWith('chrome-extension://'));
 }
@@ -160,7 +187,12 @@ export function checker() {
   const finish = async (context, noise = []) => {
     if (noise.length > 0) console.log('\nconsole noise:\n' + [...new Set(noise)].slice(0, 8).join('\n'));
     console.log(failures === 0 ? '\nALL PASS' : `\n${failures} failing`);
+    // Playwright writes the recording as the context closes, so it can only be
+    // cleaned afterwards
     await context.close();
+    if (MODE === 'record') {
+      console.log(`recording cleaned: ${stripCredentials()} credential header(s) removed`);
+    }
     process.exit(failures === 0 ? 0 : 1);
   };
 
