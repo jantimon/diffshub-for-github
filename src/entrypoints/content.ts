@@ -1,5 +1,6 @@
 import {
   BRIDGE_CHANNEL,
+  failedReply,
   isFromViewer,
   type Ask,
   type PageInfo,
@@ -193,18 +194,6 @@ export default defineContentScript({
       preview: ({ text }) => previewMarkdown(text),
     };
 
-    /** What every request answers with when the page is no longer a pull request */
-    const NOT_A_PULL_REQUEST: { [K in RequestName]: Reply<K> } = {
-      viewed: { paths: [], error: 'Not a pull request page.' },
-      'file-review': { ok: false, error: 'Not a pull request page.' },
-      threads: { threads: [], truncated: false, error: 'Not a pull request page.' },
-      comment: { ok: false, error: 'Not a pull request page.' },
-      reply: { ok: false, error: 'Not a pull request page.' },
-      resolve: { ok: false, error: 'Not a pull request page.' },
-      review: { ok: false, error: 'Not a pull request page.' },
-      preview: { error: 'Not a pull request page.' },
-    };
-
     ctx.addEventListener(window, 'message', async (event: MessageEvent) => {
       if (frame == null || event.source !== frame.contentWindow) return;
       if (!isFromViewer(event.data)) return;
@@ -232,7 +221,7 @@ export default defineContentScript({
       // pairing is asserted rather than checked
       const reply =
         pr == null
-          ? NOT_A_PULL_REQUEST[name]
+          ? failedReply[name]('Not a pull request page.')
           : await (handlers[name] as (ask: unknown, pr: PullRequestRef) => Promise<Reply<typeof name>>)(
               message.ask,
               pr,

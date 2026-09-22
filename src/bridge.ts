@@ -130,6 +130,23 @@ export type Ask<K extends RequestName> = Requests[K]['ask'];
 export type Reply<K extends RequestName> = Requests[K]['reply'];
 
 /**
+ * What each request answers with when it cannot be carried out: the page gave
+ * no answer in time, or it is not a pull request page at all. The shapes
+ * differ, so this is a table rather than one value, and the compiler checks it
+ * covers every request. A new request is added here and in `Requests`.
+ */
+export const failedReply: { [K in RequestName]: (error: string) => Reply<K> } = {
+  viewed: (error) => ({ paths: [], error }),
+  'file-review': (error) => ({ ok: false, error }),
+  threads: (error) => ({ threads: [], truncated: false, error }),
+  comment: (error) => ({ ok: false, error }),
+  reply: (error) => ({ ok: false, error }),
+  resolve: (error) => ({ ok: false, error }),
+  review: (error) => ({ ok: false, error }),
+  preview: (error) => ({ error }),
+};
+
+/**
  * One envelope for every request, and one for every answer. The id pairs them
  * up, because several can be in flight at once and every message arrives at
  * the same listener.

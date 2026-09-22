@@ -10,25 +10,9 @@
  * coming. A reader who is told is better off than one left watching a spinner.
  */
 
-import { BRIDGE_CHANNEL, isToViewer, type Ask, type Reply, type RequestName } from '@/bridge';
+import { BRIDGE_CHANNEL, failedReply, isToViewer, type Ask, type Reply, type RequestName } from '@/bridge';
 
 const TIMEOUT_MS = 20_000;
-
-/**
- * What each request answers with when the page does not. The shapes differ, so
- * this is a table rather than one value, and the compiler checks it covers
- * every request.
- */
-const TIMED_OUT: { [K in RequestName]: (error: string) => Reply<K> } = {
-  viewed: (error) => ({ paths: [], error }),
-  'file-review': (error) => ({ ok: false, error }),
-  threads: (error) => ({ threads: [], truncated: false, error }),
-  comment: (error) => ({ ok: false, error }),
-  reply: (error) => ({ ok: false, error }),
-  resolve: (error) => ({ ok: false, error }),
-  review: (error) => ({ ok: false, error }),
-  preview: (error) => ({ error }),
-};
 
 let nextId = 0;
 
@@ -46,7 +30,7 @@ export function ask<K extends RequestName>(
       finish(message.reply as Reply<K>);
     };
 
-    const timer = setTimeout(() => finish(TIMED_OUT[name]('GitHub did not answer in time.')), TIMEOUT_MS);
+    const timer = setTimeout(() => finish(failedReply[name]('GitHub did not answer in time.')), TIMEOUT_MS);
 
     function finish(reply: Reply<K>): void {
       clearTimeout(timer);
