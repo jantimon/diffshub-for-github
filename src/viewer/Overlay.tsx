@@ -208,7 +208,7 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
   });
 
   const navigation = useNavigation(viewerRef, visibleRef);
-  const { viewed, toggle, baseSha } = useViewed(
+  const { viewed, toggle, markAll, baseSha } = useViewed(
     `${pr.owner}/${pr.repo}/${pr.number}`,
     openedAtSha,
     pushToast,
@@ -577,11 +577,20 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
             });
           }}
           onClose={() => setReviewOpen(false)}
-          onSubmit={async (verdict, body) => {
+          onSubmit={async (verdict, body, markRemaining) => {
             const result = await ask('review', { event: verdict, body });
             if (!result.ok) return result.error ?? 'GitHub refused the review.';
             pushToast('Review submitted.');
             void comments.reload();
+            // After the verdict, so a refused tick never holds up the review
+            if (markRemaining) {
+              const files = [...state.pathToItemId].map(([path, id]) => ({ id, path }));
+              void (async () => {
+                const refused = await markAll(files);
+                if (refused.length === 0) return;
+                pushToast(`GitHub did not record ${refused.length} file(s) as viewed: ${refused.join(', ')}`);
+              })();
+            }
             return undefined;
           }}
         />

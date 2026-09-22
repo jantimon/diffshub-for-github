@@ -214,6 +214,26 @@ await check('shortcut help', async () => {
 await page.keyboard.press('Escape');
 await page.waitForTimeout(400);
 
+// Nothing is submitted: the dialog is only opened and closed
+await check('approving offers to mark the remaining files, unticked', async () => {
+  await frame.locator('[data-dh-action="review"]').click();
+  await page.waitForTimeout(800);
+  const offer = frame.locator('.dh-review-mark-all input');
+  const withComment = await offer.count();
+  await frame.locator('[data-verdict="approve"]').click();
+  await page.waitForTimeout(300);
+  const withApprove = await offer.count();
+  const ticked = withApprove > 0 && (await offer.isChecked());
+  await shoot('review-mark-all');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  if (withComment !== 0 || withApprove !== 1 || ticked) {
+    console.log(`      offered with comment ${withComment}, with approve ${withApprove}, ticked ${ticked}`);
+    return false;
+  }
+  return (await frame.locator('.dh-review-mark-all').count()) === 0 && 'shown for approve only, off';
+});
+
 // The virtualiser owns the scrolling element, so this finds it by behaviour:
 // the thing with somewhere to scroll, rather than by a class name that is not
 // ours to depend on

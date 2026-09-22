@@ -111,5 +111,28 @@ export function useViewed(key: string, headSha: string | undefined, onFailure: (
     [apply, onFailure],
   );
 
-  return { viewed, toggle, baseSha };
+  /**
+   * Ticks off every file given that is not ticked yet, and answers with the
+   * paths GitHub refused.
+   *
+   * GitHub takes one file per request, so they go one after another: forty at
+   * once is the kind of burst that gets a session throttled
+   */
+  const markAll = useCallback(
+    async (files: readonly { id: string; path: string }[]): Promise<string[]> => {
+      touched.current = true;
+      const refused: string[] = [];
+      for (const { id, path } of files.filter((file) => !viewedRef.current.has(file.id))) {
+        apply(id, true);
+        const { ok } = await ask('file-review', { path, viewed: true });
+        if (ok) continue;
+        apply(id, false);
+        refused.push(path);
+      }
+      return refused;
+    },
+    [apply],
+  );
+
+  return { viewed, toggle, markAll, baseSha };
 }

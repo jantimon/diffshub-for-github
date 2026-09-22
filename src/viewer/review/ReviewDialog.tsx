@@ -60,7 +60,8 @@ export function ReviewDialog({
   viewed: number;
   total: number;
   onViewRemaining: () => void;
-  onSubmit: (event: ReviewEvent, body: string) => Promise<string | undefined>;
+  /** `markRemaining` asks for every file not yet viewed to be ticked off once the review is in */
+  onSubmit: (event: ReviewEvent, body: string, markRemaining: boolean) => Promise<string | undefined>;
   onClose: () => void;
 }): JSX.Element {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -69,6 +70,7 @@ export function ReviewDialog({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [copied, setCopied] = useState(false);
+  const [markRemaining, setMarkRemaining] = useState(false);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -87,12 +89,15 @@ export function ReviewDialog({
   const remaining = Math.max(total - viewed, 0);
   const read = total === 0 ? 0 : Math.round((viewed / total) * 100);
   const missingNote = event === NEEDS_A_NOTE && body.trim() === '';
+  // Offered with an approval only, and off until asked for: a viewed mark says
+  // the file was read, and ticking it for the reader would make it say less
+  const offerMarkRemaining = event === 'approve' && remaining > 0;
 
   const send = async (): Promise<void> => {
     if (sending || missingNote) return;
     setSending(true);
     setError(undefined);
-    const failed = await onSubmit(event, body);
+    const failed = await onSubmit(event, body, offerMarkRemaining && markRemaining);
     setSending(false);
     if (failed == null) dialogRef.current?.close();
     else setError(failed);
@@ -210,6 +215,19 @@ export function ReviewDialog({
               </label>
             ))}
           </div>
+          {offerMarkRemaining && (
+            <label className="dh-review-mark-all">
+              <input
+                type="checkbox"
+                checked={markRemaining}
+                disabled={sending}
+                onChange={(change) => setMarkRemaining(change.target.checked)}
+              />
+              {remaining === 1
+                ? 'Also mark the remaining file as viewed'
+                : `Also mark the ${remaining} remaining files as viewed`}
+            </label>
+          )}
         </section>
 
         <section>

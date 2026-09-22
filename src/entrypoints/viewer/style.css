@@ -1129,6 +1129,20 @@ diffs-container:has(.dh-viewed:focus) {
   font-size: 12px;
   opacity: 0.55;
 }
+.dh-review-mark-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.dh-review-mark-all input {
+  margin: 0;
+  accent-color: var(--dh-accent);
+}
+
 .dh-review-required,
 .dh-review-error {
   margin: 6px 0 0;
