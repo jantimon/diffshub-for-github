@@ -25,6 +25,15 @@ import { writeViewed } from '@/page/writeViewed';
 import { readGitHubTheme } from '@/page/theme';
 
 const MARKER_ATTRIBUTE = 'data-diffshub-marked';
+
+/**
+ * How long a hidden overlay is kept before its memory is let go.
+ *
+ * Long enough that stepping out to the conversation and back is free, short
+ * enough that a tab left open all day is not holding a parsed diff nobody is
+ * reading.
+ */
+const HIDDEN_BEFORE_RELEASE_MS = 5 * 60 * 1000;
 const FRAME_ID = 'diffshub-for-github-viewer';
 
 const collectPageInfo = (): PageInfo => {
@@ -92,8 +101,32 @@ export default defineContentScript({
   main(ctx) {
     let frame: HTMLIFrameElement | undefined;
     let previousOverflow = '';
+    let release: ReturnType<typeof setTimeout> | undefined;
 
-    const close = (): void => {
+    const showing = (): boolean => frame != null && frame.style.display !== 'none';
+
+    /**
+     * Puts the overlay away without throwing it out.
+     *
+     * Closing used to remove the iframe, which threw away the parsed patch, the
+     * rendered diff and every conversation with it, so coming back paid for the
+     * whole download again. On a large pull request that is twenty megabytes to
+     * read something you had open a moment ago.
+     *
+     * Hidden, it holds that memory, so it is let go after a while. Moving to
+     * another pull request drops it at once, because none of it applies there.
+     */
+    const hide = (): void => {
+      if (frame == null) return;
+      frame.style.display = 'none';
+      document.documentElement.style.overflow = previousOverflow;
+      clearTimeout(release);
+      release = setTimeout(destroy, HIDDEN_BEFORE_RELEASE_MS);
+    };
+
+    const destroy = (): void => {
+      clearTimeout(release);
+      release = undefined;
       if (frame == null) return;
       frame.remove();
       frame = undefined;
@@ -104,7 +137,17 @@ export default defineContentScript({
     // which gives it the extension's own origin: real module workers, code
     // splitting, and a credentialed fetch to github.com under host permissions
     const open = (pr: PullRequestRef): void => {
-      if (frame != null) return;
+      if (showing()) return;
+
+      // Still there from last time, with the diff as it was left
+      if (frame != null) {
+        clearTimeout(release);
+        release = undefined;
+        frame.style.display = '';
+        previousOverflow = document.documentElement.style.overflow;
+        document.documentElement.style.overflow = 'hidden';
+        return;
+      }
 
       const url = new URL(browser.runtime.getURL('/viewer.html'));
       url.searchParams.set('owner', pr.owner);
@@ -161,7 +204,7 @@ export default defineContentScript({
       const message = event.data;
 
       if (message.type === 'close') {
-        close();
+        hide();
         return;
       }
 
@@ -220,7 +263,7 @@ export default defineContentScript({
     let markedPath = readPullRequestRef()?.number;
     ctx.addEventListener(window, 'wxt:locationchange', () => {
       const next = readPullRequestRef()?.number;
-      if (next !== markedPath) close();
+      if (next !== markedPath) destroy();
       markedPath = next;
       markTab();
     });
@@ -231,7 +274,7 @@ export default defineContentScript({
     observer.observe(document.body, { childList: true, subtree: true });
     ctx.onInvalidated(() => {
       observer.disconnect();
-      close();
+      destroy();
     });
   },
 });

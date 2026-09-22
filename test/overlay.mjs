@@ -233,6 +233,35 @@ await check('separator bar expands', async () => {
   return before !== after ? `${before} -> ${after}` : false;
 });
 
+await check('closing and reopening asks GitHub for nothing', async () => {
+  const asked = [];
+  const watch = (request) => {
+    const target = request.url();
+    if (/patch-diff|\.diff$|page_data\/|\/raw\//.test(target)) asked.push(target.split('/').pop());
+  };
+  page.on('request', watch);
+
+  await frame.locator('[data-dh-action="close"]').click();
+  await page.waitForTimeout(1200);
+  const gone =
+    (await frame
+      .locator('.dh-code')
+      .isVisible()
+      .catch(() => false)) === false;
+
+  await page.locator('[data-diffshub-marked]').first().click();
+  await page.waitForTimeout(2500);
+  const back = await frame.locator('[data-item-type="file"]').count();
+  page.off('request', watch);
+
+  if (!gone) return false;
+  if (asked.length > 0) {
+    console.log(`      asked for ${asked.length}: ${asked.slice(0, 3).join(', ')}`);
+    return false;
+  }
+  return `reopened with ${back} files, no requests`;
+});
+
 await frame.locator('[data-dh-action="sidebar"]').click();
 await page.waitForTimeout(500);
 await shoot('sidebar-hidden');
