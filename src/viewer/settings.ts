@@ -39,7 +39,7 @@ export function useSetting(key: string, fallback: string): [string, (next: strin
       setValue(next);
       writeSetting(key, next);
     },
-    [key]
+    [key],
   );
   return [value, set];
 }
@@ -54,7 +54,7 @@ export function useSetting(key: string, fallback: string): [string, (next: strin
 export function useChoice<T extends string>(
   key: string,
   allowed: readonly T[],
-  fallback: T | undefined
+  fallback: T | undefined,
 ): [T | undefined, (next: T) => void] {
   const [value, setValue] = useState<T | undefined>(() => {
     const stored = readSetting(key, '') as T;
@@ -65,7 +65,7 @@ export function useChoice<T extends string>(
       setValue(next);
       writeSetting(key, next);
     },
-    [key]
+    [key],
   );
   return [value, set];
 }

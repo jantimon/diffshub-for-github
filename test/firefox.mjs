@@ -71,7 +71,7 @@ const check = async (name, fn) => {
 
 await check('signed in', async () => {
   const who = await page.evaluate(
-    () => document.querySelector('meta[name="user-login"]')?.getAttribute('content') ?? null
+    () => document.querySelector('meta[name="user-login"]')?.getAttribute('content') ?? null,
   );
   return who ?? false;
 });

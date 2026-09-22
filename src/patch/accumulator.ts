@@ -58,7 +58,7 @@ const TREE_STATUS: Record<ChangeKind, GitStatusEntry['status'] | undefined> = {
 export function appendFile(
   accumulator: PatchAccumulator,
   fileText: string,
-  cacheKeyPrefix: string
+  cacheKeyPrefix: string,
 ): ParsedFile | undefined {
   const fileDiff = processFile(fileText, {
     cacheKey: `${cacheKeyPrefix}-${accumulator.files.length}`,

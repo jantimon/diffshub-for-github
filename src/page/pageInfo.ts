@@ -29,7 +29,10 @@ export function readBranchPair(): { base: string; head: string } | undefined {
 }
 
 /** Whether a click landed on a link to this pull request's Files-changed tab. */
-export function findFilesChangedLink(target: EventTarget | null, ref: PullRequestRef): HTMLAnchorElement | undefined {
+export function findFilesChangedLink(
+  target: EventTarget | null,
+  ref: PullRequestRef,
+): HTMLAnchorElement | undefined {
   const anchor = target instanceof Element ? target.closest('a[href]') : null;
   if (!(anchor instanceof HTMLAnchorElement)) return undefined;
   return filesPaths(ref).includes(linkPath(anchor)) ? anchor : undefined;
@@ -90,7 +93,9 @@ export function readAuthor(): string | undefined {
   for (const script of document.querySelectorAll('script[type="application/json"]')) {
     const text = script.textContent ?? '';
     if (!text.includes('"pullRequest"')) continue;
-    const match = /"pullRequest"\s*:\s*\{[\s\S]{0,4000}?"author"\s*:\s*\{[^}]*?"login"\s*:\s*"([^"]+)"/.exec(text);
+    const match = /"pullRequest"\s*:\s*\{[\s\S]{0,4000}?"author"\s*:\s*\{[^}]*?"login"\s*:\s*"([^"]+)"/.exec(
+      text,
+    );
     if (match?.[1] != null) return match[1];
   }
   return undefined;

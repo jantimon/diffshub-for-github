@@ -40,11 +40,11 @@ export function useToasts(): ToastControls {
       if (action == null) {
         timers.current.set(
           id,
-          setTimeout(() => dismiss(id), DISMISS_AFTER_MS)
+          setTimeout(() => dismiss(id), DISMISS_AFTER_MS),
         );
       }
     },
-    [dismiss]
+    [dismiss],
   );
 
   useEffect(() => {

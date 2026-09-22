@@ -23,7 +23,10 @@ if (frame == null) {
 await shoot('overlay');
 
 await check('patch streamed', async () => (await frame.locator('.dh-stats').textContent())?.trim());
-await check('file tree populated', async () => `${await frame.locator('[data-item-type="file"]').count()} files`);
+await check(
+  'file tree populated',
+  async () => `${await frame.locator('[data-item-type="file"]').count()} files`,
+);
 await check('diff stats panel', async () => (await frame.locator('.dh-diffstats').isVisible()) && 'visible');
 // Reaching into the viewer's nested shadow roots directly: a plain locator
 // does not resolve the separator reliably while files are still settling.
@@ -62,7 +65,10 @@ await check('exclude filter', async () => {
   await frame.locator('.dh-field input').nth(1).fill('test/**');
   await page.waitForTimeout(2500);
   const after = await frame.locator('[data-item-type="file"]').count();
-  const hidden = await frame.locator('.dh-hidden').textContent().catch(() => '');
+  const hidden = await frame
+    .locator('.dh-hidden')
+    .textContent()
+    .catch(() => '');
   await shoot('exclude-filter');
   await frame.locator('.dh-field input').nth(1).fill('');
   await page.waitForTimeout(2500);
@@ -85,7 +91,8 @@ await check('a folder is ticked once every file under it is read', async () => {
           if (mark?.textContent?.includes('\u2713') !== true) continue;
           out[row.getAttribute('data-item-type') === 'folder' ? 'folder' : 'file'] += 1;
         }
-        for (const el of root.querySelectorAll('*')) if (el.shadowRoot != null) walk(el.shadowRoot, depth + 1);
+        for (const el of root.querySelectorAll('*'))
+          if (el.shadowRoot != null) walk(el.shadowRoot, depth + 1);
       };
       walk(document, 0);
       return out;

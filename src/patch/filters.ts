@@ -25,8 +25,7 @@ export function compileFilters(include: string, exclude: string): FileFilter {
 
   return {
     isVisible: (path) =>
-      (included.match == null || included.match(path)) &&
-      (excluded.match == null || !excluded.match(path)),
+      (included.match == null || included.match(path)) && (excluded.match == null || !excluded.match(path)),
     includeError: included.error,
     excludeError: excluded.error,
   };
@@ -44,7 +43,7 @@ function compile(input: string): { match?: (path: string) => boolean; error?: st
     // A bare `*.test.ts` reads as "anywhere", the way a search box is expected
     // to behave; a pattern with a slash stays anchored to the whole path.
     const expanded = patterns.flatMap((pattern) =>
-      pattern.includes('/') ? [pattern] : [pattern, `**/${pattern}`]
+      pattern.includes('/') ? [pattern] : [pattern, `**/${pattern}`],
     );
     const match = picomatch(expanded, { dot: true });
     return { match: (path) => match(path) };

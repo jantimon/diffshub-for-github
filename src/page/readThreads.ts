@@ -49,7 +49,7 @@ interface RawComment {
  * ordinary pull request with a few outdated comments loses most of them.
  */
 export async function readThreads(
-  ref: PullRequestRef
+  ref: PullRequestRef,
 ): Promise<{ threads: ReviewThread[]; truncated: boolean; error?: string }> {
   const base = `${pullPath(ref)}/page_data`;
 

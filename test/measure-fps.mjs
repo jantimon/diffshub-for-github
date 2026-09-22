@@ -6,12 +6,15 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(root, '../.output/chrome-mv3');
 const pr = process.argv[2] ?? 'https://github.com/nodejs/node/pull/59805';
 
-const context = await chromium.launchPersistentContext(process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'), {
-  channel: 'chromium',
-  headless: false,
-  viewport: { width: 1600, height: 1000 },
-  args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
-});
+const context = await chromium.launchPersistentContext(
+  process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'),
+  {
+    channel: 'chromium',
+    headless: false,
+    viewport: { width: 1600, height: 1000 },
+    args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
+  },
+);
 
 // Scrolls for a fixed number of frames and reports how long each one took.
 const SCROLL = (selector) => `
@@ -42,7 +45,7 @@ const SCROLL = (selector) => `
 
 const report = (label, r) =>
   console.log(
-    `${label.padEnd(22)} median ${String(r.medianMs).padStart(5)}ms (${Math.round(1000 / r.medianMs)} fps)   p95 ${String(r.p95Ms).padStart(6)}ms   worst ${String(r.worstMs).padStart(5)}ms   frames over 50ms: ${r.longFrames}/180`
+    `${label.padEnd(22)} median ${String(r.medianMs).padStart(5)}ms (${Math.round(1000 / r.medianMs)} fps)   p95 ${String(r.p95Ms).padStart(6)}ms   worst ${String(r.worstMs).padStart(5)}ms   frames over 50ms: ${r.longFrames}/180`,
   );
 
 const page = await context.newPage();
@@ -59,6 +62,6 @@ const started = Date.now();
 await ghPage.goto(`${pr}/files`, { waitUntil: 'domcontentloaded' });
 await ghPage.waitForTimeout(30000);
 console.log(`GitHub /files loaded in ${Math.round((Date.now() - started) / 1000)}s`);
-report("GitHub Files changed", await ghPage.evaluate(SCROLL('window')));
+report('GitHub Files changed', await ghPage.evaluate(SCROLL('window')));
 
 await context.close();

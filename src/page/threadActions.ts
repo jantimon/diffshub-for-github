@@ -21,11 +21,7 @@ import { WRITE_JSON } from '@/page/requests';
  * comment it answers. The form already carries the side, the three commit
  * oids, the path and the line; only the text is ours.
  */
-export async function replyToComment(
-  pr: PullRequestRef,
-  inReplyTo: string,
-  body: string
-): Promise<Result> {
+export async function replyToComment(pr: PullRequestRef, inReplyTo: string, body: string): Promise<Result> {
   const action = `${pullPath(pr)}/review_comment/create`;
 
   try {
@@ -34,8 +30,10 @@ export async function replyToComment(
     // thread's own form is preferred, and any other copy will do -- with the
     // comment it answers set to the one being replied to.
     const form =
-      findForm(action, (candidate: HTMLFormElement) => new FormData(candidate).get('in_reply_to') === inReplyTo) ??
-      findFormEndingWith('/review_comment/create');
+      findForm(
+        action,
+        (candidate: HTMLFormElement) => new FormData(candidate).get('in_reply_to') === inReplyTo,
+      ) ?? findFormEndingWith('/review_comment/create');
     if (form == null) {
       return { ok: false, error: 'GitHub did not offer a reply form on this page.' };
     }
@@ -62,7 +60,7 @@ export async function replyToComment(
 export async function resolveThread(
   pr: PullRequestRef,
   threadId: string,
-  resolved: boolean
+  resolved: boolean,
 ): Promise<Result> {
   const route = resolved ? 'resolve_thread' : 'unresolve_thread';
 

@@ -45,7 +45,6 @@ import {
   TREE_CSS,
 } from '@/viewer/diff/codeViewStyles';
 
-
 export function Overlay({ pr }: { pr: PullRequestRef }) {
   return (
     <WorkerPoolContextProvider poolOptions={POOL_OPTIONS} highlighterOptions={HIGHLIGHTER_OPTIONS}>
@@ -53,7 +52,6 @@ export function Overlay({ pr }: { pr: PullRequestRef }) {
     </WorkerPoolContextProvider>
   );
 }
-
 
 function Viewer({ pr }: { pr: PullRequestRef }) {
   const page = usePageInfo();
@@ -170,7 +168,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   const { viewed, toggle, baseSha } = useViewed(
     `${pr.owner}/${pr.repo}/${pr.number}`,
     page.headSha,
-    useCallback((message: string) => toasts.push(message), [toasts])
+    useCallback((message: string) => toasts.push(message), [toasts]),
   );
 
   // A folder is marked once every file under it has been read.
@@ -236,7 +234,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         document.querySelector<HTMLInputElement>(`[data-dh-viewed="${CSS.escape(next.item.id)}"]`)?.focus();
       }, 350);
     },
-    [toggle, viewedRef, visibleRef]
+    [toggle, viewedRef, visibleRef],
   );
 
   useShortcuts({
@@ -277,7 +275,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         />
       );
     },
-    [comments, pushToast]
+    [comments, pushToast],
   );
 
   const reportedError = useRef<string | undefined>(undefined);
@@ -294,12 +292,12 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   const refs = useMemo<FileRefs | undefined>(
     () =>
       page.headSha == null ? undefined : { owner: pr.owner, repo: pr.repo, baseSha, headSha: page.headSha },
-    [baseSha, page.headSha, pr.owner, pr.repo]
+    [baseSha, page.headSha, pr.owner, pr.repo],
   );
 
   const loadDiffFiles = useMemo(
     () => (page.headSha == null ? undefined : createFileLoader(pr, page.headSha)),
-    [page.headSha, pr]
+    [page.headSha, pr],
   );
 
   // An open eye means still to read, a closed one means done. A button rather
@@ -321,7 +319,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         </button>
       );
     },
-    [markViewed, viewed]
+    [markViewed, viewed],
   );
 
   const renderHeaderMetadata = useCallback(
@@ -361,7 +359,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         </span>
       );
     },
-    [refs, toasts]
+    [refs, toasts],
   );
 
   const options = useMemo<CodeViewReactOptions<ReviewThread, undefined>>(
@@ -375,34 +373,37 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       lineHoverHighlight: 'number',
       enableLineSelection: true,
       enableGutterUtility: true,
-      onGutterUtilityClick(range: { start: number; side?: string }, context: { item: CodeViewItem<ReviewThread> }) {
+      onGutterUtilityClick(
+        range: { start: number; side?: string },
+        context: { item: CodeViewItem<ReviewThread> },
+      ) {
         const item = context.item;
         if (item.type !== 'diff') return;
         comments.openDraft(
           item.fileDiff.name,
           range.start,
-          range.side === 'deletions' ? 'deletions' : 'additions'
+          range.side === 'deletions' ? 'deletions' : 'additions',
         );
       },
       unsafeCSS: `${HEADER_CSS}\n${SEPARATOR_CSS}`,
       loadDiffFiles,
     }),
-    [diffStyle, themeChoice, page.themeType, page.lightTheme, page.darkTheme, loadDiffFiles]
+    [diffStyle, themeChoice, page.themeType, page.lightTheme, page.darkTheme, loadDiffFiles],
   );
 
   const toggleLayout = useCallback(
     () => setLayout(layout === 'split' ? 'unified' : 'split'),
-    [layout, setLayout]
+    [layout, setLayout],
   );
 
   const toggleSidebar = useCallback(
     () => setSidebar(sidebarOpen ? 'closed' : 'open'),
-    [sidebarOpen, setSidebar]
+    [sidebarOpen, setSidebar],
   );
 
   const toggleWhitespace = useCallback(
     () => setWhitespace(ignoreWhitespace ? 'show' : 'ignore'),
-    [ignoreWhitespace, setWhitespace]
+    [ignoreWhitespace, setWhitespace],
   );
 
   const themeType = themeChoice ?? page.themeType;
@@ -411,7 +412,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
 
   const toggleTheme = useCallback(
     () => setThemeChoice(themeType === 'dark' ? 'light' : 'dark'),
-    [setThemeChoice, themeType]
+    [setThemeChoice, themeType],
   );
   const { stats } = state;
 
@@ -485,7 +486,12 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
             // Jump to the first file still to be read.
             const next = visibleRef.current.find((file) => !viewed.has(file.item.id));
             if (next == null) return;
-            viewerRef.current?.scrollTo({ type: 'item', id: next.item.id, align: 'start', behavior: 'smooth' });
+            viewerRef.current?.scrollTo({
+              type: 'item',
+              id: next.item.id,
+              align: 'start',
+              behavior: 'smooth',
+            });
           }}
           onClose={() => setReviewOpen(false)}
           onSubmit={async (verdict, body) => {

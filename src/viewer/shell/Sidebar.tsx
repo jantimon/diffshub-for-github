@@ -19,7 +19,11 @@ function DiffStatsPanel({ stats }: { stats: DiffStats }) {
 
   return (
     <section className="dh-diffstats">
-      <div className="dh-diffstats-bar" role="img" aria-label={`${addedShare}% of changed lines are additions`}>
+      <div
+        className="dh-diffstats-bar"
+        role="img"
+        aria-label={`${addedShare}% of changed lines are additions`}
+      >
         <span className="dh-diffstats-added" style={{ width: `${addedShare}%` }} />
         <span className="dh-diffstats-deleted" style={{ width: `${100 - addedShare}%` }} />
       </div>
@@ -87,13 +91,9 @@ export function Sidebar({
           />
         </label>
         {excludeError != null && <p className="dh-pattern-error">{excludeError}</p>}
-        {hiddenCount > 0 && (
-          <p className="dh-hidden">{hiddenCount.toLocaleString()} files hidden</p>
-        )}
+        {hiddenCount > 0 && <p className="dh-hidden">{hiddenCount.toLocaleString()} files hidden</p>}
         {spacingOnlyCount > 0 && (
-          <p className="dh-hidden">
-            {spacingOnlyCount.toLocaleString()} changed only in spacing
-          </p>
+          <p className="dh-hidden">{spacingOnlyCount.toLocaleString()} changed only in spacing</p>
         )}
       </div>
       <FileTree className="dh-tree" model={model} style={{ ...treeSurface, ...TREE_STYLE }} />

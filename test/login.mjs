@@ -7,12 +7,15 @@ import path from 'node:path';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(root, '../.output/chrome-mv3');
 
-const context = await chromium.launchPersistentContext(process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'), {
-  channel: 'chromium',
-  headless: false,
-  viewport: null,
-  args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
-});
+const context = await chromium.launchPersistentContext(
+  process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'),
+  {
+    channel: 'chromium',
+    headless: false,
+    viewport: null,
+    args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
+  },
+);
 
 const page = context.pages()[0] ?? (await context.newPage());
 await page.goto('https://github.com/login');

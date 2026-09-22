@@ -9,7 +9,7 @@ import { pullPath, type PullRequestRef } from '@/pullRequest';
 import { READ_JSON } from '@/page/requests';
 
 export async function readViewed(
-  ref: PullRequestRef
+  ref: PullRequestRef,
 ): Promise<{ paths: string[]; baseSha?: string; error?: string }> {
   try {
     const response = await fetch(`${pullPath(ref)}/page_data/file_tree`, {

@@ -34,7 +34,7 @@ export function createFileLoader(pr: PullRequestRef, headSha: string): FileDiffC
 async function load(
   pr: PullRequestRef,
   headSha: string,
-  fileDiff: Parameters<FileDiffContentsLoader>[0]
+  fileDiff: Parameters<FileDiffContentsLoader>[0],
 ): Promise<FileDiffLoadedFiles> {
   const url = rawFileUrl(pr, headSha, fileDiff.name);
   const response = await githubFetch(url);

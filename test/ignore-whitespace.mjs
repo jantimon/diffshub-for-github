@@ -15,7 +15,7 @@ const context = await chromium.launchPersistentContext(
     headless: false,
     viewport: { width: 1500, height: 950 },
     args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
-  }
+  },
 );
 
 const page = context.pages()[0] ?? (await context.newPage());
@@ -66,8 +66,14 @@ await check('the toggle hides a reindented file', async () => {
   await page.waitForTimeout(3000);
   const after = await fileCount();
   const note = (await frame.locator('.dh-hidden').allTextContents()).join(' ');
-  if (after >= before) { console.log(`      ${before} -> ${after} files`); return false; }
-  if (!note.includes('spacing')) { console.log(`      no note: ${note}`); return false; }
+  if (after >= before) {
+    console.log(`      ${before} -> ${after} files`);
+    return false;
+  }
+  if (!note.includes('spacing')) {
+    console.log(`      no note: ${note}`);
+    return false;
+  }
   return `${before} -> ${after} files, and says why`;
 });
 

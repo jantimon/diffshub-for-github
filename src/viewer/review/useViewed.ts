@@ -43,7 +43,7 @@ export function useViewed(key: string, headSha: string | undefined, onFailure: (
     (ids: ReadonlySet<string>, sha: string | undefined) => {
       writeSetting(`viewed.${key}`, JSON.stringify({ sha, ids: [...ids] } satisfies Stored));
     },
-    [key]
+    [key],
   );
 
   // What GitHub already has wins over the local copy, but only before the
@@ -86,7 +86,7 @@ export function useViewed(key: string, headSha: string | undefined, onFailure: (
         return updated;
       });
     },
-    [headSha, persist]
+    [headSha, persist],
   );
 
   // The tick lands at once and is taken back, with a toast, if GitHub refuses
@@ -102,7 +102,7 @@ export function useViewed(key: string, headSha: string | undefined, onFailure: (
         onFailure(error ?? `GitHub did not record ${path} as ${next ? 'viewed' : 'not viewed'}.`);
       });
     },
-    [apply, onFailure]
+    [apply, onFailure],
   );
 
   return { viewed, toggle, baseSha };

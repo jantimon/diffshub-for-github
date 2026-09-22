@@ -18,7 +18,10 @@ const cases = [
 let failures = 0;
 for (const [path, expected] of cases) {
   const actual = paths.includes(path);
-  if (actual === expected) { console.log(`ok   ${expected ? 'opens  ' : 'ignores'} ${path}`); continue; }
+  if (actual === expected) {
+    console.log(`ok   ${expected ? 'opens  ' : 'ignores'} ${path}`);
+    continue;
+  }
   failures += 1;
   console.log(`FAIL ${path}: expected ${expected}, got ${actual}`);
 }

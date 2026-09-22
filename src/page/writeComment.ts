@@ -29,7 +29,8 @@ function readComparison(base: string): Promise<{ baseOid: string; headOid: strin
           pullRequest?: { comparison?: { baseOid?: string; headOid?: string } };
         };
         const { baseOid, headOid } = payload?.pullRequest?.comparison ?? {};
-        if (baseOid == null || headOid == null) throw new Error('GitHub did not say which commits this diff spans.');
+        if (baseOid == null || headOid == null)
+          throw new Error('GitHub did not say which commits this diff spans.');
         return { baseOid, headOid };
       })(),
     };

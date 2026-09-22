@@ -22,7 +22,7 @@ const context = await chromium.launchPersistentContext(
     viewport: { width: 1680, height: 1050 },
     deviceScaleFactor: 2,
     args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
-  }
+  },
 );
 
 const page = context.pages()[0] ?? (await context.newPage());
@@ -54,7 +54,11 @@ const loadPullRequest = async (url) => {
 const viewerFrame = () => page.frames().find((f) => f.url().startsWith('chrome-extension://'));
 
 /** Shiki writes a styled span per token, so these count the highlighting. */
-const tokenCount = (frame) => frame.locator('span[style]').count().catch(() => 0);
+const tokenCount = (frame) =>
+  frame
+    .locator('span[style]')
+    .count()
+    .catch(() => 0);
 
 /**
  * Waits until the diff is really on screen: the patch read to the end and code
@@ -68,8 +72,14 @@ const waitForRenderedDiff = async () => {
   while (Date.now() < deadline) {
     const frame = viewerFrame();
     if (frame != null) {
-      const lines = await frame.locator('[data-line]').count().catch(() => 0);
-      const loading = await frame.locator('.dh-loading').count().catch(() => 1);
+      const lines = await frame
+        .locator('[data-line]')
+        .count()
+        .catch(() => 0);
+      const loading = await frame
+        .locator('.dh-loading')
+        .count()
+        .catch(() => 1);
       if (loading === 0 && lines > 50) {
         await page.waitForTimeout(4000);
         return frame;
@@ -151,10 +161,9 @@ await shoot('files-changed-tab', {
 // The overlay remembers a chosen theme, which would outrank GitHub's. Drop
 // everything this profile remembers, so each shot starts from the page.
 await page.locator('[data-diffshub-marked]').first().click();
-await page.waitForFunction(
-  () => document.getElementById('diffshub-for-github-viewer') != null,
-  { timeout: 30000 }
-);
+await page.waitForFunction(() => document.getElementById('diffshub-for-github-viewer') != null, {
+  timeout: 30000,
+});
 await page.waitForTimeout(6000);
 await viewerFrame()?.evaluate(() => {
   for (const key of Object.keys(localStorage)) {

@@ -10,7 +10,7 @@ const FILE_BOUNDARY = '\ndiff --git ';
 export async function streamPatchFiles(
   body: ReadableStream<Uint8Array>,
   onFile: (fileText: string) => void | Promise<void>,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
   const decoder = new TextDecoderStream() as unknown as ReadableWritablePair<string, Uint8Array>;
   const reader = body.pipeThrough(decoder).getReader();

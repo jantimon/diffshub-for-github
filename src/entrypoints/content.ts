@@ -131,7 +131,7 @@ export default defineContentScript({
       if (message.type === 'ready') {
         frame.contentWindow?.postMessage(
           { channel: BRIDGE_CHANNEL, type: 'page-info', info: collectPageInfo() },
-          '*'
+          '*',
         );
         return;
       }
@@ -146,10 +146,16 @@ export default defineContentScript({
           : // The table is keyed by the same name that types the payload, which
             // TypeScript cannot follow across a lookup, so this is the one place
             // the pairing is asserted rather than checked.
-            (handlers[name] as (ask: unknown, pr: PullRequestRef) => Promise<Reply<typeof name>>)(message.ask, pr);
+            (handlers[name] as (ask: unknown, pr: PullRequestRef) => Promise<Reply<typeof name>>)(
+              message.ask,
+              pr,
+            );
 
       void answer.then((reply) => {
-        frame?.contentWindow?.postMessage({ channel: BRIDGE_CHANNEL, type: 'response', id, name, reply }, '*');
+        frame?.contentWindow?.postMessage(
+          { channel: BRIDGE_CHANNEL, type: 'response', id, name, reply },
+          '*',
+        );
       });
     });
 
@@ -172,7 +178,7 @@ export default defineContentScript({
         event.stopImmediatePropagation();
         open(pr);
       },
-      true
+      true,
     );
 
     // The marker is drawn with a stylesheet keyed on the link's own href, so

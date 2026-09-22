@@ -53,7 +53,7 @@ function paneTop(element: Element): number {
  */
 export function useNavigation(
   viewerRef: { current: CodeViewHandle<ReviewThread, undefined> | null },
-  visibleRef: { current: readonly ParsedFile[] }
+  visibleRef: { current: readonly ParsedFile[] },
 ) {
   const currentIndex = useCallback((): number => {
     const files = visibleRef.current;
@@ -99,7 +99,7 @@ export function useNavigation(
       if (file == null) return;
       viewerRef.current?.scrollTo({ type: 'item', id: file.item.id, align: 'start', behavior: 'smooth' });
     },
-    [viewerRef, visibleRef]
+    [viewerRef, visibleRef],
   );
 
   const stepHunk = useCallback(
@@ -139,7 +139,7 @@ export function useNavigation(
 
       goToFile(index + (delta > 0 ? 1 : -1));
     },
-    [currentIndex, goToFile, viewerRef, visibleRef]
+    [currentIndex, goToFile, viewerRef, visibleRef],
   );
 
   return {

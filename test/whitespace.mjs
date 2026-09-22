@@ -16,27 +16,28 @@ git('config', 'user.name', 't');
 const lines = (...values) => values.join('\n') + '\n';
 
 const cases = [
-  ['reindented', true,
+  [
+    'reindented',
+    true,
     lines('function a() {', '  return 1;', '}'),
-    lines('function a() {', '    return 1;', '}')],
-  ['trailing spaces added', true,
+    lines('function a() {', '    return 1;', '}'),
+  ],
+  [
+    'trailing spaces added',
+    true,
     lines('const x = 1;', 'const y = 2;'),
-    lines('const x = 1;   ', 'const y = 2;  ')],
-  ['tabs to spaces', true,
-    lines('if (a) {', '\treturn b;', '}'),
-    lines('if (a) {', '    return b;', '}')],
-  ['a real change', false,
-    lines('const x = 1;', 'const y = 2;'),
-    lines('const x = 1;', 'const y = 3;')],
-  ['a real change with reindenting', false,
+    lines('const x = 1;   ', 'const y = 2;  '),
+  ],
+  ['tabs to spaces', true, lines('if (a) {', '\treturn b;', '}'), lines('if (a) {', '    return b;', '}')],
+  ['a real change', false, lines('const x = 1;', 'const y = 2;'), lines('const x = 1;', 'const y = 3;')],
+  [
+    'a real change with reindenting',
+    false,
     lines('function a() {', '  return 1;', '}'),
-    lines('function a() {', '    return 2;', '}')],
-  ['a line added', false,
-    lines('one', 'two'),
-    lines('one', 'two', 'three')],
-  ['spacing inside a line', true,
-    lines('call( a , b )'),
-    lines('call(a, b)')],
+    lines('function a() {', '    return 2;', '}'),
+  ],
+  ['a line added', false, lines('one', 'two'), lines('one', 'two', 'three')],
+  ['spacing inside a line', true, lines('call( a , b )'), lines('call(a, b)')],
 ];
 
 let failures = 0;

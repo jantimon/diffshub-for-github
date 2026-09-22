@@ -1,0 +1,89 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+
+  // The submodule is somebody else's code, read only, and the rest is build
+  // output or a browser profile.
+  "ignorePatterns": [
+    "research/**",
+    ".output/**",
+    ".wxt/**",
+    "node_modules/**",
+    "test/.profile/**",
+    ".firefox-profile/**"
+  ],
+
+  "jsPlugins": ["eslint-plugin-no-comment-slop"],
+
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error"
+  },
+
+  // Chosen for what they would have caught here rather than for coverage.
+  // `react` brings the hook rules, which is where this codebase has actually
+  // been bitten: a callback rendered by the viewer holding a stale copy of
+  // state. `import` watches the boundary between the two origins for cycles.
+  // `promise` matters because almost every request is one.
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc",
+    "react",
+    "import",
+    "promise",
+    "jsdoc",
+    "jsx-a11y"
+  ],
+
+  "rules": {
+    "no-comment-slop/max-comment-lines": "error",
+    "no-comment-slop/multiline-jsdoc-format": "error",
+    "no-comment-slop/no-banner-comment": "error",
+    "no-comment-slop/no-em-dash": "error",
+    "no-comment-slop/no-foreign-syntax": "error",
+    "no-comment-slop/no-jargon": "error",
+    "no-comment-slop/no-trailing-comment": "error",
+    "no-comment-slop/no-trailing-period": "error",
+    "no-comment-slop/prefer-jsdoc-for-exports": "error",
+    "no-comment-slop/prefer-jsdoc-for-members": "error",
+    "no-comment-slop/require-member-docs": "error",
+
+    "react-hooks/exhaustive-deps": "error",
+    "react-hooks/rules-of-hooks": "error",
+
+    "import/no-cycle": "error",
+    "import/no-self-import": "error",
+    "import/no-duplicates": "error",
+
+    "typescript/no-unused-vars": "error",
+    "typescript/consistent-type-imports": "error",
+
+    "promise/no-return-wrap": "error",
+    "promise/param-names": "error",
+
+    "eqeqeq": ["error", "smart"],
+
+    // React 19 compiles JSX without a React binding in scope, so this rule
+    // reports every element in the project and means nothing.
+    "react/react-in-jsx-scope": "off",
+
+    // The awaits in loops here are sequential on purpose: walking GitHub's
+    // paginated routes, where each page carries the link to the next, and
+    // reading a response stream chunk by chunk. Neither can be parallel.
+    "no-await-in-loop": "off",
+
+    // Importing for the side effect is the point: one registers a custom
+    // element, the other pulls in the stylesheet.
+    "import/no-unassigned-import": "off"
+  },
+
+  "overrides": [
+    {
+      "files": ["test/**/*.mjs"],
+      "rules": {
+        "typescript/consistent-type-imports": "off"
+      }
+    }
+  ]
+}

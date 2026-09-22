@@ -44,7 +44,7 @@ import { POST_FORM } from '@/page/requests';
  */
 export function findFormEndingWith(
   suffix: string,
-  match?: (form: HTMLFormElement) => boolean
+  match?: (form: HTMLFormElement) => boolean,
 ): HTMLFormElement | undefined {
   for (const form of document.querySelectorAll<HTMLFormElement>('form[action]')) {
     if (!(form.getAttribute('action') ?? '').endsWith(suffix)) continue;
@@ -54,7 +54,10 @@ export function findFormEndingWith(
 }
 
 /** Finds a form GitHub has already rendered, by the action it posts to. */
-export function findForm(action: string, match?: (form: HTMLFormElement) => boolean): HTMLFormElement | undefined {
+export function findForm(
+  action: string,
+  match?: (form: HTMLFormElement) => boolean,
+): HTMLFormElement | undefined {
   for (const form of document.querySelectorAll<HTMLFormElement>(`form[action="${cssEscape(action)}"]`)) {
     if (match == null || match(form)) return form;
   }
@@ -69,7 +72,7 @@ export function findForm(action: string, match?: (form: HTMLFormElement) => bool
  */
 export async function submitForm(
   form: HTMLFormElement,
-  overrides: Record<string, string> = {}
+  overrides: Record<string, string> = {},
 ): Promise<{ ok: boolean; status: number }> {
   const body = new FormData(form);
   for (const [name, value] of Object.entries(overrides)) body.set(name, value);

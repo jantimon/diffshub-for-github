@@ -33,7 +33,7 @@ export async function launch({ viewport = { width: 1600, height: 1000 } } = {}) 
       headless: false,
       viewport,
       args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
-    }
+    },
   );
 
   const page = context.pages()[0] ?? (await context.newPage());
@@ -96,7 +96,8 @@ export function screenshots(page) {
   let index = 0;
   return {
     dir,
-    shoot: (name) => page.screenshot({ path: path.join(dir, `${String(++index).padStart(2, '0')}-${name}.png`) }),
+    shoot: (name) =>
+      page.screenshot({ path: path.join(dir, `${String(++index).padStart(2, '0')}-${name}.png`) }),
   };
 }
 

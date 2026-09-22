@@ -43,9 +43,7 @@ export function Thread({
           <header>
             {comment.author !== '' && <strong>{comment.author}</strong>}
             {comment.createdAt !== '' && (
-              <time dateTime={comment.createdAt}>
-                {new Date(comment.createdAt).toLocaleDateString()}
-              </time>
+              <time dateTime={comment.createdAt}>{new Date(comment.createdAt).toLocaleDateString()}</time>
             )}
             {comment.url !== '' && (
               <a href={comment.url} target="_top">

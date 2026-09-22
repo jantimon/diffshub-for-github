@@ -12,7 +12,7 @@ export async function submitReview(
   ref: PullRequestRef,
   headSha: string,
   event: ReviewEvent,
-  body: string
+  body: string,
 ): Promise<Result> {
   try {
     const response = await fetch(`${pullPath(ref)}/page_data/submit_review`, {

@@ -89,7 +89,7 @@ export function githubFetch(url: string, signal?: AbortSignal): Promise<Response
             status: reply.status,
             statusText: reply.statusText,
             headers: reply.headers,
-          })
+          }),
         );
         return;
       }

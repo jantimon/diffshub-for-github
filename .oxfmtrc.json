@@ -1,0 +1,38 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+
+  // Prettier's options, at Prettier's own defaults, so the output matches what
+  // Prettier would produce. The two departures are the ones this code was
+  // already written to: single quotes, and a wider line than 80.
+  //
+  // oxfmt's own extras stay off for the same reason. Sorting imports,
+  // reflowing JSDoc and rewriting package.json are all things Prettier does
+  // not do, and turning them on would mean the two formatters disagree.
+  "printWidth": 110,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": true,
+  "jsxSingleQuote": false,
+  "quoteProps": "as-needed",
+  "trailingComma": "all",
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+  "arrowParens": "always",
+  "proseWrap": "preserve",
+  "htmlWhitespaceSensitivity": "css",
+  "endOfLine": "lf",
+  "objectWrap": "preserve",
+  "embeddedLanguageFormatting": "auto",
+  "singleAttributePerLine": false,
+  "insertFinalNewline": true,
+
+  "sortImports": false,
+  "jsdoc": false,
+  "sortPackageJson": false,
+  "sortTailwindcss": false,
+
+  // The formatter is pointed at `src` and `test` from the package script, so
+  // this only has to keep it out of what lives underneath them.
+  "ignorePatterns": ["**/.profile/**", "**/screenshots/**"]
+}

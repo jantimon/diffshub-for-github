@@ -12,7 +12,8 @@ fs.rmSync(dir, { recursive: true, force: true });
 fs.mkdirSync(dir, { recursive: true });
 const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
 git('init', '-q');
-git('config', 'user.email', 't@t'); git('config', 'user.name', 't');
+git('config', 'user.email', 't@t');
+git('config', 'user.name', 't');
 
 const cases = {
   'middle-change': [
@@ -38,7 +39,8 @@ const cases = {
   'grow-and-shrink': [
     Array.from({ length: 50 }, (_, i) => `line ${i}`).join('\n') + '\n',
     Array.from({ length: 50 }, (_, i) => (i === 10 ? 'a\nb\nc' : i === 30 ? null : `line ${i}`))
-      .filter((v) => v !== null).join('\n') + '\n',
+      .filter((v) => v !== null)
+      .join('\n') + '\n',
   ],
 };
 
@@ -46,20 +48,33 @@ let failures = 0;
 for (const [name, [oldText, newText]] of Object.entries(cases)) {
   const file = path.join(dir, 'f.txt');
   fs.writeFileSync(file, oldText);
-  git('add', '.'); git('commit', '-q', '-m', 'a', '--allow-empty');
+  git('add', '.');
+  git('commit', '-q', '-m', 'a', '--allow-empty');
   fs.writeFileSync(file, newText);
-  git('add', '.'); git('commit', '-q', '-m', 'b', '--allow-empty');
+  git('add', '.');
+  git('commit', '-q', '-m', 'b', '--allow-empty');
   const patch = git('diff', 'HEAD~1', 'HEAD', '--', 'f.txt');
   const fileDiff = processFile(patch, { isGitDiff: true, cacheKey: name });
-  if (fileDiff == null) { console.log(`FAIL ${name}: processFile returned nothing`); failures++; continue; }
+  if (fileDiff == null) {
+    console.log(`FAIL ${name}: processFile returned nothing`);
+    failures++;
+    continue;
+  }
   const rebuilt = reconstructOldFile(fileDiff, newText);
-  if (rebuilt === oldText) { console.log(`ok   ${name}`); continue; }
+  if (rebuilt === oldText) {
+    console.log(`ok   ${name}`);
+    continue;
+  }
   failures++;
   console.log(`FAIL ${name}`);
-  const a = oldText.split('\n'); const b = rebuilt.split('\n');
+  const a = oldText.split('\n');
+  const b = rebuilt.split('\n');
   console.log(`     expected ${a.length} lines, got ${b.length}`);
   for (let i = 0; i < Math.max(a.length, b.length); i++) {
-    if (a[i] !== b[i]) { console.log(`     first diff at ${i}: ${JSON.stringify(a[i])} vs ${JSON.stringify(b[i])}`); break; }
+    if (a[i] !== b[i]) {
+      console.log(`     first diff at ${i}: ${JSON.stringify(a[i])} vs ${JSON.stringify(b[i])}`);
+      break;
+    }
   }
 }
 fs.rmSync(dir, { recursive: true, force: true });

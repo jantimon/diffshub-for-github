@@ -33,7 +33,7 @@ export interface Threads {
 
 export function useThreads(
   items: readonly CodeViewItem<ReviewThread>[],
-  onNotice: (message: string) => void
+  onNotice: (message: string) => void,
 ): Threads {
   const [threads, setThreads] = useState<readonly ReviewThread[]>([]);
   const [draft, setDraft] = useState<ReviewThread | undefined>(undefined);
@@ -121,7 +121,7 @@ export function useThreads(
       await reload();
       return undefined;
     },
-    [reload]
+    [reload],
   );
 
   const resolve = useCallback(
@@ -131,7 +131,7 @@ export function useThreads(
       await reload();
       return undefined;
     },
-    [reload]
+    [reload],
   );
 
   const post = useCallback(
@@ -147,7 +147,7 @@ export function useThreads(
       await reload();
       return undefined;
     },
-    [reload]
+    [reload],
   );
 
   return { items: withThreads, openDraft, closeDraft, reply, resolve, post, reload };

@@ -34,9 +34,14 @@ export function useThemeSurfaces(themeName: string): ThemeSurfaces {
           overlay: {
             '--dh-bg': background,
             '--dh-fg': foreground,
-            '--dh-chrome': colors['editorGroupHeader.tabsBackground'] ?? colors['sideBar.background'] ?? background,
+            '--dh-chrome':
+              colors['editorGroupHeader.tabsBackground'] ?? colors['sideBar.background'] ?? background,
             '--dh-sidebar': colors['sideBar.background'] ?? background,
-            '--dh-border': colors['panel.border'] ?? colors['sideBar.border'] ?? colors['editorGroup.border'] ?? 'transparent',
+            '--dh-border':
+              colors['panel.border'] ??
+              colors['sideBar.border'] ??
+              colors['editorGroup.border'] ??
+              'transparent',
             '--dh-added': colors['gitDecoration.addedResourceForeground'] ?? '#3fb950',
             '--dh-deleted': colors['gitDecoration.deletedResourceForeground'] ?? '#f85149',
             '--dh-accent': colors['textLink.foreground'] ?? colors['focusBorder'] ?? '#0969da',

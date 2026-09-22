@@ -88,9 +88,7 @@ export function usePatchStream({
       const previous = visibleRef.current;
       const hideSpacing = ignoreWhitespaceRef.current;
 
-      const matching = accumulator.files.filter(
-        (file) => isVisible(file.path)
-      );
+      const matching = accumulator.files.filter((file) => isVisible(file.path));
       const visible = hideSpacing ? matching.filter((file) => !file.spacingOnly) : matching;
       visibleRef.current = visible;
 
@@ -98,13 +96,15 @@ export function usePatchStream({
 
       if (resetTree || visible.length < previous.length) {
         model.resetPaths(visible.map((file) => file.path));
-        model.setGitStatus(visible.flatMap((file) => (file.status == null ? [] : [{ path: file.path, status: file.status }])));
+        model.setGitStatus(
+          visible.flatMap((file) => (file.status == null ? [] : [{ path: file.path, status: file.status }])),
+        );
       } else {
         const added = visible.slice(previous.length);
         if (added.length > 0) {
           model.batch(added.map((file) => ({ type: 'add' as const, path: file.path })));
           const statuses = added.flatMap((file) =>
-            file.status == null ? [] : [{ path: file.path, status: file.status }]
+            file.status == null ? [] : [{ path: file.path, status: file.status }],
           );
           if (statuses.length > 0) model.applyGitStatusPatch({ set: statuses });
         }
@@ -122,7 +122,7 @@ export function usePatchStream({
         pathToItemId,
       }));
     },
-    [model]
+    [model],
   );
 
   useEffect(() => {
@@ -159,7 +159,7 @@ export function usePatchStream({
             turnStartedAt = performance.now();
           }
         },
-        controller.signal
+        controller.signal,
       );
 
       publish(false);

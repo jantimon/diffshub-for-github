@@ -101,7 +101,9 @@ export function BinaryCompare({
         <BinarySide refs={refs} path={path} side="head" preview={preview} />
       </div>
       {refs.baseSha == null && (
-        <p className="dh-binary-note">GitHub has not said which commit this diff starts at, so only the new file is shown.</p>
+        <p className="dh-binary-note">
+          GitHub has not said which commit this diff starts at, so only the new file is shown.
+        </p>
       )}
     </dialog>
   );
@@ -133,7 +135,7 @@ function BinarySide({
       },
       () => {
         if (live) setState({ status: 'error' });
-      }
+      },
     );
     return () => {
       live = false;
