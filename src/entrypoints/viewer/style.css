@@ -59,6 +59,10 @@ body {
  * centred is the text a reader sees rather than the box around it. Browsers
  * without it fall back to the centred box, which is the better of the two
  * anyway.
+ *
+ * Only the top is trimmed. Trimming to the alphabetic baseline as well ends
+ * the line box where the descenders begin, and the title clips its overflow to
+ * keep the ellipsis, so the tail of a `p` was being cut off.
  */
 .dh-identity {
   display: flex;
@@ -69,7 +73,7 @@ body {
 
 .dh-identity strong,
 .dh-title {
-  text-box: trim-both cap alphabetic;
+  text-box: trim-start cap;
 }
 
 .dh-title {
