@@ -24,7 +24,27 @@ export default defineConfig({
    * Keep the dependency scan out of the read-only submodule, whose own
    * workspace packages are not installed here
    */
-  vite: () => ({ optimizeDeps: { entries: ['src/**/*.{ts,tsx,html}'] } }),
+  vite: () => ({
+    optimizeDeps: { entries: ['src/**/*.{ts,tsx,html}'] },
+    server: {
+      /**
+       * The viewer runs on `chrome-extension://`, and its highlighting worker
+       * imports the dev server's module graph from there.
+       *
+       * Vite narrowed the dev server's CORS to localhost origins, which leaves
+       * that import blocked, the worker silent, and the overlay white after a
+       * ten second `WorkerPoolManager` timeout. Naming the two extension
+       * schemes is what lets the worker start
+       */
+      cors: {
+        origin: [
+          /^https?:\/\/(?:(?:[^:]+\.)?localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/,
+          /^chrome-extension:\/\//,
+          /^moz-extension:\/\//,
+        ],
+      },
+    },
+  }),
   srcDir: 'src',
   manifestVersion: 3,
   /**
