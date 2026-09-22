@@ -31,19 +31,6 @@ export function writeSetting(key: string, value: string): void {
   }
 }
 
-/** A setting held as the text it is stored as */
-export function useSetting(key: string, fallback: string): [string, (next: string) => void] {
-  const [value, setValue] = useState(() => readSetting(key, fallback));
-  const set = useCallback(
-    (next: string) => {
-      setValue(next);
-      writeSetting(key, next);
-    },
-    [key],
-  );
-  return [value, set];
-}
-
 /**
  * A setting that is one of a few known values.
  *

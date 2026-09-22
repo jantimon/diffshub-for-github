@@ -61,9 +61,7 @@ output directory reloads mid-build, since web-ext debounces for a hard-coded
 after one rebuild, since `wxt build` recreates the directory and leaves the
 watch on a dead inode.
 
-**web-ext is driven by its own config**, `web-ext-config.mjs`, not by WXT. The
-Local Network Access preferences that used to live here are gone with the dev
-server they existed for.
+**web-ext is driven by its own config**, `web-ext-config.mjs`, not by WXT.
 
 **`firefoxProfile` must be an absolute path.** web-ext reads a relative value as
 a profile *name*, passes `-P <name>`, and Firefox opens the profile manager. No

@@ -40,7 +40,6 @@ export interface PatchStream {
   items: readonly CodeViewItem<ReviewThread>[];
   /** The same files for the key handlers, which need the current list without a redraw */
   visibleRef: { current: readonly ParsedFile[] };
-  /** Updated as files are published, ahead of the React commit */
 }
 
 interface Options {

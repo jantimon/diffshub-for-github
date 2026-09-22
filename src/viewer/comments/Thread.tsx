@@ -132,6 +132,16 @@ export function Thread({
     if (failed != null) setError(failed);
   };
 
+  const sendReply = (): void =>
+    void run(async () => {
+      const failed = await onReply(text);
+      if (failed == null) {
+        setText('');
+        setReplying(false);
+      }
+      return failed;
+    });
+
   return (
     <aside
       className="dh-thread"
@@ -156,16 +166,7 @@ export function Thread({
             rows={3}
             disabled={busy}
             focusOnMount
-            onSubmit={() =>
-              void run(async () => {
-                const failed = await onReply(text);
-                if (failed == null) {
-                  setText('');
-                  setReplying(false);
-                }
-                return failed;
-              })
-            }
+            onSubmit={sendReply}
           />
           <div className="dh-composer-actions">
             <button type="button" onClick={() => setReplying(false)} disabled={busy}>
@@ -175,16 +176,7 @@ export function Thread({
               type="button"
               className="dh-composer-send"
               disabled={busy || text.trim() === ''}
-              onClick={() =>
-                void run(async () => {
-                  const failed = await onReply(text);
-                  if (failed == null) {
-                    setText('');
-                    setReplying(false);
-                  }
-                  return failed;
-                })
-              }
+              onClick={sendReply}
             >
               {busy ? 'Posting…' : 'Reply'}
             </button>

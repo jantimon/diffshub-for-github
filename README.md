@@ -188,7 +188,7 @@ pnpm test:record          # refresh the recording
 pnpm test:review          # comments, replies, verdicts and viewed state: these write
 pnpm test:firefox         # that the Firefox fetch path is still needed, and works
 pnpm test:whitespace      # hiding files that changed only in spacing
-pnpm test:units           # offline: old-side rebuild, globs, paths, recording safety
+pnpm test:units           # offline: old-side rebuild, whitespace, paths, recording safety, packing
 pnpm test:fps             # frame times, against GitHub's own view
 pnpm capture:readme       # the screenshots above, into docs/images
 pnpm lint                 # oxlint, with every no-comment-slop rule on

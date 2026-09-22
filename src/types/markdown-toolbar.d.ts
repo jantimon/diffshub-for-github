@@ -21,9 +21,6 @@ declare module 'react' {
       'md-ordered-list': ToolbarButton;
       'md-task-list': ToolbarButton;
       'md-mention': ToolbarButton;
-      'md-header': ToolbarButton;
-      'md-strikethrough': ToolbarButton;
-      'md-ref': ToolbarButton;
     }
   }
 }

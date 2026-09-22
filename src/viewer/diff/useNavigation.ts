@@ -143,7 +143,6 @@ export function useNavigation(
 
   return {
     currentIndex,
-    goToFile,
     nextFile: useCallback(() => goToFile(currentIndex() + 1), [currentIndex, goToFile]),
     previousFile: useCallback(() => goToFile(currentIndex() - 1), [currentIndex, goToFile]),
     nextHunk: useCallback(() => stepHunk(1), [stepHunk]),

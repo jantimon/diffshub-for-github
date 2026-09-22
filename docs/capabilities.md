@@ -167,19 +167,3 @@ every anchor stays sound.
 What that leaves: a file mixing a reformatting with a real edit still shows
 both. Doing better means re-comparing inside the file and suppressing
 commenting wherever the anchor cannot be trusted.
-
-## What to build next
-
-A pending review (26) is the largest thing left: comments go up one at a time
-today, where GitHub holds them back until the review is submitted.
-
-Applying a suggested change (25) needs a commit made on the reader's behalf,
-which none of the routes used so far do.
-
-Resolving (15) is the one that is fragile rather than missing, and worth a look
-before either: if GitHub's own React page resolves through a JSON route instead
-of a per-thread form, the limitation goes away.
-
-Viewed state agrees in both directions: `page_data/file_tree` reports what
-GitHub already has, so a file ticked on either side shows as ticked on the
-other.

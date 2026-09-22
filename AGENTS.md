@@ -30,7 +30,7 @@ pnpm format               # oxfmt, Prettier's options at Prettier's defaults
 pnpm compile              # tsc --noEmit
 ```
 
-Write tests only against `jantimon/diffshub-for-github`.
+Anything that writes to GitHub runs only against `jantimon/diffshub-for-github`.
 
 ## How the tests work
 
@@ -48,10 +48,11 @@ chosen because the viewer recycles rows at that size. Ten files all stayed
 rendered, so the checks never met the recycling that several real bugs lived
 in. Switching to forty broke a check on the first run, which is the point.
 
-Four things are unit tested instead, because a browser adds nothing to them:
-rebuilding a file's old side (checked against real `git diff` output), glob
-matching, pull request path matching, and that a recording cannot keep
-credentials. All four are pure functions with exact answers.
+A few things are unit tested instead, because a browser adds nothing to them
+or cannot reach them: rebuilding a file's old side and spotting a spacing-only
+change (both checked against real `git diff` output), pull request path
+matching, that a recording cannot keep credentials, and that a large patch
+survives the cache's packing. `test:units` in `package.json` is the list.
 
 Four places knowingly reach past the interface. Each is a limit, not a
 preference, and none should be copied without the same reason:

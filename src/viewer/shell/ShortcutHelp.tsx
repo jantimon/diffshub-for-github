@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, type JSX } from 'react';
 
-export const SHORTCUTS: readonly { keys: string; action: string }[] = [
+const SHORTCUTS: readonly { keys: string; action: string }[] = [
   { keys: 'j / k', action: 'Next / previous file' },
   { keys: 'n / p', action: 'Next / previous hunk' },
   { keys: 'v', action: 'Mark viewed and go to the next file' },

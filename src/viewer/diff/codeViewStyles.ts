@@ -123,16 +123,6 @@ export const SEPARATOR_CSS = `
 `;
 
 /**
- * Where one file ends and the next begins. In a long diff the eye needs the
- * break more than it needs the density: a rule and a clear gap above the
- * header, the path in a heavier weight than the code under it, and the change
- * icon large enough to read at a glance.
- *
- * The gap is a margin rather than padding because these headers stick to the
- * top as you scroll, and padding would leave the stuck bar with a dead band
- * above the filename.
- */
-/**
  * A lighter tint behind a deleted line, in light mode only.
  *
  * The emphasis tint sits on top of the line background, and at the library's
@@ -161,6 +151,16 @@ export const DIFF_TINT_CSS = `
 }
 `;
 
+/**
+ * Where one file ends and the next begins. In a long diff the eye needs the
+ * break more than it needs the density: a rule and a clear gap above the
+ * header, the path in a heavier weight than the code under it, and the change
+ * icon large enough to read at a glance.
+ *
+ * The gap is a margin rather than padding because these headers stick to the
+ * top as you scroll, and padding would leave the stuck bar with a dead band
+ * above the filename.
+ */
 export const HEADER_CSS = `
 [data-diffs-header] {
   margin-block-start: ${FILE_GAP}px;
