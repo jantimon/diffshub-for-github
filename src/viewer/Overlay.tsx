@@ -516,7 +516,8 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
           open={sidebarOpen}
           width={sidebarWidth}
           model={model}
-          treeSurface={surfaces.tree}
+          // The tree's own stylesheet follows the system until the theme resolves
+          treeSurface={{ colorScheme: themeType, ...surfaces.tree }}
           stats={stats}
           include={includeInput}
           exclude={excludeInput}

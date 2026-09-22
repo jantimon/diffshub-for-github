@@ -2,9 +2,16 @@ import { useEffect, useState } from 'react';
 
 import { BRIDGE_CHANNEL, isToViewer, type PageInfo } from '@/bridge';
 
+/** What the content script put on the url, or the system's preference */
+function firstThemeType(): PageInfo['themeType'] {
+  const fromPage = new URLSearchParams(location.search).get('theme');
+  if (fromPage === 'light' || fromPage === 'dark') return fromPage;
+  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 const FALLBACK: PageInfo = {
   title: '',
-  themeType: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+  themeType: firstThemeType(),
   lightTheme: 'pierre-light',
   darkTheme: 'pierre-dark',
 };

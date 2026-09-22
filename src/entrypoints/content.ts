@@ -161,6 +161,9 @@ export default defineContentScript({
        */
       const openedAtSha = readHeadSha();
       if (openedAtSha != null) url.searchParams.set('sha', openedAtSha);
+      // Light or dark, for the same reason: a first frame painted from the
+      // system's preference flashes whenever GitHub is set the other way
+      url.searchParams.set('theme', readGitHubTheme().themeType);
 
       frame = document.createElement('iframe');
       frame.id = FRAME_ID;
