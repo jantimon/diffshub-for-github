@@ -45,6 +45,8 @@ export function githubFetch(url: string, signal?: AbortSignal): Promise<Response
     const port = browser.runtime.connect({ name: PORT_NAME });
     let settled = false;
     let push: ((reply: Reply) => void) | undefined;
+    /** The background said it reached the end, rather than the port simply going */
+    let finished = false;
     let pending: Reply[] = [];
 
     const fail = (reason: Error): void => {
@@ -55,6 +57,9 @@ export function githubFetch(url: string, signal?: AbortSignal): Promise<Response
     };
 
     const onAbort = (): void => {
+      // Disconnecting does not fire this side's own `onDisconnect`, so the body
+      // has to be ended here or every reader of it waits for ever
+      push?.({ type: 'error', message: 'Aborted' });
       port.disconnect();
       fail(new DOMException('Aborted', 'AbortError'));
     };
@@ -73,8 +78,10 @@ export function githubFetch(url: string, signal?: AbortSignal): Promise<Response
           start(controller) {
             push = (next) => {
               if (next.type === 'chunk') controller.enqueue(new Uint8Array(next.chunk));
-              else if (next.type === 'end') controller.close();
-              else if (next.type === 'error') controller.error(new Error(next.message));
+              else if (next.type === 'end') {
+                finished = true;
+                controller.close();
+              } else if (next.type === 'error' && !finished) controller.error(new Error(next.message));
             };
             for (const queued of pending) push(queued);
             pending = [];
@@ -101,8 +108,22 @@ export function githubFetch(url: string, signal?: AbortSignal): Promise<Response
 
     port.onDisconnect.addListener(() => {
       signal?.removeEventListener('abort', onAbort);
-      if (!settled) fail(new Error('The background script closed the connection.'));
-      else push?.({ type: 'end' });
+      if (!settled) {
+        fail(new Error('The background script closed the connection.'));
+        return;
+      }
+      /**
+       * A body that stopped is not a body that finished.
+       *
+       * Closing the stream here would hand the reader a short answer that looks
+       * complete, and the cache would keep those few files under the commit's
+       * key and serve them as the whole diff for the rest of the session.
+       *
+       * The background says `end` when it reaches the end. Anything else
+       * arriving here is the connection going away mid-download, which a
+       * background that is an event page can do at any moment.
+       */
+      push?.({ type: 'error', message: 'The background script stopped before the download finished.' });
     });
 
     port.postMessage({ url } satisfies Request);
