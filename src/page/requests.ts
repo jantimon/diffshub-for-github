@@ -31,3 +31,33 @@ export const WRITE_JSON = {
 export const POST_FORM = {
   'x-requested-with': 'XMLHttpRequest',
 };
+
+/**
+ * What GitHub said was wrong with a request it refused.
+ *
+ * Its refusals come back in more than one shape, and a route that does not
+ * exist answers with an HTML error page carrying nothing useful. A bare status
+ * number tells the reader nothing they can act on, so this digs out a sentence
+ * where there is one and says so when there is not.
+ */
+export async function refusal(response: Response): Promise<string | undefined> {
+  let said: string;
+  try {
+    said = await response.text();
+  } catch {
+    return undefined;
+  }
+
+  if (said.trimStart().startsWith('<')) return undefined;
+
+  try {
+    const body = JSON.parse(said) as {
+      message?: string;
+      error?: string;
+      errors?: { message?: string }[];
+    };
+    return body.message ?? body.error ?? body.errors?.find((one) => one.message != null)?.message;
+  } catch {
+    return undefined;
+  }
+}

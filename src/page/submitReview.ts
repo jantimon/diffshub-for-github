@@ -1,6 +1,6 @@
 import type { Result, ReviewEvent } from '@/bridge';
 import { pullPath, type PullRequestRef } from '@/pullRequest';
-import { WRITE_JSON } from '@/page/requests';
+import { refusal, WRITE_JSON } from '@/page/requests';
 
 /**
  * Submits a review: a verdict and a covering note.
@@ -23,19 +23,21 @@ export async function submitReview(
     });
 
     if (response.ok) return { ok: true };
-    // GitHub refuses to let you approve your own pull request, among others,
-    // and says why in the body. Passing its reason on beats a bare status.
-    return { ok: false, error: (await reason(response)) ?? `GitHub answered ${response.status}.` };
+    return { ok: false, error: (await refusal(response)) ?? refusedWithout(response.status) };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
-async function reason(response: Response): Promise<string | undefined> {
-  try {
-    const said = (await response.json()) as { message?: string };
-    return said?.message;
-  } catch {
-    return undefined;
+/**
+ * What to tell the reader when GitHub refuses the review without saying why.
+ *
+ * 422 is worth naming: GitHub will not accept an approval of your own pull
+ * request, and that is the refusal a reader is most likely to meet.
+ */
+function refusedWithout(status: number): string {
+  if (status === 422) {
+    return 'GitHub refused this review. The usual cause is approving your own pull request.';
   }
+  return `GitHub answered ${status}.`;
 }

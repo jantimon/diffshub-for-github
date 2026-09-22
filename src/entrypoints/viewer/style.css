@@ -862,16 +862,23 @@ body {
   opacity: 0.5;
 }
 
+/*
+ * The primary button carries its own green rather than the diff's addition
+ * colour. That one arrives from the theme as a foreground, meant for text on
+ * the editor background, and filling a button with it leaves white text at
+ * 2.5:1. These two are measured: white on the darker green is 5.1:1, and
+ * near-black on the lighter one is 7.4:1.
+ */
 .dh-review-send {
   font-weight: 600;
   color: #ffffff;
-  background: var(--dh-added) !important;
+  background: #1a7f37 !important;
   border-color: transparent !important;
 }
 
-/* Dark themes give a pale green, which white text sits badly on. */
 .dh-overlay[data-theme='dark'] .dh-review-send {
   color: #06140b;
+  background: #3fb950 !important;
 }
 
 .dh-review-send:disabled {

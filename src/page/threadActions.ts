@@ -1,7 +1,7 @@
 import type { Result } from '@/bridge';
 import { findForm, findFormEndingWith, submitForm } from '@/page/forms';
 import { pullPath, type PullRequestRef } from '@/pullRequest';
-import { WRITE_JSON } from '@/page/requests';
+import { refusal, WRITE_JSON } from '@/page/requests';
 
 /**
  * Replying to a comment, and resolving a conversation.
@@ -73,17 +73,8 @@ export async function resolveThread(
     if (response.ok) return { ok: true };
     // GitHub says why in the body -- that the reader may not resolve this
     // conversation, or that somebody already has
-    return { ok: false, error: (await reason(response)) ?? `GitHub answered ${response.status}.` };
+    return { ok: false, error: (await refusal(response)) ?? `GitHub answered ${response.status}.` };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
-}
-
-async function reason(response: Response): Promise<string | undefined> {
-  try {
-    const said = (await response.json()) as { message?: string; error?: string };
-    return said?.message ?? said?.error;
-  } catch {
-    return undefined;
   }
 }
