@@ -1,23 +1,15 @@
 # Caching
 
-What is kept, where, and what can never be served stale. Every number here was
-measured in a browser, not read off a spec.
+What is kept, where, and why a stale diff is not served.
 
 ## Why
 
-One overlay open on `microsoft/TypeScript#64204` costs eight requests and about
-986 KB, and **740 KB of that is the patch** — from
-`patch-diff.githubusercontent.com`, the one host that answers 503 under load.
-
-Nothing used to survive a reload. Closing the overlay is free because the content
-script hides the iframe for five minutes rather than destroying it
-(`src/entrypoints/content.ts:36`), but a real teardown — F5, a restored tab,
-GitHub's own navigation to another pull request and back — threw everything away
-and asked again.
-
-The patch is a pure function of the commit, so keying a copy on the head sha
-removes most of that traffic, and removes it from the host least able to serve
-it.
+One open of a forty-file pull request costs about 986 KB, and **740 KB of that
+is the patch**, from `patch-diff.githubusercontent.com`, the one host that
+answers 503 under load. Closing the overlay only hides the iframe, so reopening
+is already free; a reload, a restored tab or GitHub's own navigation to another
+pull request and back is not. The patch is a pure function of the commit, so a
+copy keyed on the head sha takes most of that traffic away.
 
 ## What happens on a request
 
@@ -25,178 +17,78 @@ it.
 flowchart TD
     A[cachedGithubFetch url, sha] --> B{sha known?}
     B -- no --> Z[plain githubFetch<br/>nothing read, nothing kept]
-    B -- yes --> C[read sha + url from the store]
-    C --> D{found?}
-    D -- yes --> E{unpacks?}
-    E -- yes --> F[replay as a stream<br/>~12 ms]
-    E -- no --> G[treat as a miss<br/>and say so in the log]
-    D -- no --> G
-    G --> H[githubFetch]
+    B -- yes --> C{kept for this sha and url?}
+    C -- yes --> F[unpack and replay as a stream]
+    C -- no --> H[githubFetch]
     H --> I{ok?}
     I -- no --> J[return the failure<br/>404 and 503 are never kept]
     I -- yes --> K[pass the body through,<br/>keeping each chunk]
-    K --> L[parsed as it arrives<br/>nothing reads ahead of it]
-    L --> N{source ended<br/>of its own accord?}
-    N -- no --> O[drop it<br/>half a patch must not be kept]
-    N -- yes --> P[when idle: gzip, then base64]
-    P --> Q{within the caps?}
-    Q -- no --> R[drop it]
-    Q -- yes --> S[evict oldest if needed, store]
+    K --> N{source ended<br/>of its own accord?}
+    N -- no --> O[drop it]
+    N -- yes --> P[when idle: gzip, base64, store]
 ```
 
-Nothing reads ahead of the parser. The body passes through a transform that
-keeps each chunk as it goes by, so the only thing pulling on github.com is the
-render itself — the backpressure a plain `fetch` has.
+The body passes through a transform rather than being split, so the parser is
+the only thing pulling on github.com. A split stream pulls its source whenever
+either half pulls, and a half read flat out would take the whole download while
+the parser worked a few files a turn.
 
-A **split** stream would not do: it pulls its source whenever either half pulls,
-so a half being read flat out takes the download at full speed and everything the
-parser has not reached piles up. `test/backpressure.mjs` measures both — twelve
-chunks produced against two hundred, for the same ten read.
-
-Compressing waits for an idle moment. The instant a patch finishes downloading is
-the instant the diff is still drawing, and that is the one thread this viewer
-cannot afford to spend.
+The same transform decides what finished means. Its `flush` runs only when the
+source ends of its own accord: a body that stops short errors the stream, a
+reader giving up cancels it, and neither can leave half a patch to be served
+as the whole. On Firefox the patch arrives over a port from the background,
+which treats a disconnect before `end` as an error for the same reason.
 
 ## Where it is kept
 
-The viewer is an extension page, but on Firefox it is one framed by github.com,
-and there `browser.storage` is withheld from it — the same shape of restriction
-that partitions its cookie jar and makes `githubFetch` proxy through the
-background. So the store is chosen at runtime, best first.
+`storage.session`: in memory, shared across tabs, gone when the browser closes.
+Never `storage.local` or the Cache API, which would put private diffs on disk.
 
-```mermaid
-flowchart TD
-    A[choose a store] --> B{browser.storage.session<br/>in the page?}
-    B -- yes --> C["<b>this page</b><br/>10 MB, shared across tabs<br/>memory only"]
-    B -- no --> D{background reachable?}
-    D -- yes --> E["<b>the background</b><br/>10 MB, shared across tabs<br/>memory only"]
-    D -- no --> F{sessionStorage?}
-    F -- yes --> G["<b>this tab's session storage</b><br/>5 MiB, this tab only<br/>may be written out for tab restore"]
-    F -- no --> H["<b>none</b><br/>every read is a download"]
-```
-
-Chrome takes the first. Firefox takes the second, confirmed in a built add-on:
-its framed viewer reports no `browser.storage` at all, and the log there reads
-`keeping what github.com answers in the background`. The third exists so a viewer refused both still caches something, and it
-is the only one that can reach the disk — a browser may write session storage out
-to restore your tabs.
-
-What crosses to the background is the packed **string**, never bytes. Chrome's
-`postMessage` is JSON, and a `Uint8Array` round-trips through it as
-`{"0":31,"1":139}` — the same trap that stops the Firefox fetch proxy being
-reused on Chrome.
+Chrome's viewer has that api itself. Firefox withholds `browser.storage` from a
+viewer framed by github.com, so there the background holds it and answers over
+`runtime.sendMessage`. What crosses is a string; Chrome's messaging is json and
+bytes would not survive it.
 
 ## Staleness
 
-The head sha is part of the key, and it is read from the page that is open now —
-`readHeadSha()` (`src/page/pageInfo.ts:75`) is a regex over markup GitHub already
-embedded, so it costs no request. It travels on the iframe's url so the viewer
-has it at its **first render**, before the patch starts downloading.
+The key is the head sha, read from markup GitHub already embedded and passed to
+the viewer on the iframe's url, so it is there before the download starts. A
+page on a newer commit asks a different key and downloads. Without a sha the
+cache is off.
 
-A page on a newer commit therefore asks a different key, misses, and downloads.
-
-**The guarantee is exactly as strong as that sha is fresh, and no stronger.** It
-is the commit the *page believed* at load, not the one the server answers with:
-`/pull/N.diff` returns whatever is at the head when it is asked. Leave a tab open
-at commit X, let someone push Y, open the overlay — the markup still says X, the
-download is Y's diff, and it is stored under X. Without the cache that same page
-shows the same wrong diff; what the cache adds is that it persists. Reload the
-pull request page and it corrects itself.
-
-Where the sha is unknown the cache is off entirely, read and write. A key that is
-not the commit is a key that can hand back the wrong diff.
-
-**A push while the viewer is open is noticed but not applied.** The content
-script re-reads the sha on `visibilitychange` — a DOM read, no request — and the
-viewer offers a reload rather than swapping the diff out from under a reader
-mid-review. The viewer keeps two shas for this: the one it is *showing*, which
-moves only when asked, and the one the page *has*, for comparison.
+The sha is the one the page loaded with, not what the server answers now: a tab
+left open across a push downloads the new diff and keeps it under the old key.
+Reloading the pull request page corrects it. The uncached viewer shows the same
+thing in that state; the cache only makes it last.
 
 ## Limits
 
-Compressed, because a real patch gzips 7.5× and base64 gives a third of that
-back — measured at **5.6× net**, 757,775 characters of diff stored as 135,036.
-
-| | extension store | page session storage |
-| --- | --- | --- |
-| ceiling | 10,485,760 bytes, enforced | 5 MiB, and not part of the quota system |
-| per entry | 6 MB ≈ 33 MB of diff | 3 MB ≈ 17 MB of diff |
-| total | 8 MB ≈ 45 MB of diff | 4 MB ≈ 22 MB of diff |
-| entries | 24 | 12 |
-
-`storage.session`'s ceiling was measured, not quoted: a 9 MB value stores and
-reads back, a 10 MB one is refused outright with nothing written. Web storage is
-excluded from that quota system and has its own hard 5 MiB an origin.
-
-Eviction is least-recently-read first. Every failure is silent — a blocked area,
-a full quota, a value from an older version — because this is an optimisation and
-must never be able to fail a render.
+Stored compressed, 5.6 times smaller than the patch once base64 is paid for.
+`storage.session` refuses a value past 10,485,760 bytes, and the cache keeps
+under 8 MB of it. Before a write that would cross that it clears itself and
+starts again, rather than keeping an index to evict the oldest entry. The usage
+is counted before writing, so the bound holds whether or not the browser
+enforces its quota.
 
 ## Not cached
 
-- **Comments** (`page_data/threads`, `thread_previews`). They change without a
-  commit, so no commit key could make them safe. They also travel the content
-  script's route, not this one.
-- **Binary blobs** (`BinaryCompare`). Unbounded, and it reads `Content-Length`
-  and cancels the body rather than downloading it anyway.
-- **Raw files for hunk expansion** (`fileLoader`). A few kilobytes each and
-  dozens of them, so on one shared budget they evict the patch — the one entry
-  worth keeping. `createFileLoader` has its own in-memory map, and the overlay
-  is held for five minutes after closing, which covers them.
-- **Anything that is not `ok`.** A 404 from a lapsed session or a 503 from a busy
-  host must be asked again, not remembered for the session.
-- **A body that did not finish.** The transform's `flush` runs only when the
-  source ends of its own accord. A body that stops short errors the stream and a
-  reader giving up cancels it, and neither runs `flush`, so neither can leave
-  half a patch to be stored and served as the whole. That is the same signal the
-  parser trusts to call the diff complete, so the two cannot disagree.
+- **Comments.** They change without a commit, and travel the content script's
+  route.
+- **Binary blobs** and **raw files for hunk expansion.** Blobs are unbounded,
+  and dozens of small raw files would clear out the patch, which is the one
+  entry worth keeping.
+- **Anything that is not `ok`**, and anything that did not finish.
 
-  This used to rest on the transport instead, and on a claim about gzip that is
-  false — Chrome's decoder skips the trailer and ends a truncated body cleanly.
-  On Firefox the patch arrives over a port from the background, where a
-  disconnect mid-download is treated as an error rather than an end
-  (`githubFetch.ts`); that still matters, because it is what makes the stream
-  error rather than end.
+## Watching it
 
-## Watching it work
-
-Off in a built extension, because nothing else here writes to a reader's console.
-In the **viewer's** console:
+A development build logs each decision to the viewer's console. A built one
+does after this, run in the viewer frame's console:
 
 ```js
 localStorage.setItem('diffshub-for-github.debug', 'on');
 ```
 
-```
-DiffsHub: keeping what github.com answers in this page
-DiffsHub: 2.diff fetched from github.com
-DiffsHub: 2.diff kept, 1 KB of diff as 1 KB
-```
+## What it does not fix
 
-and on the next reload:
-
-```
-DiffsHub: 2.diff reused from the cache, 1 KB stored
-```
-
-A development build logs without the setting.
-
-## What this does not fix
-
-The cache cannot help a **cold** 503. Nothing is stored for a commit not yet read
-successfully, so the first fetch is fully exposed, and there is no retry or
-backoff anywhere in the extension — the pacing and refusal detection built for
-the test harness has no counterpart in the product. See `docs/todo.md`.
-
-## Where it lives
-
-| file | what |
-| --- | --- |
-| `src/viewer/files/responseCache.ts` | choosing a store, the index, the bounds, eviction |
-| `src/viewer/files/cachedGithubFetch.ts` | the wrapper, the split body, the streamed replay |
-| `src/viewer/files/pack.ts` | gzip and base64, both ways. Imports nothing |
-| `src/entrypoints/background.ts` | serves the store to a viewer refused its own |
-| `test/response-cache.mjs` | the bounds policy, offline |
-| `test/pack-round-trip.mjs` | that a patch of any size survives packing |
-| `test/backpressure.mjs` | that nothing reads ahead of the parser |
-| `test/overlay.mjs` | proves a reload costs no patch request |
+A cold 503. Nothing is kept for a commit that was never read, and nothing in
+the extension retries a refused request. See [todo.md](todo.md).

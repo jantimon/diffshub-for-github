@@ -15,7 +15,7 @@
 import { githubFetch } from '@/viewer/files/githubFetch';
 import { pack, unpack } from '@/viewer/files/pack';
 import { readSetting } from '@/viewer/settings';
-import { describeStorage, readCached, storageLimits, writeCached } from '@/viewer/files/responseCache';
+import { describeStorage, MAX_RAW_BYTES, readCached, writeCached } from '@/viewer/files/responseCache';
 
 /** Marks a response that never touched the network, for anyone reading one */
 const CACHE_HEADER = 'x-diffshub-cache';
@@ -108,9 +108,7 @@ export async function cachedGithubFetch(url: string, { sha, signal }: CachedFetc
  * Everything the parser had not reached piled up in memory.
  *
  * Here the parser is the only thing pulling, which is the backpressure a plain
- * `fetch` had before any of this existed. `test/backpressure.mjs` measures the
- * difference: twelve chunks produced against two hundred, for the same ten
- * read.
+ * `fetch` has.
  *
  * It also decides what "finished" means, and decides it better.
  *
@@ -135,7 +133,7 @@ function capture(
       if (chunks == null) return;
 
       bytes += chunk.byteLength;
-      if (bytes > storageLimits().maxRawBytes) {
+      if (bytes > MAX_RAW_BYTES) {
         // Beyond what could be kept anyway, so stop holding it
         chunks = undefined;
         return;
@@ -158,7 +156,7 @@ async function store(chunks: Uint8Array[], sha: string, url: string): Promise<vo
   let raw = 0;
   for (const chunk of chunks) raw += chunk.byteLength;
 
-  const packed = await pack(chunks, storageLimits().maxRawBytes);
+  const packed = await pack(chunks);
   if (packed == null) {
     note(`${named(url)} not kept, ${kb(raw)} would not compress or is too large`);
     return;

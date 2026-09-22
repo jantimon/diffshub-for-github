@@ -31,9 +31,8 @@ async function watchHostAccess(): Promise<void> {
 export default defineBackground(() => {
   if (import.meta.env.FIREFOX) serveGithubFetch();
   /**
-   * Unconditional, unlike the fetch proxy: a viewer framed by github.com may be
-   * refused the storage api whichever browser it is in, and asking here costs
-   * nothing when it is not needed. `docs/caching.md` explains which store wins
+   * Unconditional, unlike the fetch proxy. Only Firefox's framed viewer needs
+   * it today, and a listener nobody messages costs nothing
    */
   serveResponseCache();
   void watchHostAccess();

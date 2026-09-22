@@ -36,11 +36,7 @@ const BASE64_CHUNK = 8192;
  * become a javascript string -- which for anything outside latin-1 would be two
  * bytes a character for no reason.
  */
-export async function pack(chunks: readonly Uint8Array[], maxRawBytes: number): Promise<string | undefined> {
-  let raw = 0;
-  for (const chunk of chunks) raw += chunk.byteLength;
-  if (raw > maxRawBytes) return undefined;
-
+export async function pack(chunks: readonly Uint8Array[]): Promise<string | undefined> {
   try {
     const gzip = new CompressionStream('gzip');
     const parts = chunks as unknown as BlobPart[];

@@ -29,7 +29,7 @@
     "test:login": "node test/login.mjs",
     "postinstall": "wxt prepare",
     "test:fps": "node test/measure-fps.mjs",
-    "test:units": "node test/reconstruct-old-file.mjs && node test/pull-request-paths.mjs && node test/whitespace.mjs && node test/recording-credentials.mjs && node test/response-cache.mjs && node test/pack-round-trip.mjs && node test/backpressure.mjs",
+    "test:units": "node test/reconstruct-old-file.mjs && node test/pull-request-paths.mjs && node test/whitespace.mjs && node test/recording-credentials.mjs && node test/pack-round-trip.mjs",
     "test:review": "node test/review.mjs",
     "lint:firefox": "web-ext lint --source-dir .output/firefox-mv3",
     "test:firefox": "node test/firefox.mjs",

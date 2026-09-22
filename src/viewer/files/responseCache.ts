@@ -2,225 +2,134 @@
  * A short-lived copy of what github.com answered, keyed by the head commit.
  *
  * Reopening a pull request already read costs the whole patch again -- 740 KB
- * on a forty-file review, from the one host that refuses under load -- and the
- * reader has waited for it once already. This keeps the answer in
- * `storage.session`, which lives in memory for as long as the browser is open
- * and is gone when it closes.
+ * on a forty-file review, from the one host that refuses under load. This keeps
+ * the answer in `storage.session`, which lives in memory for as long as the
+ * browser is open and is gone when it closes. Never `storage.local` and never
+ * the Cache API: the diff of a private repository has no business on disk.
  *
- * `storage.session` rather than `storage.local`, and never the Cache API: the
- * diff of a private repository has no business on disk. Anyone tempted to move
- * areas to fix a quota should read that sentence again.
+ * Every entry is keyed by the commit the page was showing, so a page on a newer
+ * commit asks a different key and downloads. Where the commit is unknown there
+ * is no key and nothing is read or written.
  *
- * Every entry is keyed by the commit the page was showing, so a stale diff is
- * not guarded against -- it is unrepresentable. A page on a newer commit asks a
- * different key, misses, and downloads. Where the commit is unknown there is no
- * key at all and nothing is read or written.
- *
- * All of it is an optimisation, so every path swallows its own failures. A
- * blocked storage area, a full quota, a value left by an older version: each
- * costs a download, never a render.
- *
- * `docs/caching.md` has the whole of it: which store is chosen and why, the
- * measured ceilings, and what is deliberately never kept.
+ * All of it is an optimisation, so every path swallows its own failures: each
+ * costs a download, never a render. `docs/caching.md` has the rest.
  */
 
 const VERSION = 1;
-const INDEX_KEY = `diffshub.cache.v${VERSION}.index`;
-const BODY_PREFIX = `diffshub.cache.v${VERSION}.body.`;
-const LOCK_NAME = `diffshub.cache.v${VERSION}`;
+const PREFIX = `diffshub.cache.v${VERSION}.`;
+const CHANNEL = 'diffshub-cache';
 
 /**
- * What may be kept, measured in the characters actually stored.
+ * How much may be kept, counted in stored characters.
  *
- * The ceiling is not ours to choose. `storage.session.QUOTA_BYTES` is
- * 10,485,760 and it is enforced: a 9 MB value stores and reads back, a 10 MB
- * one is refused outright with nothing written. These sit under it with room
- * for the index and for a browser that counts differently.
+ * `storage.session` holds 10,485,760 bytes and refuses a value past that. The
+ * budget sits under it, and when a write would cross it the whole cache goes
+ * rather than the oldest entry: at around 135 KB a patch that is dozens of pull
+ * requests before it happens, and the cost is one download of whichever comes
+ * back.
  *
- * What is stored is compressed, and a real patch compresses 7.5 times over, so
- * the budget holds far more diff than it looks. A 740 KB patch costs about
- * 135 KB of it, and the 20 MB one this viewer was built for costs about
- * 3.6 MB, so it is kept rather than refused.
- *
- * `maxRawBytes` is the guard before any of that: compressing something absurd
- * costs time and memory to reach the same refusal.
+ * Usage is checked before writing rather than left to the quota, so the bound
+ * holds on a browser that does not enforce one.
  */
-export const LIMITS = {
-  maxEntries: 24,
-  maxEntryChars: 6_000_000,
-  maxTotalChars: 8_000_000,
-  maxRawBytes: 48_000_000,
-} as const;
+const BUDGET_CHARS = 8_000_000;
 
-/**
- * What fits in the page's own session storage instead.
- *
- * Web storage is not part of the quota system the extension area belongs to:
- * it has a hard ceiling of 5 MiB an origin, half what the extension area
- * offers. Compressed that is still some seventeen megabytes of diff, which
- * covers all but the largest reviews.
- */
-export const WEB_LIMITS = {
-  maxEntries: 12,
-  maxEntryChars: 3_000_000,
-  maxTotalChars: 4_000_000,
-  maxRawBytes: 48_000_000,
-} as const;
-
-export interface Limits {
-  maxEntries: number;
-  maxEntryChars: number;
-  maxTotalChars: number;
-  /** The most downloaded bytes worth compressing, before anything is spent trying */
-  maxRawBytes: number;
-}
-
-export interface CacheEntry {
-  key: string;
-  chars: number;
-  usedAt: number;
-}
-
-/** What `storage.session` offers, and what the tests hand in instead */
-export interface StorageArea {
-  get: (keys: string | string[]) => Promise<Record<string, unknown>>;
-  set: (items: Record<string, unknown>) => Promise<void>;
-  remove: (keys: string | string[]) => Promise<void>;
-}
-
-interface Index {
-  v: number;
-  entries: CacheEntry[];
-}
+/** More downloaded bytes than this are not worth compressing to find out */
+export const MAX_RAW_BYTES = 48_000_000;
 
 interface Body {
+  /** Which shape of this the entry was written in */
   v: number;
-  sha: string;
-  url: string;
   /** The answer, gzipped and then base64'd so it survives being stored as json */
   packed: string;
 }
 
-export function cacheKey(sha: string, url: string): string {
-  return `${BODY_PREFIX}${sha}.${url}`;
+/** The part of `storage.session` this uses */
+interface Area {
+  get: (keys: string | null) => Promise<Record<string, unknown>>;
+  set: (items: Record<string, unknown>) => Promise<void>;
+  remove: (keys: string[]) => Promise<void>;
 }
 
-/**
- * What to keep and what to let go when one more answer arrives.
- *
- * Pure, and exported for its own test: this is the whole of the bounds policy,
- * and it is the part worth proving without a browser to hand.
- *
- * Returns nothing when the answer is too big to keep at all, so the caller
- * stores nothing rather than evicting the cache to make room for something that
- * was never going to fit.
- */
-export function planEviction(
-  entries: readonly CacheEntry[],
-  incoming: CacheEntry,
-  caps: Limits,
-): { keep: CacheEntry[]; evict: string[] } | undefined {
-  if (incoming.chars > caps.maxEntryChars) return undefined;
+/** The same four operations, whether the storage is in reach or behind the background */
+interface Store {
+  get: (key: string) => Promise<unknown>;
+  set: (key: string, value: Body) => Promise<void>;
+  usage: () => Promise<number>;
+  clear: () => Promise<void>;
+}
 
-  // Rewriting a key is a move to the end of the queue, not a second entry
-  const keep = entries.filter((entry) => entry.key !== incoming.key).toSorted((a, b) => a.usedAt - b.usedAt);
+type Ask =
+  | { channel: typeof CHANNEL; op: 'get'; key: string }
+  | { channel: typeof CHANNEL; op: 'set'; key: string; value: Body }
+  | { channel: typeof CHANNEL; op: 'usage' }
+  | { channel: typeof CHANNEL; op: 'clear' };
 
-  const evict: string[] = [];
-  let total = keep.reduce((sum, entry) => sum + entry.chars, 0) + incoming.chars;
-
-  while (keep.length + 1 > caps.maxEntries || total > caps.maxTotalChars) {
-    const oldest = keep.shift();
-    // Unreachable while the per-entry cap is under the total, and a silent
-    // forever-loop if that ever stops being true
-    if (oldest == null) return undefined;
-    total -= oldest.chars;
-    evict.push(oldest.key);
+async function usageOf(area: Area): Promise<number> {
+  let chars = 0;
+  for (const [key, value] of Object.entries(await area.get(null))) {
+    if (key.startsWith(PREFIX)) chars += (value as Partial<Body>).packed?.length ?? 0;
   }
+  return chars;
+}
 
-  return { keep: [...keep, incoming], evict };
+async function clearIn(area: Area): Promise<void> {
+  const ours = Object.keys(await area.get(null)).filter((key) => key.startsWith(PREFIX));
+  if (ours.length > 0) await area.remove(ours);
+}
+
+function sessionArea(): Area {
+  return browser.storage.session as unknown as Area;
+}
+
+function direct(area: Area): Store {
+  return {
+    get: async (key) => (await area.get(key))[key],
+    set: (key, value) => area.set({ [key]: value }),
+    usage: () => usageOf(area),
+    clear: () => clearIn(area),
+  };
+}
+
+async function askBackground(message: Ask): Promise<unknown> {
+  return await browser.runtime.sendMessage(message);
 }
 
 /**
- * The area this runs against, or nothing where there is none.
+ * Asking the background to hold things.
  *
- * `browser` is named as a bare identifier because that is what the build
- * rewrites into an import. Reaching for it through `globalThis` instead
- * silently misses on a browser that has no such global and leaves the cache
- * switched off with nothing to say about it.
- *
- * Looked up on each call rather than held, because the tests import this module
- * in plain node where the identifier is free and `typeof` is the only safe way
- * to ask about it.
+ * On Firefox the viewer is framed by github.com and `browser.storage` is not
+ * handed to it at all, the same restriction that partitions its cookie jar. The
+ * background has the whole api in both browsers, and what crosses to it is a
+ * string, so nothing depends on how a browser serialises a message.
  */
-/**
- * Where the kept answers actually live.
- *
- * The viewer is an extension page, but on Firefox it is one framed by
- * github.com, and there `browser.storage` is not handed to it at all -- the
- * same shape of restriction that keeps its cookie jar partitioned and is why
- * `githubFetch` proxies through the background.
- *
- * So the page's own area is used where it exists, and otherwise the background
- * is asked to hold things on its behalf. The background is a top-level context
- * in both browsers and has the whole api, and what crosses between them is a
- * string, so nothing here depends on how a browser serialises a message.
- */
-const CACHE_CHANNEL = 'diffshub-cache';
-
-type CacheAsk =
-  | { channel: typeof CACHE_CHANNEL; op: 'get'; keys: string | string[] }
-  | { channel: typeof CACHE_CHANNEL; op: 'set'; items: Record<string, unknown> }
-  | { channel: typeof CACHE_CHANNEL; op: 'remove'; keys: string | string[] };
-
-function pageArea(): StorageArea | undefined {
-  try {
-    if (typeof browser === 'undefined') return undefined;
-    return browser.storage?.session as StorageArea | undefined;
-  } catch {
-    return undefined;
-  }
+function throughBackground(): Store {
+  return {
+    get: (key) => askBackground({ channel: CHANNEL, op: 'get', key }),
+    set: async (key, value) => {
+      if ((await askBackground({ channel: CHANNEL, op: 'set', key, value })) !== true) {
+        throw new Error('the background did not store it');
+      }
+    },
+    usage: async () => Number(await askBackground({ channel: CHANNEL, op: 'usage' })),
+    clear: async () => {
+      await askBackground({ channel: CHANNEL, op: 'clear' });
+    },
+  };
 }
 
-function backgroundArea(): StorageArea | undefined {
-  try {
-    if (typeof browser === 'undefined' || browser.runtime?.sendMessage == null) return undefined;
-    const ask = async (message: CacheAsk): Promise<unknown> => await browser.runtime.sendMessage(message);
-    return {
-      get: async (keys) =>
-        ((await ask({ channel: CACHE_CHANNEL, op: 'get', keys })) ?? {}) as Record<string, unknown>,
-      set: async (items) => {
-        const reply = await ask({ channel: CACHE_CHANNEL, op: 'set', items });
-        // The quota is the background's to hit, so its refusal has to come back
-        // as one here rather than as a silent success
-        if (reply !== true) throw new Error('the background did not store it');
-      },
-      remove: async (keys) => {
-        await ask({ channel: CACHE_CHANNEL, op: 'remove', keys });
-      },
-    };
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Serves {@link readCached} and {@link writeCached} for a viewer that has no
- * storage api of its own. Called from the background entrypoint.
- */
+/** Serves a viewer that has no storage api of its own. Called from the background */
 export function serveResponseCache(): void {
   browser.runtime.onMessage.addListener(
     (message: unknown, _sender: unknown, reply: (answer: unknown) => void) => {
-      const ask = message as CacheAsk | null;
-      if (ask?.channel !== CACHE_CHANNEL) return undefined;
+      const ask = message as Ask | null;
+      if (ask?.channel !== CHANNEL) return undefined;
 
-      const session = browser.storage.session;
+      const area = sessionArea();
       const run = async (): Promise<unknown> => {
-        if (ask.op === 'get') return await session.get(ask.keys);
-        if (ask.op === 'set') {
-          await session.set(ask.items);
-          return true;
-        }
-        await session.remove(ask.keys);
+        if (ask.op === 'get') return (await area.get(ask.key))[ask.key];
+        if (ask.op === 'usage') return await usageOf(area);
+        if (ask.op === 'clear') await clearIn(area);
+        else await area.set({ [ask.key]: ask.value });
         return true;
       };
 
@@ -232,220 +141,70 @@ export function serveResponseCache(): void {
   );
 }
 
+let store: { found: Store; where: string } | null | undefined;
+
 /**
- * The page's own session storage, as a last resort.
- *
- * Smaller than the extension's area, scoped to this one tab rather than shared,
- * and unlike the extension's area it is written out for session restore rather
- * than held only in memory. So it is reached for only when neither of the
- * others answers, which on a viewer framed by github.com is the case whenever
- * the storage api is withheld from the page and the background cannot be asked.
+ * The page's own storage where it has one, which is Chrome, and the background
+ * otherwise. `browser` is named bare because the build rewrites that into an
+ * import, and `typeof` keeps it safe in plain node
  */
-function webArea(): StorageArea | undefined {
+function chosen(): { found: Store; where: string } | null {
+  if (store !== undefined) return store;
+  store = null;
   try {
-    if (typeof sessionStorage === 'undefined') return undefined;
-    // A partitioned or blocked window throws on the first touch rather than
-    // when it is written to, so it is worth finding out here
-    sessionStorage.getItem(INDEX_KEY);
-    return {
-      get: (keys) => {
-        const out: Record<string, unknown> = {};
-        for (const key of Array.isArray(keys) ? keys : [keys]) {
-          const raw = sessionStorage.getItem(key);
-          if (raw != null) out[key] = JSON.parse(raw) as unknown;
-        }
-        return Promise.resolve(out);
-      },
-      set: (items) => {
-        // One at a time, so a full quota throws on the value that did not fit
-        // and the caller can put its ledger straight
-        for (const [key, value] of Object.entries(items)) {
-          sessionStorage.setItem(key, JSON.stringify(value));
-        }
-        return Promise.resolve();
-      },
-      remove: (keys) => {
-        for (const key of Array.isArray(keys) ? keys : [keys]) sessionStorage.removeItem(key);
-        return Promise.resolve();
-      },
-    };
+    if (typeof browser === 'undefined') return store;
+    if (browser.storage?.session != null) store = { found: direct(sessionArea()), where: 'this page' };
+    else if (browser.runtime?.sendMessage != null)
+      store = { found: throughBackground(), where: 'the background' };
   } catch {
-    return undefined;
+    store = null;
   }
+  return store;
 }
 
-interface Tier {
-  name: 'this page' | 'the background' | "this tab's own session storage";
-  area: StorageArea;
-  limits: Limits;
-}
-
-let tier: Tier | undefined;
-let looked = false;
-
-function chosen(): Tier | undefined {
-  if (looked) return tier;
-  looked = true;
-
-  const page = pageArea();
-  if (page != null) tier = { name: 'this page', area: page, limits: LIMITS };
-  else {
-    const background = backgroundArea();
-    if (background != null) tier = { name: 'the background', area: background, limits: LIMITS };
-    else {
-      const web = webArea();
-      if (web != null) {
-        tier = { name: "this tab's own session storage", area: web, limits: WEB_LIMITS };
-      }
-    }
-  }
-  return tier;
-}
-
-function area(): StorageArea | undefined {
-  return chosen()?.area;
-}
-
-function limits(): Limits {
-  return chosen()?.limits ?? LIMITS;
-}
-
-/** Which area is in use, or that there is none. For the log */
+/** Where things are kept, for the log */
 export function describeStorage(): string {
-  return chosen()?.name ?? 'none, nothing will be kept';
+  return chosen()?.where ?? 'nowhere, nothing will be kept';
 }
 
-/** What the area in use will hold, so the caller can refuse early */
-export function storageLimits(): Limits {
-  return limits();
+function keyOf(sha: string, url: string): string {
+  return `${PREFIX}${sha}.${url}`;
 }
 
+/** The compressed answer, or nothing */
 export async function readCached(sha: string, url: string): Promise<string | undefined> {
-  const store = area();
-  if (store == null) return undefined;
-
-  const key = cacheKey(sha, url);
+  const found = chosen()?.found;
+  if (found == null) return undefined;
   try {
-    const stored = (await store.get(key))[key] as Partial<Body> | undefined;
-    // The commit and the address are held inside the value as well as in the
-    // key, the way `useViewed` holds a sha inside what it stores, so anything
-    // written by another version reads as absent rather than as content
-    if (stored?.v !== VERSION || stored.sha !== sha || stored.url !== url) return undefined;
-    if (typeof stored.packed !== 'string') return undefined;
-
-    // Moving it to the front of the queue is not worth making the reader wait
-    void touch(key);
+    const stored = (await found.get(keyOf(sha, url))) as Partial<Body> | undefined;
+    // A value written by another version reads as absent rather than as content
+    if (stored?.v !== VERSION || typeof stored.packed !== 'string') return undefined;
     return stored.packed;
   } catch {
     return undefined;
   }
 }
 
-/**
- * Takes the answer already packed, because packing it is what decides its size.
- *
- * Says whether it stored. A caller that reports "kept" without asking is a
- * caller that lies whenever the area is missing or the quota is full.
- */
+/** Says whether it stored, so the log does not report a copy that was never made */
 export async function writeCached(sha: string, url: string, packed: string): Promise<boolean> {
-  const store = area();
-  if (store == null || packed.length > limits().maxEntryChars) return false;
+  const found = chosen()?.found;
+  if (found == null || packed.length > BUDGET_CHARS) return false;
 
-  let stored = false;
-  const key = cacheKey(sha, url);
-  await withLock(async () => {
-    const index = await readIndex(store);
-    const plan = planEviction(index.entries, { key, chars: packed.length, usedAt: Date.now() }, limits());
-    if (plan == null) return;
-
-    // Freed before the write, so the write is the one with room to succeed
-    if (plan.evict.length > 0) await store.remove(plan.evict);
-
-    const body: Body = { v: VERSION, sha, url, packed };
-    try {
-      // One call, so the index can never name a body that was not written
-      await store.set({ [key]: body, [INDEX_KEY]: { v: VERSION, entries: plan.keep } satisfies Index });
-      stored = true;
-    } catch {
-      // Out of quota, most likely. What was evicted is gone either way, so the
-      // ledger is corrected to say so rather than left naming it
-      const without = plan.keep.filter((entry) => entry.key !== key);
-      await store.set({ [INDEX_KEY]: { v: VERSION, entries: without } satisfies Index }).catch(() => {});
-    }
-  });
-
-  return stored;
-}
-
-async function readIndex(store: StorageArea): Promise<Index> {
+  const key = keyOf(sha, url);
+  const body: Body = { v: VERSION, packed };
   try {
-    const stored = (await store.get(INDEX_KEY))[INDEX_KEY] as Partial<Index> | undefined;
-    if (stored?.v !== VERSION || !Array.isArray(stored.entries)) return { v: VERSION, entries: [] };
-    return { v: VERSION, entries: stored.entries.filter(isEntry) };
+    if ((await found.usage()) + packed.length > BUDGET_CHARS) await found.clear();
+    await found.set(key, body);
+    return true;
   } catch {
-    return { v: VERSION, entries: [] };
-  }
-}
-
-function isEntry(value: unknown): value is CacheEntry {
-  const entry = value as Partial<CacheEntry> | null;
-  return (
-    typeof entry?.key === 'string' && typeof entry.chars === 'number' && typeof entry.usedAt === 'number'
-  );
-}
-
-/** Marks an entry as the most recently read, so eviction takes the others first */
-async function touch(key: string): Promise<void> {
-  const store = area();
-  if (store == null) return;
-
-  await withLock(async () => {
-    const index = await readIndex(store);
-    const entry = index.entries.find((candidate) => candidate.key === key);
-    if (entry == null) return;
-    entry.usedAt = Date.now();
-    await store.set({ [INDEX_KEY]: index });
-  });
-}
-
-/**
- * Serialising the read, change, write of the index.
- *
- * There is no compare-and-swap in `storage.session`, and reading then writing
- * is two trips. Two tabs on one pull request can interleave them and lose an
- * update.
- *
- * Two layers. Within this document a promise chain, so nothing here runs
- * against itself whatever the platform offers. Across documents the Web Locks
- * api, which every viewer queues on because they share the extension's origin.
- * The lock is held around arithmetic and two storage calls, never around a
- * download, so it is held for well under a millisecond.
- *
- * Losing it is survivable, which is why there is a fallback at all. A body is
- * addressed by commit and url and is never rewritten with different content, so
- * two writers of one key write the same bytes.
- *
- * A read goes straight to the body and never consults the index, which makes
- * the index a budget ledger rather than a directory. The worst a lost update
- * can do is forget an entry, costing memory until the browser closes, or name
- * one that is gone, which reads as a miss. Neither hands back the wrong diff.
- */
-let queue: Promise<void> = Promise.resolve();
-
-function withLock(run: () => Promise<void>): Promise<void> {
-  const guarded = async (): Promise<void> => {
+    // Out of quota after all, most likely. Start from empty once rather than
+    // give up on a patch that fits on its own
     try {
-      await run();
+      await found.clear();
+      await found.set(key, body);
+      return true;
     } catch {
-      // A blocked storage partition is not worth failing the overlay over
+      return false;
     }
-  };
-
-  const locks = (navigator as { locks?: LockManager }).locks;
-  const next = queue.then(() =>
-    locks?.request == null ? guarded() : locks.request(LOCK_NAME, { mode: 'exclusive' }, guarded),
-  );
-  // The chain must survive a rejection, or every later write is skipped
-  queue = next.catch(() => {});
-  return queue;
+  }
 }
