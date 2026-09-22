@@ -2,12 +2,19 @@
 
 # DiffsHub for GitHub
 
-A Chrome and Firefox extension that opens GitHub pull request diffs in a fast,
-virtualized viewer. Click the "Files changed" tab and the diff renders in
-Pierre's [`@pierre/diffs`](https://diffs.com) components — the same components
-behind [diffshub.com](https://diffshub.com) — in a fullscreen overlay.
+Review a GitHub pull request without waiting for it to render.
 
-A 3,420-file pull request scrolls at 120 fps. GitHub's own tab manages 12.
+Click "Files changed" and the diff opens in a fullscreen viewer built on
+Pierre's [`@pierre/diffs`](https://diffs.com) components, the same ones behind
+[diffshub.com](https://diffshub.com). A 3,420-file pull request scrolls at
+120 fps there. GitHub's own tab manages 12.
+
+The whole review happens in it: read the diff, tick files off, comment on a
+line, reply, resolve a conversation, approve or ask for changes. Every request
+goes to github.com from your own browser on your own session cookie. No token,
+no third-party server, nothing about the code leaves your machine.
+
+A Chrome and Firefox extension, MV3, from one source tree.
 
 ![The overlay on nodejs/node#59805, dark](docs/images/overlay-dark.png)
 
@@ -70,9 +77,11 @@ tree filter, `?` shows the list, `Esc` closes the overlay.
 
 ![The shortcut help dialog](docs/images/shortcut-help.png)
 
-**Your theme.** The overlay reads GitHub's active theme when it opens and maps
-it onto the matching Pierre theme, including the dimmed, high-contrast and
-colourblind ones. A toolbar button switches light and dark on the spot.
+**Your theme.** The overlay reads GitHub's active theme when it opens and
+renders in a matching one, including the dimmed, high-contrast and colourblind
+variants. A toolbar button switches light and dark on the spot. Light uses VS
+Code's own default, which keeps every token above the contrast the WCAG asks
+for.
 
 ![The overlay on the same pull request, light](docs/images/overlay-light.png)
 
@@ -101,15 +110,26 @@ broke, while the diff keeps rendering.
   both. Hiding the individual lines would renumber what is left, and a comment
   anchored to a renumbered line is a comment on the wrong code.
 - **Applying a suggested change.** Suggestions render exactly as GitHub renders
-  them; the Commit button is still on GitHub.
+  them, but the Commit button is still on GitHub.
 - **Batching a review.** A comment written here is posted as it is written,
   the way a single comment is on GitHub, rather than held back until the
   review is submitted.
 
-[`docs/capabilities.md`](docs/capabilities.md) lists everything it takes to
-replace GitHub's review page and where each piece stands, and
-[`docs/analysis.md`](docs/analysis.md) records how diffshub.com works, read
-from its own source in the submodule.
+## Reading further
+
+- [`AGENTS.md`](AGENTS.md) the short version of how this is built, and what to
+  know before changing it
+- [`docs/capabilities.md`](docs/capabilities.md) everything it takes to replace
+  GitHub's review page, and where each piece stands. Every must-have is built
+- [`docs/firefox.md`](docs/firefox.md) what Firefox does differently, and the
+  traps. Each one cost real time to find
+- [`research/github-internal-api/`](research/github-internal-api/) the
+  undocumented API this extension runs on, read out of GitHub's own published
+  sourcemaps. As far as we can tell, nobody else has written it down
+- [`docs/analysis.md`](docs/analysis.md) how diffshub.com works, read from its
+  own source in the submodule
+- [`docs/todo.md`](docs/todo.md) open items, each with enough detail to pick up
+  cold
 
 ## Requirements
 
@@ -156,6 +176,8 @@ pnpm test:whitespace      # hiding files that changed only in spacing
 pnpm test:units           # offline: rebuilding a file's old side, globs, path matching
 pnpm test:fps             # frame times, against GitHub's own view
 pnpm capture:readme       # the screenshots above, into docs/images
+pnpm lint                 # oxlint, with every no-comment-slop rule on
+pnpm format               # oxfmt, at Prettier's own defaults
 ```
 
 `pnpm test` only reads, so it runs against any public pull request.
@@ -190,13 +212,15 @@ src/viewer/                   runs on the extension's own origin
 src/patch/                    a .diff becomes files, hunks and filters
 src/entrypoints/              WXT's entry points, kept thin
 public/                       files copied as-is
-docs/                         the analysis of diffshub.com, and the README images
+scripts/                      one-off helpers for development
+docs/                         capabilities, Firefox, open items, README images
 test/                         the browser suites and the offline checks
+research/github-internal-api  what GitHub's undocumented API does
 research/pierre               git submodule, read-only reference (see below)
 ```
 
-The content script runs on github.com and can act as you; the viewer runs on
-the extension's own origin, where GitHub treats it as a stranger — it refuses a
+The content script runs on github.com and can act as you. The viewer runs on
+the extension's own origin, where GitHub treats it as a stranger: it refuses a
 write from there, and Firefox will not even send the session cookie. So
 anything that has to happen as you is named in `bridge.ts`, asked for over
 `postMessage`, and carried out by the content script.
