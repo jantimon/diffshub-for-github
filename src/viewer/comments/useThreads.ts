@@ -16,11 +16,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ReviewThread } from '@/bridge';
 import { ask } from '@/viewer/ask';
+import { useChoice } from '@/viewer/settings';
 import type { CodeViewItem } from '@pierre/diffs/react';
 
 export interface Threads {
   /** The diff's items with each conversation hung on the file it belongs to */
   items: readonly CodeViewItem<ReviewThread>[];
+  /** Reading only: no conversations on the diff and no way to start one */
+  hidden: boolean;
+  /** Shows the conversations, or takes them off the diff */
+  toggleHidden: () => void;
   /** Opens the composer against one line */
   openDraft: (path: string, line: number, side: 'additions' | 'deletions') => void;
   /** Throws away whatever is in the composer and takes it off the diff */
@@ -41,6 +46,8 @@ export function useThreads(
 ): Threads {
   const [threads, setThreads] = useState<readonly ReviewThread[]>([]);
   const [draft, setDraft] = useState<ReviewThread | undefined>(undefined);
+  const [comments = 'show', setComments] = useChoice('comments', ['show', 'hide'] as const, 'show');
+  const hidden = comments === 'hide';
 
   /**
    * Counts up every time the conversations change, and feeds the item version
@@ -92,6 +99,12 @@ export function useThreads(
       if (item.type !== 'diff') return item;
       const list = byPath.get(item.fileDiff.name);
       if (list == null) return item;
+      /**
+       * Hiding clears the annotations rather than leaving the item alone: the
+       * viewer redraws a file when its version moves, so a file that keeps the
+       * conversations it was drawn with would keep showing them
+       */
+      if (hidden) return { ...item, annotations: [], version: (item.version ?? 0) + revision };
       return {
         ...item,
         annotations: list
@@ -105,7 +118,13 @@ export function useThreads(
         version: (item.version ?? 0) + revision,
       };
     });
-  }, [draft, items, revision, threads]);
+  }, [draft, hidden, items, revision, threads]);
+
+  const toggleHidden = useCallback(() => {
+    setComments(hidden ? 'show' : 'hide');
+    setDraft(undefined);
+    bumpRevision();
+  }, [bumpRevision, hidden, setComments]);
 
   const openDraft = useCallback(
     (path: string, line: number, side: 'additions' | 'deletions') => {
@@ -169,5 +188,5 @@ export function useThreads(
     [bumpRevision, reload],
   );
 
-  return { items: withThreads, openDraft, closeDraft, reply, resolve, post, reload };
+  return { items: withThreads, hidden, toggleHidden, openDraft, closeDraft, reply, resolve, post, reload };
 }

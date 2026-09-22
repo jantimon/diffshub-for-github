@@ -38,6 +38,7 @@ import { useShortcuts } from '@/viewer/shell/useShortcuts';
 import { useViewed } from '@/viewer/review/useViewed';
 import { readSetting, useChoice, writeSetting } from '@/viewer/settings';
 import {
+  ANNOTATION_CSS,
   DIFF_TINT_CSS,
   HEADER_CSS,
   HIGHLIGHTER_OPTIONS,
@@ -286,25 +287,37 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
 
   const comments = useThreads(items, pushToast);
   const { closeDraft, openDraft, post, reply, resolve } = comments;
+  const hideComments = comments.hidden;
 
+  /**
+   * The wrapper is what the card measures itself against. The cell the viewer
+   * slots this into is half a window wide in a split diff and a whole one in a
+   * unified diff, and the card has to read well in both.
+   */
   const renderAnnotation = useCallback(
     (annotation: { metadata?: ReviewThread }) => {
       const thread = annotation.metadata;
       if (thread == null) return null;
-      if (thread.isDraft === true) {
-        return (
-          <CommentComposer
-            onCancel={closeDraft}
-            onSubmit={async (text) => {
-              const failed = await post(thread, text);
-              if (failed != null) pushToast(failed);
-              return failed == null;
-            }}
-          />
-        );
-      }
       return (
-        <Thread thread={thread} onReply={(body) => reply(thread, body)} onResolve={() => resolve(thread)} />
+        <div className="dh-annotation">
+          {thread.isDraft === true ? (
+            <CommentComposer
+              side={thread.side}
+              onCancel={closeDraft}
+              onSubmit={async (text) => {
+                const failed = await post(thread, text);
+                if (failed != null) pushToast(failed);
+                return failed == null;
+              }}
+            />
+          ) : (
+            <Thread
+              thread={thread}
+              onReply={(body) => reply(thread, body)}
+              onResolve={() => resolve(thread)}
+            />
+          )}
+        </div>
       );
     },
     [closeDraft, post, pushToast, reply, resolve],
@@ -410,7 +423,7 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
       overflow: 'scroll',
       lineHoverHighlight: 'number',
       enableLineSelection: true,
-      enableGutterUtility: true,
+      enableGutterUtility: !hideComments,
       onGutterUtilityClick(
         range: { start: number; side?: string },
         context: { item: CodeViewItem<ReviewThread> },
@@ -419,10 +432,19 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         if (item.type !== 'diff') return;
         openDraft(item.fileDiff.name, range.start, range.side === 'deletions' ? 'deletions' : 'additions');
       },
-      unsafeCSS: `${HEADER_CSS}\n${SEPARATOR_CSS}\n${DIFF_TINT_CSS}`,
+      unsafeCSS: `${HEADER_CSS}\n${SEPARATOR_CSS}\n${DIFF_TINT_CSS}\n${ANNOTATION_CSS}`,
       loadDiffFiles,
     }),
-    [diffStyle, themeChoice, page.themeType, page.lightTheme, page.darkTheme, loadDiffFiles, openDraft],
+    [
+      diffStyle,
+      themeChoice,
+      page.themeType,
+      page.lightTheme,
+      page.darkTheme,
+      loadDiffFiles,
+      openDraft,
+      hideComments,
+    ],
   );
 
   const toggleLayout = useCallback(
@@ -451,7 +473,15 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
   const { stats } = state;
 
   return (
-    <div className="dh-overlay" data-theme={themeType} style={surfaces.overlay}>
+    /* `colorScheme` is what makes `light-dark` in the viewer's own stylesheet
+       pick the right value, and it gives the scrollbars and the form controls
+       the same scheme as the diff */
+    <div
+      className="dh-overlay"
+      data-theme={themeType}
+      data-layout={layout}
+      style={{ colorScheme: themeType, ...surfaces.overlay }}
+    >
       <Toolbar
         pr={pr}
         page={page}
@@ -462,8 +492,10 @@ function Viewer({ pr }: { pr: PullRequestRef }) {
         diffStyle={diffStyle}
         themeType={themeType}
         ignoreWhitespace={ignoreWhitespace}
+        hideComments={hideComments}
         onToggleSidebar={toggleSidebar}
         onToggleWhitespace={toggleWhitespace}
+        onToggleComments={comments.toggleHidden}
         onToggleLayout={toggleLayout}
         onToggleTheme={toggleTheme}
         onFinishReview={() => setReviewOpen(true)}

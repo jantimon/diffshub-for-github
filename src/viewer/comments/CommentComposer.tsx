@@ -4,9 +4,12 @@ import { MarkdownEditor } from '@/viewer/comments/MarkdownEditor';
 
 /** The box for writing one comment, shown at the line it will be left on */
 export function CommentComposer({
+  side,
   onSubmit,
   onCancel,
 }: {
+  /** Which half of the diff the line is in, which is where the tail points */
+  side: 'additions' | 'deletions';
   onSubmit: (text: string) => Promise<boolean>;
   onCancel: () => void;
 }) {
@@ -22,7 +25,7 @@ export function CommentComposer({
   };
 
   return (
-    <div className="dh-composer">
+    <div className="dh-composer" data-side={side} data-tail="line">
       <MarkdownEditor
         value={text}
         onChange={setText}

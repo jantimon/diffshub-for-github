@@ -11,6 +11,7 @@ import {
   IconCheck,
   IconColorDark,
   IconColorLight,
+  IconComment,
   IconDiffSplit,
   IconDiffUnified,
   IconParagraph,
@@ -34,8 +35,10 @@ export function Toolbar({
   diffStyle,
   themeType,
   ignoreWhitespace,
+  hideComments,
   onToggleSidebar,
   onToggleWhitespace,
+  onToggleComments,
   onToggleLayout,
   onToggleTheme,
   onFinishReview,
@@ -51,8 +54,10 @@ export function Toolbar({
   diffStyle: 'split' | 'unified';
   themeType: 'light' | 'dark';
   ignoreWhitespace: boolean;
+  hideComments: boolean;
   onToggleSidebar: () => void;
   onToggleWhitespace: () => void;
+  onToggleComments: () => void;
   onToggleLayout: () => void;
   onToggleTheme: () => void;
   onFinishReview: () => void;
@@ -120,6 +125,20 @@ export function Toolbar({
           }
         >
           <IconParagraph size={16} />
+        </button>
+        <button
+          type="button"
+          className="dh-icon-button"
+          data-dh-action="comments"
+          aria-pressed={hideComments}
+          onClick={onToggleComments}
+          title={
+            hideComments
+              ? 'Reading only — click to bring the conversations back'
+              : 'Hide the conversations and the way to start one'
+          }
+        >
+          <IconComment size={16} />
         </button>
         <button
           type="button"

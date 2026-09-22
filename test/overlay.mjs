@@ -196,6 +196,36 @@ await check('theme switch', async () => {
   return after !== before ? `${before} -> ${after}` : false;
 });
 
+await check('the comments toggle takes the conversations off the diff', async () => {
+  // The recorded pull request has threads on files well down the diff, so this
+  // counts what the viewer has drawn rather than what it could draw
+  const threads = () => frame.locator('.dh-thread').count();
+  const gutter = () => frame.locator('[data-gutter-utility-slot]').count();
+
+  const before = await threads();
+  if (before === 0) {
+    console.log('      skipped: no conversation is on screen');
+    return 'skipped, nothing drawn';
+  }
+
+  const button = frame.locator('[data-dh-action="comments"]');
+  await button.click();
+  await page.waitForTimeout(2500);
+  const hidden = await threads();
+  const hiddenGutter = await gutter();
+  await shoot('comments-hidden');
+
+  await button.click();
+  await page.waitForTimeout(2500);
+  const back = await threads();
+
+  if (hidden !== 0 || hiddenGutter !== 0 || back === 0) {
+    console.log(`      threads ${before} -> ${hidden} -> ${back}, gutter ${hiddenGutter}`);
+    return false;
+  }
+  return `${before} -> ${hidden} -> ${back}`;
+});
+
 await check('shortcut help', async () => {
   await frame.locator('.dh-code').click({ position: { x: 5, y: 5 } });
   await page.keyboard.press('Shift+Slash');

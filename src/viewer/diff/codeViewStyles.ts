@@ -58,7 +58,7 @@ export const HIGHLIGHTER_OPTIONS: WorkerInitializationRenderOptions = {
 export const TREE_STYLE = {
   '--trees-density-override': 0.9,
   '--trees-padding-inline-override': 0,
-  '--trees-item-padding-x-override': 2,
+  '--trees-item-padding-x-override': '2px',
   '--trees-git-renamed-color-override': 'light-dark(#0969da, #4493f8)',
 } as CSSProperties;
 
@@ -69,6 +69,12 @@ export const TREE_CSS = `
 }
 [data-file-tree-virtualized-scroll='true'] {
   padding-inline-start: 0;
+}
+
+/* The rows are tightened to buy width for deep paths. The search box is not a
+   row, and its text needs room from the edge. */
+[data-file-tree-search-input] {
+  padding-inline: 8px;
 }
 
 /* A folder's tick is fainter than a file's: it is a summary of what is inside
@@ -181,5 +187,30 @@ export const HEADER_CSS = `
 
 [data-diffs-header]:has([data-prev-name]) [data-title] {
   font-weight: 600;
+}
+`;
+
+/**
+ * The row a conversation sits in.
+ *
+ * In split view the viewer renders one comment as two cells, one per column,
+ * and tints all four tracks -- two gutters, two columns -- so the row reads as
+ * unchanged code. Between them run five strips of the page background: a gap
+ * after each gutter, and the seam down the middle of the diff. Those strips are
+ * painted by the columns themselves and cannot be recoloured for one row.
+ *
+ * So the row takes the page background instead of the tint. The strips then
+ * match it, the seven pieces become one field across the whole file, and the
+ * card is the only thing on it.
+ *
+ * `--diffs-annotation-bg` is the one variable to set: it feeds the decoration
+ * colour, which feeds the line colour, which is what the row is painted with.
+ * Only colour is set here, so the pair of cells and the height the viewer
+ * measures across them are left alone.
+ */
+export const ANNOTATION_CSS = `
+[data-line-annotation],
+[data-gutter-buffer='annotation'] {
+  --diffs-annotation-bg: var(--diffs-bg);
 }
 `;

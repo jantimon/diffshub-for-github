@@ -64,12 +64,12 @@ failures += await check('comment shows its author and body', async () => {
   return text.includes('jantimon') && text.length > 20 ? text.slice(0, 60) : false;
 });
 failures += await check('a comment renders as GitHub renders it', async () => {
-  const bodies = await frame.locator('.dh-comment-body').count();
+  const bodies = await frame.locator('.dh-comment .dh-markdown').count();
   if (bodies === 0) {
     console.log('      no rendered bodies');
     return false;
   }
-  const html = await frame.locator('.dh-comment-body').first().innerHTML();
+  const html = await frame.locator('.dh-comment .dh-markdown').first().innerHTML();
   return html.includes('<') ? `${bodies} rendered` : false;
 });
 

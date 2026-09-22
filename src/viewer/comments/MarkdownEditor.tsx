@@ -92,7 +92,7 @@ export function MarkdownEditor({
       </div>
 
       {previewing ? (
-        <div className="dh-editor-preview" data-dh-preview>
+        <div className="dh-markdown dh-editor-preview" data-dh-preview>
           {error != null && <p className="dh-editor-error">{error}</p>}
           {error == null && html == null && value.trim() !== '' && <p>Rendering…</p>}
           {value.trim() === '' && <p className="dh-editor-empty">Nothing to preview yet.</p>}

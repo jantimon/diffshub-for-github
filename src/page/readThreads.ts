@@ -25,13 +25,17 @@ interface Preview {
 interface Thread {
   id?: string;
   isResolved?: boolean;
+  resolvedBy?: string | null;
+  viewerCanReply?: boolean;
   commentsData?: { comments?: RawComment[] };
 }
 
 interface RawComment {
   databaseId?: number | string;
   bodyHTML?: string;
-  author?: { login?: string };
+  author?: { login?: string; avatarUrl?: string; isAgent?: boolean };
+  authorAssociation?: string;
+  lastUserContentEdit?: unknown;
   body?: string;
   createdAt?: string;
   url?: string;
@@ -79,6 +83,8 @@ export async function readThreads(
         side: preview?.diffSide === 'LEFT' ? 'deletions' : 'additions',
         isResolved: thread?.isResolved === true,
         isOutdated: preview?.isOutdated === true,
+        resolvedBy: thread?.resolvedBy ?? '',
+        canReply: thread?.viewerCanReply !== false,
         comments: (thread?.commentsData?.comments ?? []).map(toComment),
       });
     }
@@ -97,6 +103,10 @@ function toComment(comment: RawComment): ReviewComment {
   return {
     databaseId: String(comment?.databaseId ?? ''),
     author: comment?.author?.login ?? '',
+    avatarUrl: comment?.author?.avatarUrl ?? '',
+    isAgent: comment?.author?.isAgent === true,
+    association: comment?.authorAssociation ?? '',
+    isEdited: comment?.lastUserContentEdit != null,
     body: comment?.body ?? '',
     bodyHTML: comment?.bodyHTML ?? '',
     createdAt: comment?.createdAt ?? '',

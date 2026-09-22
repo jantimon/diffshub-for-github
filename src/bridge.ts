@@ -28,14 +28,40 @@ export interface PageInfo {
   author?: string;
 }
 
+/**
+ * One comment, as the page read it.
+ *
+ * The fields marked optional are optional because of when, not whether: an
+ * update swaps the viewer while the content script already in the page is the
+ * one from before, so for one reload the viewer reads what the older script
+ * knew how to send. Everything here is checked at the point of use.
+ */
 export interface ReviewComment {
   /** GitHub's own id for the comment, which a reply has to name */
   databaseId: string;
+  /** The author's GitHub login */
   author: string;
+  /**
+   * The author's picture, as GitHub serves it.
+   *
+   * It comes from the payload rather than from the login: an app comments
+   * through an account with no user page, so `Copilot.png` is not its avatar,
+   * and bots are common in a review.
+   */
+  avatarUrl?: string;
+  /** The author is an app rather than a person */
+  isAgent?: boolean;
+  /** What the author is to the repository: `OWNER`, `MEMBER`, `CONTRIBUTOR` */
+  association?: string;
+  /** Changed since it was posted */
+  isEdited?: boolean;
+  /** The markdown as it was written, for when GitHub sends no rendering */
   body: string;
   /** GitHub's own rendering of the body, which is how a suggestion arrives */
   bodyHTML: string;
+  /** When it was left, as an ISO timestamp */
   createdAt: string;
+  /** Where it lives on GitHub */
   url: string;
 }
 
@@ -52,6 +78,10 @@ export interface ReviewThread {
   isResolved: boolean;
   /** The lines this was written against are no longer in the diff */
   isOutdated: boolean;
+  /** Who settled it, empty while it is open */
+  resolvedBy?: string;
+  /** GitHub will take a reply. False on a locked or archived conversation */
+  canReply?: boolean;
   /** Not on GitHub yet: the box the reader is typing into */
   isDraft?: boolean;
   /** The opening comment and its replies. A reply names the first one */

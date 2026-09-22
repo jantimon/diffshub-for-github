@@ -3,6 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- The viewer is an iframe over github.com. A link GitHub renders into a
+         comment names no target, so following one would replace the viewer
+         with the page it points at. -->
+    <base target="_top" />
     <title>DiffsHub</title>
   </head>
   <body>
