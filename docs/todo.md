@@ -119,18 +119,6 @@ worth remembering that the worker asset has unresolved bare imports
 (`import { createHighlighterCore } from "shiki/core"`), which a module worker
 cannot resolve on its own -- that may be the underlying fragility.
 
-## The Firefox storage tier is unverified
-
-The cache picks a store at runtime, and Firefox's viewer is refused
-`browser.storage`, so it should land on the background tier. That was built from
-one console line, never from a run: `pnpm test:firefox` needs a profile signed in
-to github.com, and a throwaway profile could not reach github.com at all.
-
-Reload the viewer with `diffshub-for-github.debug` set and read the first line.
-`keeping what github.com answers in the background` is the expected one; `in none`
-means the background cannot reach storage either and the third tier, the page's
-own `sessionStorage`, is what is carrying it.
-
 ## Smaller things
 
 - `usePatchStream` never sets `phase` back to `loading` when the patch url

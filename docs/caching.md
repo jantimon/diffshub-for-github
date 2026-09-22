@@ -74,8 +74,9 @@ flowchart TD
     F -- no --> H["<b>none</b><br/>every read is a download"]
 ```
 
-Chrome takes the first. Firefox takes the second, because of the restriction
-above. The third exists so a viewer refused both still caches something, and it
+Chrome takes the first. Firefox takes the second, confirmed in a built add-on:
+its framed viewer reports no `browser.storage` at all, and the log there reads
+`keeping what github.com answers in the background`. The third exists so a viewer refused both still caches something, and it
 is the only one that can reach the disk — a browser may write session storage out
 to restore your tabs.
 
