@@ -226,6 +226,38 @@ body {
   content: '';
 }
 
+/*
+ * Which file the keyboard is on.
+ *
+ * Ticking a file off puts the keyboard on the next file's eye, and without a
+ * mark the reader has to hunt for where that landed. The whole file is lifted
+ * rather than the button, because the file is what they are about to read.
+ *
+ * `:focus` rather than `:focus-visible`, because the focus is moved for the
+ * reader rather than by them, and `:focus-visible` would not match after a
+ * click.
+ *
+ * The border is there the whole time and only changes colour, so nothing moves
+ * when a file takes the focus. The viewer measures every row, and a row that
+ * grew on focus would push the diff around under the reader.
+ */
+diffs-container {
+  box-sizing: border-box;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  transition: border-color 200ms ease;
+}
+
+diffs-container:has(.dh-viewed:focus) {
+  border-color: var(--dh-accent, #0969da);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  diffs-container {
+    transition: none;
+  }
+}
+
 .dh-binary {
   width: min(1100px, 92vw);
   max-height: 88vh;
