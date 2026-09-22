@@ -7,7 +7,16 @@
 
 import { checker, launch, openOverlay, screenshots } from './browser.mjs';
 
-const url = process.argv[2] ?? 'https://github.com/nodejs/node/pull/60000';
+/**
+ * A pull request big enough that the viewer recycles rows as you scroll, and
+ * small enough to record.
+ *
+ * Ten files stayed rendered all at once, so the checks never met the recycling
+ * that several real bugs lived in: which file `j` thinks you are on, which
+ * folder counts as read, and an annotation surviving its row being reused.
+ * Forty files across two languages do meet it.
+ */
+const url = process.argv[2] ?? 'https://github.com/microsoft/TypeScript/pull/64204';
 
 const { context, page, noise } = await launch({ har: true });
 const { dir, shoot } = screenshots(page);
@@ -62,7 +71,7 @@ await check('viewed toggles', async () => `${await frame.locator('[data-dh-viewe
 
 await check('exclude filter', async () => {
   const before = await frame.locator('[data-item-type="file"]').count();
-  await frame.locator('.dh-field input').nth(1).fill('test/**');
+  await frame.locator('.dh-field input').nth(1).fill('tsc/**');
   await page.waitForTimeout(2500);
   const after = await frame.locator('[data-item-type="file"]').count();
   const hidden = await frame
@@ -148,18 +157,27 @@ await check('sidebar resizes', async () => {
 });
 
 await check('include filter', async () => {
-  await frame.locator('.dh-field input').first().fill('**/*.js');
+  await frame.locator('.dh-field input').first().fill('**/*.ts');
   await page.waitForTimeout(2500);
   const only = await frame.locator('[data-item-type="file"]').count();
   await frame.locator('.dh-field input').first().fill('');
   await page.waitForTimeout(2500);
-  return only > 0 ? `${only} files match **/*.js` : false;
+  return only > 0 ? `${only} files match **/*.ts` : false;
 });
 
 await check('hunk expansion', async () => {
+  // Start from the top. The checks before this one scroll and filter, and on a
+  // diff long enough to recycle rows the first separator is otherwise wherever
+  // they happened to leave it, or not rendered at all
+  await frame.locator('.dh-code').evaluate((pane) => pane.scrollTo({ top: 0 }));
+  await page.waitForTimeout(2000);
+
   const label = frame.locator('[data-unmodified-lines]').first();
   const before = (await label.textContent())?.trim() ?? '';
-  await frame.locator('[data-expand-button]').first().click();
+
+  const expand = frame.locator('[data-expand-button]').first();
+  await expand.scrollIntoViewIfNeeded({ timeout: 10000 });
+  await expand.dispatchEvent('click');
   await page.waitForTimeout(4000);
   const after = (await label.textContent())?.trim() ?? '';
   await shoot('hunk-expanded');

@@ -43,6 +43,11 @@ write a comment and check GitHub kept it. There is no mocked GitHub, no
 shallow rendering, and nothing calls an internal function to prove a feature
 works.
 
+The suite runs against a pull request of forty files across two languages,
+chosen because the viewer recycles rows at that size. Ten files all stayed
+rendered, so the checks never met the recycling that several real bugs lived
+in. Switching to forty broke a check on the first run, which is the point.
+
 Four things are unit tested instead, because a browser adds nothing to them:
 rebuilding a file's old side (checked against real `git diff` output), glob
 matching, pull request path matching, and that a recording cannot keep
