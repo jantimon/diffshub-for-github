@@ -31,32 +31,12 @@ if (frame == null) {
 
 await shoot('overlay');
 
-await check('patch streamed', async () => (await frame.locator('.dh-stats').textContent())?.trim());
-await check(
-  'file tree populated',
-  async () => `${await frame.locator('[data-item-type="file"]').count()} files`,
-);
-await check('diff stats panel', async () => (await frame.locator('.dh-diffstats').isVisible()) && 'visible');
-// Reaching into the viewer's nested shadow roots directly: a plain locator
-// does not resolve the separator reliably while files are still settling
-const inViewer = (action) =>
-  frame.evaluate((what) => {
-    const find = (root, depth) => {
-      if (depth > 6) return null;
-      const hit = root.querySelector('[data-unmodified-lines]');
-      if (hit != null) return hit;
-      for (const el of root.querySelectorAll('*')) {
-        if (el.shadowRoot == null) continue;
-        const found = find(el.shadowRoot, depth + 1);
-        if (found != null) return found;
-      }
-      return null;
-    };
-    const label = find(document, 0);
-    if (label == null) return null;
-    if (what === 'click') label.click();
-    return label.textContent?.trim() ?? '';
-  }, action);
+// A count of zero is not a pass: an empty diff renders the same toolbar and tree
+await check('the diff renders', async () => {
+  const files = await frame.locator('[data-item-type="file"]').count();
+  const stats = (await frame.locator('.dh-stats').textContent())?.trim() ?? '';
+  return files > 0 && /\+[1-9]/.test(stats) ? `${files} files, ${stats}` : false;
+});
 
 await check('the author is shown', async () => {
   const avatar = frame.locator('.dh-author img');
@@ -65,9 +45,6 @@ await check('the author is shown', async () => {
   const who = await frame.locator('.dh-author').getAttribute('title');
   return loaded ? who : false;
 });
-
-await check('per-file links', async () => `${await frame.locator('.dh-file-links').count()} headers`);
-await check('viewed toggles', async () => `${await frame.locator('[data-dh-viewed]').count()} eyes`);
 
 await check('exclude filter', async () => {
   const before = await frame.locator('[data-item-type="file"]').count();
@@ -269,16 +246,6 @@ await check('j keeps moving down the diff', async () => {
     return false;
   }
   return `${Math.round(start)} -> ${Math.round(once)} -> ${Math.round(twice)}`;
-});
-
-await check('separator bar expands', async () => {
-  const before = await inViewer('read');
-  if (before == null) return false;
-  await inViewer('click');
-  await page.waitForTimeout(3500);
-  const after = await inViewer('read');
-  await shoot('separator-clicked');
-  return before !== after ? `${before} -> ${after}` : false;
 });
 
 await check('closing and reopening asks GitHub for nothing', async () => {

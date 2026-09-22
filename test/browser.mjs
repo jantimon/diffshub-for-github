@@ -56,7 +56,11 @@ const RECORDING_PACE_MS = Number(process.env.DIFFSHUB_PACE_MS ?? 4000);
  */
 const REFUSED = new Set([429, 502, 503, 504]);
 
-export async function launch({ viewport = { width: 1600, height: 1000 }, har = false } = {}) {
+export async function launch({
+  viewport = { width: 1600, height: 1000 },
+  deviceScaleFactor,
+  har = false,
+} = {}) {
   if (!fs.existsSync(dist)) {
     console.log(`No build at ${dist}. Run \`pnpm build\` first.`);
     process.exit(1);
@@ -73,6 +77,7 @@ export async function launch({ viewport = { width: 1600, height: 1000 }, har = f
     channel: 'chromium',
     headless: false,
     viewport,
+    deviceScaleFactor,
     args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
   });
 

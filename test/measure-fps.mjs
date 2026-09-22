@@ -1,20 +1,8 @@
-import { chromium } from '@playwright/test';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
+import { launch, viewerFrame } from './browser.mjs';
 
-const root = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.resolve(root, '../.output/chrome-mv3');
 const pr = process.argv[2] ?? 'https://github.com/nodejs/node/pull/59805';
 
-const context = await chromium.launchPersistentContext(
-  process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'),
-  {
-    channel: 'chromium',
-    headless: false,
-    viewport: { width: 1600, height: 1000 },
-    args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
-  },
-);
+const { context, page } = await launch({ viewport: { width: 1600, height: 1000 } });
 
 // Scrolls for a fixed number of frames and reports how long each one took
 const SCROLL = (selector) => `
@@ -48,12 +36,11 @@ const report = (label, r) =>
     `${label.padEnd(22)} median ${String(r.medianMs).padStart(5)}ms (${Math.round(1000 / r.medianMs)} fps)   p95 ${String(r.p95Ms).padStart(6)}ms   worst ${String(r.worstMs).padStart(5)}ms   frames over 50ms: ${r.longFrames}/180`,
   );
 
-const page = await context.newPage();
 await page.goto(pr, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(4000);
 await page.locator('[data-diffshub-marked]').first().click();
 await page.waitForTimeout(30000);
-const frame = page.frames().find((f) => f.url().startsWith('chrome-extension://'));
+const frame = viewerFrame(page);
 report('DiffsHub overlay', await frame.evaluate(SCROLL(`document.querySelector('.dh-code')`)));
 await page.close();
 

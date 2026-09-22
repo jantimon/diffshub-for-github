@@ -1,28 +1,18 @@
-import { chromium } from '@playwright/test';
+import { launch, viewerFrame } from './browser.mjs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 // A pull request that mixes a reindented file with a real edit, so the toggle
 // has something to hide and something to keep
 const root = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.resolve(root, '../.output/chrome-mv3');
 const url = process.argv[2] ?? 'https://github.com/jantimon/diffshub-for-github/pull/2';
 
-const context = await chromium.launchPersistentContext(
-  process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'),
-  {
-    channel: 'chromium',
-    headless: false,
-    viewport: { width: 1500, height: 950 },
-    args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
-  },
-);
+const { context, page } = await launch({ viewport: { width: 1500, height: 950 } });
 
-const page = context.pages()[0] ?? (await context.newPage());
 const open = async () => {
   await page.locator('[data-diffshub-marked]').first().click();
   await page.waitForTimeout(12000);
-  return page.frames().find((f) => f.url().startsWith('chrome-extension://'));
+  return viewerFrame(page);
 };
 
 await page.goto(url, { waitUntil: 'domcontentloaded' });

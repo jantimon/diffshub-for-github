@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { launch, viewerFrame } from './browser.mjs';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -6,28 +6,18 @@ import path from 'node:path';
 // Everything that reads or writes review state on GitHub, run against our own
 // open pull request. A merged one refuses the writes.
 const root = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.resolve(root, '../.output/chrome-mv3');
 const url = process.argv[2] ?? 'https://github.com/jantimon/diffshub-for-github/pull/1';
 const shots = path.resolve(root, 'screenshots');
 fs.mkdirSync(shots, { recursive: true });
 
-const context = await chromium.launchPersistentContext(
-  process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'),
-  {
-    channel: 'chromium',
-    headless: false,
-    viewport: { width: 1600, height: 1000 },
-    args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
-  },
-);
+const { context, page } = await launch({ viewport: { width: 1600, height: 1000 } });
 
-const page = context.pages()[0] ?? (await context.newPage());
 await page.goto(url, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(3500);
 await page.locator('[data-diffshub-marked]').first().click();
 await page.waitForTimeout(12000);
 
-let frame = page.frames().find((f) => f.url().startsWith('chrome-extension://'));
+let frame = viewerFrame(page);
 if (frame == null) {
   console.log('FAIL: no viewer frame');
   await context.close();
@@ -92,7 +82,7 @@ await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(3000);
 await page.locator('[data-diffshub-marked]').first().click();
 await page.waitForTimeout(10000);
-frame = page.frames().find((f) => f.url().startsWith('chrome-extension://'));
+frame = viewerFrame(page);
 
 // The patch streams and the comments arrive in two paginated walks. The write
 // checks below are about state, so let the overlay settle before touching it

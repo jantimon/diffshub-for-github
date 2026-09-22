@@ -1,12 +1,10 @@
-import { chromium } from '@playwright/test';
+import { launch, viewerFrame } from './browser.mjs';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
 
-// Presentation screenshots for the README. Unlike run-spike.mjs these are kept
-// in git, so they go to docs/images and are shot at a large viewport
+// Presentation screenshots for the README. These are kept in git, so they go to docs/images and are shot at a large viewport
 const root = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.resolve(root, '../.output/chrome-mv3');
 const images = path.resolve(root, '../docs/images');
 
 const PULL_REQUEST = process.argv[2] ?? 'https://github.com/nodejs/node/pull/59805';
@@ -14,18 +12,8 @@ const FALLBACK = 'https://github.com/nodejs/node/pull/60000';
 
 fs.mkdirSync(images, { recursive: true });
 
-const context = await chromium.launchPersistentContext(
-  process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'),
-  {
-    channel: 'chromium',
-    headless: false,
-    viewport: { width: 1680, height: 1050 },
-    deviceScaleFactor: 2,
-    args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
-  },
-);
+const { context, page } = await launch({ viewport: { width: 1680, height: 1050 }, deviceScaleFactor: 2 });
 
-const page = context.pages()[0] ?? (await context.newPage());
 const shoot = async (name, options) => {
   await page.screenshot({ path: path.join(images, `${name}.png`), ...options });
   console.log(`  wrote docs/images/${name}.png`);
@@ -51,8 +39,6 @@ const loadPullRequest = async (url) => {
   }
 };
 
-const viewerFrame = () => page.frames().find((f) => f.url().startsWith('chrome-extension://'));
-
 /** Shiki writes a styled span per token, so these count the highlighting */
 const tokenCount = (frame) =>
   frame
@@ -70,7 +56,7 @@ const tokenCount = (frame) =>
 const waitForRenderedDiff = async () => {
   const deadline = Date.now() + 150000;
   while (Date.now() < deadline) {
-    const frame = viewerFrame();
+    const frame = viewerFrame(page);
     if (frame != null) {
       const lines = await frame
         .locator('[data-line]')
@@ -165,7 +151,7 @@ await page.waitForFunction(() => document.getElementById('diffshub-for-github-vi
   timeout: 30000,
 });
 await page.waitForTimeout(6000);
-await viewerFrame()?.evaluate(() => {
+await viewerFrame(page)?.evaluate(() => {
   for (const key of Object.keys(localStorage)) {
     if (key.startsWith('diffshub-for-github.')) localStorage.removeItem(key);
   }
