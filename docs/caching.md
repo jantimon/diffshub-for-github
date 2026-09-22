@@ -34,27 +34,28 @@ flowchart TD
     G --> H[githubFetch]
     H --> I{ok?}
     I -- no --> J[return the failure<br/>404 and 503 are never kept]
-    I -- yes --> K[tee the body]
-    K --> L[reader's half<br/>parsed immediately]
-    K --> M[cache's half<br/>nobody waits for it]
-    M --> N{read to the end,<br/>not aborted?}
+    I -- yes --> K[pass the body through,<br/>keeping each chunk]
+    K --> L[parsed as it arrives<br/>nothing reads ahead of it]
+    L --> N{source ended<br/>of its own accord?}
     N -- no --> O[drop it<br/>half a patch must not be kept]
-    N -- yes --> P[gzip, then base64]
+    N -- yes --> P[when idle: gzip, then base64]
     P --> Q{within the caps?}
     Q -- no --> R[drop it]
     Q -- yes --> S[evict oldest if needed, store]
 ```
 
-The split is what lets the reader start immediately: its half is parsed as it
-arrives while the copy is taken behind it, awaited by nobody.
+Nothing reads ahead of the parser. The body passes through a transform that
+keeps each chunk as it goes by, so the only thing pulling on github.com is the
+render itself — the backpressure a plain `fetch` has.
 
-It is not free, though. A split stream pulls its source whenever **either** half
-pulls, so the half being packed — which reads as fast as it can — drains the
-network at full speed while the parser works to an 8 ms budget, and everything
-the parser has not reached yet queues up in memory. Measured with a slow reader:
-190 of 200 chunks waiting. On a 20 MB patch that is tens of megabytes held, and
-the compression runs on the main thread while the diff is still drawing. See
-[todo.md](todo.md).
+A **split** stream would not do: it pulls its source whenever either half pulls,
+so a half being read flat out takes the download at full speed and everything the
+parser has not reached piles up. `test/backpressure.mjs` measures both — twelve
+chunks produced against two hundred, for the same ten read.
+
+Compressing waits for an idle moment. The instant a patch finishes downloading is
+the instant the diff is still drawing, and that is the one thread this viewer
+cannot afford to spend.
 
 ## Where it is kept
 
@@ -144,15 +145,18 @@ must never be able to fail a render.
   is held for five minutes after closing, which covers them.
 - **Anything that is not `ok`.** A 404 from a lapsed session or a 503 from a busy
   host must be asked again, not remembered for the session.
-- **A body that did not finish** — as far as the transport can tell. GitHub
-  sends the patch gzipped with no length, so there is no count to check against.
-  Gzip's own trailer does **not** save you: Chrome's decoder skips the footer and
-  ends a truncated gzip body cleanly. What actually protects a real download is
-  HTTP/2's end-of-stream, which a dropped connection does not fake. On Firefox
-  the patch arrives over a port from the background, and there a disconnect
-  mid-download is treated as an error rather than an end
-  (`githubFetch.ts`) — without that, a background event page going away halfway
-  would store the first few files as the whole diff.
+- **A body that did not finish.** The transform's `flush` runs only when the
+  source ends of its own accord. A body that stops short errors the stream and a
+  reader giving up cancels it, and neither runs `flush`, so neither can leave
+  half a patch to be stored and served as the whole. That is the same signal the
+  parser trusts to call the diff complete, so the two cannot disagree.
+
+  This used to rest on the transport instead, and on a claim about gzip that is
+  false — Chrome's decoder skips the trailer and ends a truncated body cleanly.
+  On Firefox the patch arrives over a port from the background, where a
+  disconnect mid-download is treated as an error rather than an end
+  (`githubFetch.ts`); that still matters, because it is what makes the stream
+  error rather than end.
 
 ## Watching it work
 
@@ -194,4 +198,5 @@ the test harness has no counterpart in the product. See `docs/todo.md`.
 | `src/entrypoints/background.ts` | serves the store to a viewer refused its own |
 | `test/response-cache.mjs` | the bounds policy, offline |
 | `test/pack-round-trip.mjs` | that a patch of any size survives packing |
+| `test/backpressure.mjs` | that nothing reads ahead of the parser |
 | `test/overlay.mjs` | proves a reload costs no patch request |

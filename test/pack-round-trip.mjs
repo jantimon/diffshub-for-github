@@ -39,7 +39,7 @@ const read = async (stream) => await new Response(stream).text();
 
 for (const lines of [10, 5_000, 60_000, 200_000]) {
   const text = patch(lines);
-  const packed = await pack(text, LIMITS.maxRawChars);
+  const packed = await pack([new TextEncoder().encode(text)], LIMITS.maxRawBytes);
   if (packed == null) {
     check(`${Math.round(text.length / 1024)} KB of patch packs`, false);
     continue;
@@ -53,7 +53,7 @@ for (const lines of [10, 5_000, 60_000, 200_000]) {
 
 // The character that makes a string two bytes apiece, in case anyone assumes ASCII
 const wide = `diff --git a/a b/a\n+ ${'🙂 über naïve ünicode'.repeat(20_000)}`;
-const packedWide = await pack(wide, LIMITS.maxRawChars);
+const packedWide = await pack([new TextEncoder().encode(wide)], LIMITS.maxRawBytes);
 check(
   'a patch full of characters outside latin-1 survives',
   packedWide != null && (await read(unpack(packedWide))) === wide,
@@ -61,7 +61,7 @@ check(
 
 check(
   'something implausibly large is refused rather than thrown',
-  (await pack('x'.repeat(60_000_000), LIMITS.maxRawChars)) === undefined,
+  (await pack([new TextEncoder().encode('x'.repeat(60_000_000))], LIMITS.maxRawBytes)) === undefined,
 );
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILED`);

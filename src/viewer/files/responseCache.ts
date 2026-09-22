@@ -42,14 +42,14 @@ const LOCK_NAME = `diffshub.cache.v${VERSION}`;
  * 135 KB of it, and the 20 MB one this viewer was built for costs about
  * 3.6 MB, so it is kept rather than refused.
  *
- * `maxRawChars` is the guard before any of that: compressing something absurd
+ * `maxRawBytes` is the guard before any of that: compressing something absurd
  * costs time and memory to reach the same refusal.
  */
 export const LIMITS = {
   maxEntries: 24,
   maxEntryChars: 6_000_000,
   maxTotalChars: 8_000_000,
-  maxRawChars: 48_000_000,
+  maxRawBytes: 48_000_000,
 } as const;
 
 /**
@@ -64,15 +64,15 @@ export const WEB_LIMITS = {
   maxEntries: 12,
   maxEntryChars: 3_000_000,
   maxTotalChars: 4_000_000,
-  maxRawChars: 48_000_000,
+  maxRawBytes: 48_000_000,
 } as const;
 
 export interface Limits {
   maxEntries: number;
   maxEntryChars: number;
   maxTotalChars: number;
-  /** The most raw text worth compressing, before anything is spent on trying */
-  maxRawChars: number;
+  /** The most downloaded bytes worth compressing, before anything is spent trying */
+  maxRawBytes: number;
 }
 
 export interface CacheEntry {

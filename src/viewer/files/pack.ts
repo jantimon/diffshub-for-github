@@ -30,12 +30,21 @@ const BASE64_CHUNK = 8192;
  * json, and bytes do not -- a `Uint8Array` comes back as `{"0":31,"1":139}`.
  *
  * The third of a size base64 costs back is worth paying for the seven it saves.
+ *
+ * It takes the chunks as they arrived rather than a string. A `Blob` joins them
+ * itself, so nothing here builds a second copy of the patch, and the bytes never
+ * become a javascript string -- which for anything outside latin-1 would be two
+ * bytes a character for no reason.
  */
-export async function pack(text: string, maxRawChars: number): Promise<string | undefined> {
-  if (text.length > maxRawChars) return undefined;
+export async function pack(chunks: readonly Uint8Array[], maxRawBytes: number): Promise<string | undefined> {
+  let raw = 0;
+  for (const chunk of chunks) raw += chunk.byteLength;
+  if (raw > maxRawBytes) return undefined;
+
   try {
     const gzip = new CompressionStream('gzip');
-    const bytes = await new Response(new Blob([text]).stream().pipeThrough(gzip)).bytes();
+    const parts = chunks as unknown as BlobPart[];
+    const bytes = await new Response(new Blob(parts).stream().pipeThrough(gzip)).bytes();
     return toBase64(bytes);
   } catch {
     // No compression to be had here, so there is nothing worth storing either

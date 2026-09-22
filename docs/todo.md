@@ -61,31 +61,6 @@ A sender check against `browser.runtime.getURL('/viewer.html')` and an origin
 allowlist is a few lines. Worth doing **before** anything moves Chrome onto the
 same port, which would hand Chrome the same capability.
 
-## Splitting the patch body costs backpressure
-
-`cachedGithubFetch` uses `response.body.tee()`: one half to the parser, one to
-the cache. A split stream pulls its source whenever either half pulls, so the
-cache's half — which reads flat out — takes the network at full speed while the
-parser works to an 8 ms budget, and the gap queues in memory. Measured with a
-200-chunk source and a slow reader: 10 chunks produced without the split, all
-200 with it.
-
-Before, an unread `fetch` body filled the pipe and the network service stopped
-reading the socket, so memory was bounded by how fast the parser went. That is
-gone. On a 20 MB patch: the queue, plus the whole text in `absorb`, plus the
-Blob copy, plus gzip's output, plus the base64 string. Worse than the memory is
-the timing — compressing and base64ing and a multi-megabyte storage write all
-land on the main thread **during** the progressive render, which is the thing
-the 8 ms budget exists to protect.
-
-The fix is to stop splitting. `usePatchStream` already holds the whole patch, so
-let the parser collect the text it has already decoded and hand it over once
-`streamPatchFiles` returns normally and the signal is not aborted, inside
-`requestIdleCallback`. Backpressure comes back, the packing happens after the
-render rather than inside it, and completeness becomes the parser's own signal
-instead of the transport's — which would also retire the framing argument in
-[caching.md](caching.md).
-
 ## Push detection may never fire
 
 `content.ts` re-reads `readHeadSha()` on `visibilitychange` to notice a push, and

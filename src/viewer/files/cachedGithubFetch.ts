@@ -92,10 +92,7 @@ export async function cachedGithubFetch(url: string, { sha, signal }: CachedFetc
   }
   note(`${named(url)} fetched from github.com`);
 
-  const [toReader, toCache] = response.body.tee();
-  void absorb(toCache, sha, url, signal);
-
-  return new Response(toReader, {
+  return new Response(response.body.pipeThrough(capture(sha, url, signal)), {
     status: response.status,
     statusText: response.statusText,
     headers: response.headers,
@@ -103,61 +100,88 @@ export async function cachedGithubFetch(url: string, { sha, signal }: CachedFetc
 }
 
 /**
- * Reads the second half of the split body into a string and stores it.
+ * Passes the body through, keeping a copy of what went past.
  *
- * Nothing waits for this: the download it belongs to has already been handed
- * over and is being parsed. A body that did not finish is thrown away rather
- * than stored -- the reader closing the overlay after five of forty files must
- * not leave those five behind to be served as the whole patch.
+ * A pass-through and not a split. A split stream pulls its source whenever
+ * either half pulls, so the half being kept -- which reads as fast as it can --
+ * took the network at full speed while the parser worked to its own budget.
+ * Everything the parser had not reached piled up in memory.
  *
- * What makes a short read detectable is the encoding. GitHub sends the patch
- * gzipped and names no length, so there is no count to check against. But a
- * gzip stream carries its own checksum and length in its trailer, and a browser
- * errors a truncated one rather than ending it, so reaching the end without
- * throwing is the guarantee. It is the encoding's guarantee rather than ours.
+ * Here the parser is the only thing pulling, which is the backpressure a plain
+ * `fetch` had before any of this existed. `test/backpressure.mjs` measures the
+ * difference: twelve chunks produced against two hundred, for the same ten
+ * read.
+ *
+ * It also decides what "finished" means, and decides it better.
+ *
+ * `flush` runs only when the source ends of its own accord. A body that stops
+ * short errors the stream, a reader giving up cancels it, and neither runs
+ * `flush` -- so neither can leave half a patch to be served as the whole. That
+ * is the signal the parser trusts to call the diff complete, so the two can no
+ * longer disagree.
  */
-async function absorb(
-  stream: ReadableStream<Uint8Array>,
+function capture(
   sha: string,
   url: string,
   signal: AbortSignal | undefined,
-): Promise<void> {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let text = '';
+): TransformStream<Uint8Array, Uint8Array> {
+  let chunks: Uint8Array[] | undefined = [];
+  let bytes = 0;
 
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value == null) continue;
-      text += decoder.decode(value, { stream: true });
-      if (text.length > storageLimits().maxRawChars) {
-        // Too big to keep. Letting go of this half stops the split holding
-        // chunks for it, and the half being read is untouched, because a split
-        // cancels its source only once both halves have been given up
-        await reader.cancel();
+  return new TransformStream({
+    transform(chunk, controller) {
+      // Downstream first: the reader waits on nothing this does
+      controller.enqueue(chunk);
+      if (chunks == null) return;
+
+      bytes += chunk.byteLength;
+      if (bytes > storageLimits().maxRawBytes) {
+        // Beyond what could be kept anyway, so stop holding it
+        chunks = undefined;
         return;
       }
-    }
-    text += decoder.decode();
+      chunks.push(chunk);
+    },
 
-    if (signal?.aborted === true) return;
-    const packed = await pack(text, storageLimits().maxRawChars);
-    if (packed == null) {
-      note(`${named(url)} not kept, ${kb(text.length)} would not compress or is too large`);
-      return;
-    }
-    const kept = await writeCached(sha, url, packed);
-    note(
-      kept
-        ? `${named(url)} kept, ${kb(text.length)} of diff as ${kb(packed.length)}`
-        : `${named(url)} not kept, storage refused ${kb(packed.length)}`,
-    );
-  } catch {
-    // A cancelled download, or a body that stopped short. There is nothing
-    // whole to store
-  } finally {
-    reader.releaseLock();
+    flush() {
+      const kept = chunks;
+      chunks = undefined;
+      if (kept == null || signal?.aborted === true) return;
+      // Nothing waits for this. The patch is downloaded and parsed, and
+      // compressing it is work for a moment nobody is waiting through
+      whenIdle(() => void store(kept, sha, url));
+    },
+  });
+}
+
+async function store(chunks: Uint8Array[], sha: string, url: string): Promise<void> {
+  let raw = 0;
+  for (const chunk of chunks) raw += chunk.byteLength;
+
+  const packed = await pack(chunks, storageLimits().maxRawBytes);
+  if (packed == null) {
+    note(`${named(url)} not kept, ${kb(raw)} would not compress or is too large`);
+    return;
   }
+
+  const kept = await writeCached(sha, url, packed);
+  note(
+    kept
+      ? `${named(url)} kept, ${kb(raw)} of diff as ${kb(packed.length)}`
+      : `${named(url)} not kept, storage refused ${kb(packed.length)}`,
+  );
+}
+
+/**
+ * Runs the work when the browser has nothing better to do.
+ *
+ * Compressing a large patch is not free, and the moment it finishes downloading
+ * is the moment the diff is still drawing. Firefox and Chrome both have
+ * `requestIdleCallback`, and a timeout is the fallback, no worse than what this
+ * replaced.
+ */
+function whenIdle(work: () => void): void {
+  const idle = (globalThis as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+  if (typeof idle === 'function') idle(work);
+  else setTimeout(work, 0);
 }
