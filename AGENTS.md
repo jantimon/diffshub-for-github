@@ -32,6 +32,40 @@ pnpm compile              # tsc --noEmit
 
 Write tests only against `jantimon/diffshub-for-github`.
 
+## How the tests work
+
+> The more your tests resemble the way the software is used, the more
+> confidence they can give you.
+
+So the suites drive a real browser, with the real extension loaded, against
+real github.com: click the tab a reader clicks, press the keys they press,
+write a comment and check GitHub kept it. There is no mocked GitHub, no
+shallow rendering, and nothing calls an internal function to prove a feature
+works.
+
+Four things are unit tested instead, because a browser adds nothing to them:
+rebuilding a file's old side (checked against real `git diff` output), glob
+matching, pull request path matching, and that a recording cannot keep
+credentials. All four are pure functions with exact answers.
+
+Four places knowingly reach past the interface. Each is a limit, not a
+preference, and none should be copied without the same reason:
+
+- **Asserting a write reached GitHub.** `review.mjs` watches for the response,
+  because a comment appearing on screen does not prove GitHub accepted it.
+- **Walking shadow roots.** The viewer library renders the diff, its headers
+  and its rows into shadow DOM, and some of it cannot be reached by a locator.
+- **Dispatching one click.** The send button inside a thread is visible and
+  enabled, but the virtualiser re-measures rows constantly so it never counts
+  as settled. The check asserts visible and enabled by hand, then dispatches.
+- **Reading `scrollTop`.** The closest observable to "the diff moved", which is
+  what a reader sees when they press `j`.
+
+`pnpm test` replays recorded traffic, which is a step away from the real thing
+and buys back a suite that cannot be throttled. `pnpm test:live` is the same
+checks against github.com, and is the one that catches GitHub changing under
+us. Run it before believing a green replay.
+
 ## House rules
 
 Comments say **why**, never what the code already says, and never narrate
