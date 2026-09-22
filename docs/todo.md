@@ -98,27 +98,6 @@ Check it live: open a pull request, push to it from elsewhere, switch tabs back,
 and see whether the toast arrives. If it does not, either drop the feature or
 find something on the page that does change.
 
-## One highlighting worker fails to start
-
-`pnpm test` reports `Worker error: Event {... pendingSetupRequestId: req_1,
-initialized: false ...}` once per run. Bisected to the commit that added the
-cache, reproducibly, against the same profile and recording; the commit before
-it is silent.
-
-What it is not: the worker asset is byte-identical to the one built before that
-commit, the `storage` permission is not the cause (removing it changes nothing),
-and **highlighting works** -- tokens carry their `--diffs-token-*` properties, so
-the pool carries on with its other workers. It costs a console line, not a
-feature.
-
-The likely shape is timing. The cache adds a storage read before the patch
-request, which moves when the first items reach `CodeView` relative to the pool
-setting itself up, and a diagnostic run showed two setup requests (`req_1` and
-`req_2`) rather than one. Worth confirming before doing anything about it, and
-worth remembering that the worker asset has unresolved bare imports
-(`import { createHighlighterCore } from "shiki/core"`), which a module worker
-cannot resolve on its own -- that may be the underlying fragility.
-
 ## Smaller things
 
 - `usePatchStream` never sets `phase` back to `loading` when the patch url

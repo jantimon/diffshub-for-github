@@ -26,7 +26,19 @@ export const POOL_OPTIONS: WorkerPoolOptions = {
   poolSize: Math.min(Math.max(1, (navigator.hardwareConcurrency ?? 1) - 1), 3),
   totalASTLRUCacheSize: 100,
   workerFactory: () => {
-    const worker = new URL('@pierre/diffs/worker/worker.js', import.meta.url);
+    /**
+     * The portable worker, not `worker.js`.
+     *
+     * `worker.js` is shipped unbundled: it imports `shiki/core`, `diff`,
+     * `@pierre/theming` and four more by bare name. A module worker resolves no
+     * bare specifier and there is no import map, so it failed on its first line
+     * in every browser and every build.
+     *
+     * Silently, too: highlighting falls back to the main thread, which is the
+     * one thread this viewer cannot afford to spend. `worker-portable.js` is
+     * the same worker with its dependencies built in.
+     */
+    const worker = new URL('@pierre/diffs/worker/worker-portable.js', import.meta.url);
     if (worker.origin === location.origin) return new Worker(worker, { type: 'module' });
 
     /**
