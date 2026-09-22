@@ -30,10 +30,7 @@ async function watchHostAccess(): Promise<void> {
 /** The toolbar button is a second way in, for when the tab strip is off screen */
 export default defineBackground(() => {
   if (import.meta.env.FIREFOX) serveGithubFetch();
-  /**
-   * Unconditional, unlike the fetch proxy. Only Firefox's framed viewer needs
-   * it today, and a listener nobody messages costs nothing
-   */
+  /** Unconditional, unlike the fetch proxy: the viewer keeps its cache here in both browsers */
   serveResponseCache();
   void watchHostAccess();
 

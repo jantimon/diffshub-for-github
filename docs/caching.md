@@ -44,10 +44,12 @@ which treats a disconnect before `end` as an error for the same reason.
 `storage.session`: in memory, shared across tabs, gone when the browser closes.
 Never `storage.local` or the Cache API, which would put private diffs on disk.
 
-Chrome's viewer has that api itself. Firefox withholds `browser.storage` from a
-viewer framed by github.com, so there the background holds it and answers over
-`runtime.sendMessage`. What crosses is a string; Chrome's messaging is json and
-bytes would not survive it.
+The background holds it in both browsers and the viewer asks over
+`runtime.sendMessage`. Firefox would leave no choice, since it withholds
+`browser.storage` from a viewer framed by github.com; Chrome's viewer has the
+api, but one route means the Chrome suite runs the path Firefox uses. What
+crosses is a string: Chrome's messaging is json, and bytes would not survive
+it.
 
 ## Staleness
 

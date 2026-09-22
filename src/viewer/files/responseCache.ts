@@ -50,7 +50,15 @@ interface Area {
   remove: (keys: string[]) => Promise<void>;
 }
 
-/** The same four operations, whether the storage is in reach or behind the background */
+/**
+ * The four operations the viewer asks the background for.
+ *
+ * Always the background, in both browsers. Firefox withholds `browser.storage`
+ * from a viewer framed by github.com, and Chrome's viewer has it, but one route
+ * is one thing to test: the Chrome suite then runs the same path Firefox does.
+ * What crosses is a string, so nothing depends on how a browser serialises a
+ * message.
+ */
 interface Store {
   get: (key: string) => Promise<unknown>;
   set: (key: string, value: Body) => Promise<void>;
@@ -81,27 +89,10 @@ function sessionArea(): Area {
   return browser.storage.session as unknown as Area;
 }
 
-function direct(area: Area): Store {
-  return {
-    get: async (key) => (await area.get(key))[key],
-    set: (key, value) => area.set({ [key]: value }),
-    usage: () => usageOf(area),
-    clear: () => clearIn(area),
-  };
-}
-
 async function askBackground(message: Ask): Promise<unknown> {
   return await browser.runtime.sendMessage(message);
 }
 
-/**
- * Asking the background to hold things.
- *
- * On Firefox the viewer is framed by github.com and `browser.storage` is not
- * handed to it at all, the same restriction that partitions its cookie jar. The
- * background has the whole api in both browsers, and what crosses to it is a
- * string, so nothing depends on how a browser serialises a message.
- */
 function throughBackground(): Store {
   return {
     get: (key) => askBackground({ channel: CHANNEL, op: 'get', key }),
@@ -141,21 +132,14 @@ export function serveResponseCache(): void {
   );
 }
 
-let store: { found: Store; where: string } | null | undefined;
+let store: Store | null | undefined;
 
-/**
- * The page's own storage where it has one, which is Chrome, and the background
- * otherwise. `browser` is named bare because the build rewrites that into an
- * import, and `typeof` keeps it safe in plain node
- */
-function chosen(): { found: Store; where: string } | null {
+/** `browser` is named bare because the build rewrites that into an import, and `typeof` keeps it safe in plain node */
+function chosen(): Store | null {
   if (store !== undefined) return store;
-  store = null;
   try {
-    if (typeof browser === 'undefined') return store;
-    if (browser.storage?.session != null) store = { found: direct(sessionArea()), where: 'this page' };
-    else if (browser.runtime?.sendMessage != null)
-      store = { found: throughBackground(), where: 'the background' };
+    store =
+      typeof browser !== 'undefined' && browser.runtime?.sendMessage != null ? throughBackground() : null;
   } catch {
     store = null;
   }
@@ -164,7 +148,7 @@ function chosen(): { found: Store; where: string } | null {
 
 /** Where things are kept, for the log */
 export function describeStorage(): string {
-  return chosen()?.where ?? 'nowhere, nothing will be kept';
+  return chosen() == null ? 'nowhere, nothing will be kept' : 'the background';
 }
 
 function keyOf(sha: string, url: string): string {
@@ -173,7 +157,7 @@ function keyOf(sha: string, url: string): string {
 
 /** The compressed answer, or nothing */
 export async function readCached(sha: string, url: string): Promise<string | undefined> {
-  const found = chosen()?.found;
+  const found = chosen();
   if (found == null) return undefined;
   try {
     const stored = (await found.get(keyOf(sha, url))) as Partial<Body> | undefined;
@@ -187,7 +171,7 @@ export async function readCached(sha: string, url: string): Promise<string | und
 
 /** Says whether it stored, so the log does not report a copy that was never made */
 export async function writeCached(sha: string, url: string, packed: string): Promise<boolean> {
-  const found = chosen()?.found;
+  const found = chosen();
   if (found == null || packed.length > BUDGET_CHARS) return false;
 
   const key = keyOf(sha, url);
