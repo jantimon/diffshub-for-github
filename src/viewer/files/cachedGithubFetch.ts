@@ -14,33 +14,16 @@
 
 import { githubFetch } from '@/viewer/files/githubFetch';
 import { pack, unpack } from '@/viewer/files/pack';
-import { readSetting } from '@/viewer/settings';
+import { debugLog } from '@/viewer/debug';
 import { describeStorage, MAX_RAW_BYTES, readCached, writeCached } from '@/viewer/files/responseCache';
 
 /** Marks a response that never touched the network, for anyone reading one */
 const CACHE_HEADER = 'x-diffshub-cache';
 
-/**
- * Says where an answer came from.
- *
- * Whether a patch was downloaded or reused is otherwise invisible, and it is
- * the first thing worth knowing when the cache misbehaves. But nothing else in
- * the extension writes to a reader's console, so it is on during development
- * and off in a built one until it is asked for:
- *
- *     localStorage.setItem('diffshub-for-github.debug', 'on')
- *
- * in the viewer's own console, which a built extension has no other way to
- * reach.
- */
-let talking: boolean | undefined;
 let said = false;
 
-function note(message: string): void {
-  talking ??= import.meta.env.DEV || readSetting('debug', 'off') === 'on';
-  if (!talking) return;
-  console.info(`DiffsHub: ${message}`);
-}
+/** Says where an answer came from, which is the first thing worth knowing when the cache misbehaves */
+const note = (message: string): void => debugLog(message);
 
 function named(url: string): string {
   return url.slice(url.lastIndexOf('/') + 1).slice(0, 60);
