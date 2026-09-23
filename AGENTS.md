@@ -49,10 +49,13 @@ rendered, so the checks never met the recycling that several real bugs lived
 in. Switching to forty broke a check on the first run, which is the point.
 
 A few things are unit tested instead, because a browser adds nothing to them
-or cannot reach them: rebuilding a file's old side and spotting a spacing-only
-change (both checked against real `git diff` output), pull request path
-matching, that a recording cannot keep credentials, and that a large patch
-survives the cache's packing. `test:units` in `package.json` is the list.
+or cannot reach them: splitting a streamed patch into files, the file filters,
+find (including gaps opened in a loaded file), rebuilding a file's old side and
+spotting a spacing-only change (all checked against real `git diff` output),
+pull request path matching, that a recording cannot keep credentials, and that
+a large patch survives the cache's packing. They are in `test/unit/`, on Node's
+own test runner, and `src/patch/` imports nothing that needs a browser, so all
+of it loads there.
 
 Four places knowingly reach past the interface. Each is a limit, not a
 preference, and none should be copied without the same reason:
