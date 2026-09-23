@@ -15,6 +15,14 @@ export interface ShortcutHandlers {
   close(): void;
 }
 
+/**
+ * A key pressed inside an open dialog belongs to the dialog. Esc there closes
+ * the dialog, and must not also close the viewer behind it
+ */
+function inDialog(event: KeyboardEvent): boolean {
+  return event.composedPath().some((node) => node instanceof HTMLDialogElement && node.open);
+}
+
 // composedPath sees through a shadow root, which event.target does not
 function isTyping(event: KeyboardEvent): boolean {
   const target = event.composedPath()[0] ?? event.target;
@@ -40,6 +48,7 @@ export function useShortcuts(handlers: ShortcutHandlers): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (inDialog(event)) return;
       // Find's keys are chords, and work from inside a text box too
       const chord = (event.metaKey || event.ctrlKey) && !event.altKey;
       const key = event.key.toLowerCase();

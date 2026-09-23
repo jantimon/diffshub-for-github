@@ -290,6 +290,28 @@ await check('approving offers to mark the remaining files, unticked', async () =
   return (await frame.locator('.dh-review-mark-all').count()) === 0 && 'shown for approve only, off';
 });
 
+// A dialog handles its own Esc: it closes the dialog and leaves the viewer open
+await check('Esc in a dialog closes the dialog, not the viewer', async () => {
+  const closed = [];
+  for (const [name, opener, selector] of [
+    ['review', '[data-dh-action="review"]', '.dh-review'],
+    ['shortcuts', '[data-dh-action="help"]', '.dh-help'],
+  ]) {
+    await frame.locator(opener).click();
+    await page.waitForTimeout(500);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
+    const dialogGone = (await frame.locator(selector).count()) === 0;
+    const viewerOpen = await page.locator('#diffshub-for-github-viewer').isVisible();
+    if (!dialogGone || !viewerOpen) {
+      console.log(`      ${name}: dialog closed ${dialogGone}, viewer still open ${viewerOpen}`);
+      return false;
+    }
+    closed.push(name);
+  }
+  return `${closed.join(' and ')} closed alone`;
+});
+
 // The virtualiser owns the scrolling element, so this finds it by behaviour:
 // the thing with somewhere to scroll, rather than by a class name that is not
 // ours to depend on
