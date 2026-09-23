@@ -5,7 +5,7 @@
  * shadow roots, so none of this can live in the ordinary stylesheet: it is
  * handed to each component to adopt. Everything here is about telling one file
  * from the next and one kind of change from another -- the rest of the styling
- * is in `viewer/style.css`.
+ * is in `src/entrypoints/viewer/style.css`.
  */
 
 import { DEFAULT_THEMES } from '@pierre/diffs';
@@ -88,7 +88,6 @@ export const TREE_STYLE = {
 export const TREE_CSS = `
 [data-file-tree-search-container] {
   padding-inline: 0;
-  margin-right: 0;
 }
 [data-file-tree-virtualized-scroll='true'] {
   padding-inline-start: 0;
@@ -132,42 +131,13 @@ export const TREE_CSS = `
     top 160ms ease-out,
     bottom 160ms ease-out;
 }
-
-[data-dh-in-view][hidden] {
-  display: none;
-}
 `;
 
 /**
- * The bar reads as a heading rather than a control: a bare chevron and a count.
- * Clicking the label already reveals the whole gap, while the chevrons step
- * through it, so the label is marked as clickable and given a verb. Nothing
- * here may change a row's height -- the viewer measures them.
- *
- * The chevrons follow the label rather than sitting in the line-number column,
- * where they read as an accordion's toggle for the file. The viewer draws the
- * bar twice, in the gutter and in the code column, and shows the gutter's copy
- * stretched across the column. Only that copy is laid out again here, so the
- * copies the viewer hides stay hidden, and a filler after the chevrons carries
- * the grey to the far edge.
- */
-export const SEPARATOR_CSS = `
-[data-unmodified-lines] {
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-[data-separator]:hover [data-expand-button] {
-  opacity: 1;
-}
-
-[data-unmodified-lines]::before {
-  content: 'Show ';
-}
-
-/*
- * One bar, centred across the whole line, with the chevron on both sides of
- * the label.
+ * The bar for lines the diff does not show: one bar, centred across the whole
+ * line, with a chevron either side of its label. Clicking the label reveals
+ * the whole gap and the chevrons step through it, so the label is given a
+ * verb. Nothing here may change a row's height -- the viewer measures them.
  *
  * The viewer draws the bar in every column, and each code column clips what
  * overflows it, so no one element can cross from the old side to the new. So
@@ -179,7 +149,15 @@ export const SEPARATOR_CSS = `
  * Measures used below: 100% is the width of the line-number column, the box
  * the bar is placed in, and 100cqi the width of the code column.
  */
+export const SEPARATOR_CSS = `
+[data-unmodified-lines]::before {
+  content: 'Show ';
+}
+
 [data-gutter] [data-separator][data-expand-index] [data-separator-wrapper] {
+  --dh-bar: light-dark(color-mix(in lab, var(--diffs-bg) 98%, var(--diffs-mixer)), var(--diffs-bg-separator));
+
+  z-index: 2;
   display: flex;
   box-sizing: border-box;
   align-items: stretch;
@@ -187,10 +165,7 @@ export const SEPARATOR_CSS = `
   padding-inline-start: 0;
   /* The hatching of a missing row, the viewer's own, over a lighter grey in
      light mode: the bar stands for lines that are there but not shown */
-  background-color: light-dark(
-    color-mix(in lab, var(--diffs-bg) 98%, var(--diffs-mixer)),
-    var(--diffs-bg-separator)
-  );
+  background-color: var(--dh-bar);
   background-image: repeating-linear-gradient(
     -45deg,
     transparent,
@@ -201,6 +176,52 @@ export const SEPARATOR_CSS = `
   background-position: 5px 0;
   background-size: 8px 8px;
   background-origin: border-box;
+
+  /* The label and the chevrons sit on the plain grey, so the stripes never
+     run through the text */
+  & [data-separator-content],
+  & [data-expand-button] {
+    background-color: var(--dh-bar);
+  }
+
+  /* As wide as its text: the viewer lets it grow to fill the bar */
+  & [data-separator-content] {
+    flex: none;
+    order: 1;
+    padding-inline: 4px;
+  }
+
+  /* Underlining on hover would mark only the half under the pointer */
+  & [data-separator-content]:hover {
+    text-decoration: none;
+  }
+
+  & [data-expand-button] {
+    border: 0;
+    border-radius: 4px;
+  }
+
+  & [data-expand-button]:hover {
+    background-color: color-mix(in srgb, currentColor 10%, var(--dh-bar));
+  }
+
+  /* A gap opening both ways has a chevron for each way: up before the label,
+     down after it. The viewer stacks them otherwise */
+  &[data-separator-multi-button] [data-expand-down] {
+    order: 2;
+  }
+
+  /* At the far end of the line, out of the flow so the label stays centred.
+     Each half has a copy at the end of its bar: in a split view the old
+     side's lies past its column and is clipped, so the one seen is the new
+     side's, at the end of the line */
+  & [data-expand-all-button] {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 4px;
+    display: flex;
+    padding-inline: 8px;
+  }
 }
 
 /* The old side, or the only side: from where the code starts, with as much
@@ -220,23 +241,34 @@ export const SEPARATOR_CSS = `
 
 [data-deletions] [data-gutter] [data-separator][data-expand-index] [data-separator-wrapper] {
   inline-size: calc(200cqi - 100%);
-  border-radius: 6px 0 0 6px;
+}
+
+/* The new side of a split view: the same bar, centred on the same line. The
+   viewer hides this copy's label and chevrons, which are shown again here */
+[data-additions] [data-gutter] [data-separator][data-expand-index] [data-separator-wrapper] {
+  inset-inline-start: -100cqi;
+  inline-size: 200cqi;
+  border-radius: 0 6px 6px 0;
+
+  & [data-separator-content],
+  & [data-expand-button] {
+    display: flex;
+  }
 }
 
 /*
  * The divider between the two sides of a split view. The viewer draws it as a
- * border on one of the sides, which sits outside what that column can paint over,
+ * border on both sides, which sits outside what either column can paint over,
  * so it would run as a line through the middle of every bar, and it leaves the
  * two columns a pixel apart in width, so the halves would not meet. Drawn
- * inside the column instead, it keeps its place beside the code, and the bar,
- * one layer up, covers it where the halves meet.
+ * inside the old column instead, it keeps its place beside the code, and the
+ * bar, one layer up, covers it where the halves meet.
  */
 [data-deletions] {
   position: relative;
   border-inline-end: 0;
 }
 
-/* The viewer can draw the same divider from this side instead */
 [data-additions] {
   border-inline-start: 0;
 }
@@ -250,91 +282,6 @@ export const SEPARATOR_CSS = `
   pointer-events: none;
   content: '';
   background-color: var(--diffs-bg);
-}
-
-[data-gutter] [data-separator][data-expand-index] [data-separator-wrapper] {
-  z-index: 2;
-}
-
-/* The new side of a split view: the same bar, centred on the same line */
-[data-additions] [data-gutter] [data-separator][data-expand-index] {
-  background-color: var(--diffs-bg);
-}
-
-[data-additions] [data-gutter] [data-separator][data-expand-index] [data-separator-wrapper] {
-  inset-inline-start: -100cqi;
-  inline-size: 200cqi;
-  border-radius: 0 6px 6px 0;
-
-  & [data-separator-content],
-  & [data-expand-button] {
-    display: flex;
-  }
-}
-
-[data-gutter] [data-separator][data-expand-index] [data-separator-content] {
-  flex: none;
-  order: 1;
-  gap: 2px;
-  padding-inline: 4px;
-  background: none;
-}
-
-/* Underlining on hover would mark only the half under the pointer */
-[data-gutter] [data-separator][data-expand-index] [data-separator-content]:hover {
-  text-decoration: none;
-}
-
-[data-gutter] [data-separator][data-expand-index] [data-expand-button] {
-  flex: none;
-  justify-content: center;
-  inline-size: 22px;
-  block-size: 100%;
-  background: none;
-  border: 0;
-  border-radius: 4px;
-}
-
-[data-gutter] [data-separator][data-expand-index] [data-expand-button]:hover {
-  background-color: color-mix(in srgb, currentColor 10%, var(--diffs-bg-separator));
-}
-
-/* The label and the chevrons sit on the plain grey, so the stripes never run
-   through the text */
-[data-gutter] [data-separator][data-expand-index] :is([data-separator-content], [data-expand-button]:not(:hover)) {
-  background-color: light-dark(color-mix(in lab, var(--diffs-bg) 98%, var(--diffs-mixer)), var(--diffs-bg-separator));
-}
-
-/* A gap opening both ways has one chevron for each way, one either side of
-   the label. The bar stays one row: the viewer stacks them otherwise */
-[data-gutter] [data-separator][data-expand-index] [data-separator-wrapper] {
-  & [data-expand-up] {
-    order: 0;
-    border-bottom: 0;
-    border-right: 0;
-  }
-
-  & [data-expand-both],
-  & [data-expand-down] {
-    order: 0;
-  }
-
-  &[data-separator-multi-button] [data-expand-down] {
-    order: 2;
-  }
-
-  /* At the far end of the line, out of the flow so the label stays centred.
-     Each half has a copy at the end of its bar: in a split view the old
-     side's lies past its column and is clipped, so the one seen is the new
-     side's, at the end of the line */
-  & [data-expand-all-button] {
-    position: absolute;
-    inset-block: 0;
-    inset-inline-end: 4px;
-    display: flex;
-    inline-size: auto;
-    padding-inline: 8px;
-  }
 }
 
 /* A gap with a single chevron gets the same shape after the label too. It is
@@ -366,20 +313,17 @@ export const SEPARATOR_CSS = `
 `;
 
 /**
- * A lighter tint behind a deleted line, in light mode only.
+ * Lighter tints behind changed lines.
  *
- * The emphasis tint sits on top of the line background, and at the library's
- * own weight it competes with the code on it. The dark value is unchanged.
+ * At the library's own weights the tint competes with the code on it: the line
+ * backgrounds are mixed less towards the change colour in both modes, and the
+ * emphasis on a deleted word is lighter in light mode.
  *
  * `light-dark` picks the right one because the viewer library sets
  * `color-scheme` on its shadow host from the resolved theme.
  */
 export const DIFF_TINT_CSS = `
-/*
- * How far a changed line's background is mixed towards the decoration colour.
- * The viewer's own values leave the tint strong enough to read through, and
- * these were tried in a browser before being chosen.
- */
+/* How far a changed line's background is mixed towards the change colour */
 [data-line],
 [data-no-newline] {
   --mix-light: 95%;
@@ -396,9 +340,9 @@ export const DIFF_TINT_CSS = `
 
 /**
  * Where one file ends and the next begins. In a long diff the eye needs the
- * break more than it needs the density: a rule and a clear gap above the
- * header, the path in a heavier weight than the code under it, and the change
- * icon large enough to read at a glance.
+ * break more than it needs the density: a border round each file and a clear
+ * gap between them, the path in a heavier weight than the code under it, and
+ * the change icon large enough to read at a glance.
  *
  * The space above a file sits outside it, in the viewer's layout, because
  * these headers stick to the top as you scroll, and space inside would leave
@@ -446,7 +390,6 @@ pre[data-diff] {
 }
 
 [data-diffs-header] [data-header-content] {
-  align-items: center;
   padding-block: 2px;
 }
 
@@ -463,10 +406,6 @@ pre[data-diff] {
   color: light-dark(#0969da, #4493f8);
   font-weight: 600;
   opacity: 1;
-}
-
-[data-diffs-header]:has([data-prev-name]) [data-title] {
-  font-weight: 600;
 }
 `;
 
