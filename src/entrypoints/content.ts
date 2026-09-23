@@ -142,10 +142,13 @@ export default defineContentScript({
     /**
      * Focusing the iframe from here marks it active but leaves the keys with
      * this page, in Chrome at least. The viewer focusing its own window is what
-     * moves them, so it is asked to, now and again once it has loaded
+     * moves them, so it is asked to. Only once it has said it is ready: before
+     * that the frame still holds a blank page with github.com's origin, and a
+     * message addressed to the viewer is refused
      */
+    let viewerReady = false;
     const askViewerToFocus = (): void => {
-      toViewer({ channel: BRIDGE_CHANNEL, type: 'focus' });
+      if (viewerReady) toViewer({ channel: BRIDGE_CHANNEL, type: 'focus' });
     };
 
     const takeFocus = (): void => {
@@ -188,6 +191,7 @@ export default defineContentScript({
       const wasShowing = showing();
       frame.remove();
       frame = undefined;
+      viewerReady = false;
       document.documentElement.style.overflow = previousOverflow;
       if (wasShowing) giveFocusBack();
     };
@@ -228,7 +232,8 @@ export default defineContentScript({
       frame = document.createElement('iframe');
       frame.id = FRAME_ID;
       frame.src = url.toString();
-      frame.setAttribute('allow', 'clipboard-write');
+      // Firefox knows no such permission and warns about it
+      if (!import.meta.env.FIREFOX) frame.setAttribute('allow', 'clipboard-write');
       frame.style.cssText =
         'position:fixed;inset:0;width:100vw;height:100vh;border:0;margin:0;z-index:2147483000;color-scheme:normal';
 
@@ -271,6 +276,7 @@ export default defineContentScript({
       }
 
       if (message.type === 'ready') {
+        viewerReady = true;
         if (showing()) askViewerToFocus();
         toViewer({ channel: BRIDGE_CHANNEL, type: 'page-info', info: collectPageInfo() });
         return;
