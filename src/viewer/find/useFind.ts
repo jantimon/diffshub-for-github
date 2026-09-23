@@ -23,6 +23,8 @@ export interface Find {
   open: boolean;
   /** What is in the box, which may be ahead of what was searched */
   query: string;
+  /** The box holds text the search has not caught up with yet */
+  pending: boolean;
   /** Case, whole word and regex */
   options: FindOptions;
   /** Every match in the files on show, in the order they are drawn */
@@ -265,6 +267,7 @@ export function useFind({
   return {
     open,
     query,
+    pending: query !== searched.text,
     options,
     matches: result.matches,
     capped: result.capped,

@@ -87,6 +87,12 @@ export async function launch({
     ? fs.mkdtempSync(path.join(os.tmpdir(), 'diffshub-har-'))
     : (process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'));
 
+  // Chrome keeps each service worker's script in the profile, and can start
+  // that copy of an unpacked extension's background instead of the new build,
+  // so a kept profile would test an old background. The copy goes first
+  if (!recording)
+    fs.rmSync(path.join(profile, 'Default', 'Service Worker'), { recursive: true, force: true });
+
   const context = await chromium.launchPersistentContext(profile, {
     channel: 'chromium',
     /** Headed by default, so a run can be watched. `DIFFSHUB_HEADLESS=1` for a machine without a screen */
@@ -178,6 +184,26 @@ export async function until(probe, { timeout = 10_000, every = 100 } = {}) {
     if (Date.now() > deadline) return undefined;
     await new Promise((resolve) => setTimeout(resolve, every));
   }
+}
+
+/**
+ * Waits until the diff pane has stopped scrolling: the same `scrollTop` on
+ * three reads in a row. Jumping to a file scrolls smoothly and then the rows
+ * that came into view are measured, so the position moves for a while.
+ */
+export async function scrollSettled(frame, { timeout = 5000 } = {}) {
+  const pane = frame.locator('.dh-code');
+  let last;
+  let same = 0;
+  return until(
+    async () => {
+      const top = await pane.evaluate((node) => node.scrollTop);
+      same = top === last ? same + 1 : 0;
+      last = top;
+      return same >= 2;
+    },
+    { timeout, every: 80 },
+  );
 }
 
 /**

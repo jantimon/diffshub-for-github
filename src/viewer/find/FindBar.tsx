@@ -62,7 +62,7 @@ export function FindBar({
   const none = find.query !== '' && find.matches.length === 0;
 
   return (
-    <search className="dh-find" data-dh-find="">
+    <search className="dh-find" data-dh-find={find.pending ? 'pending' : 'done'}>
       <div className="dh-find-row">
         <label className="dh-find-field" data-invalid={find.error != null} title={find.error}>
           <IconSearch size={14} />

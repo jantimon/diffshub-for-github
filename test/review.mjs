@@ -1,5 +1,5 @@
 import { WRITE_JSON } from '../src/page/headers.ts';
-import { checker, launch, openOverlay } from './browser.mjs';
+import { checker, launch, openOverlay, scrollSettled, until } from './browser.mjs';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -40,7 +40,7 @@ const marked = await frame.locator('[data-dh-viewed]').first().getAttribute('dat
 // Writes into the review box and previews it, without posting
 await check('markdown is written and previewed', async () => {
   await frame.locator('[data-dh-action="review"]').click();
-  await page.waitForTimeout(1500);
+  await frame.locator('.dh-review-panel markdown-toolbar > *').first().waitFor({ timeout: 5000 });
 
   const buttons = await frame.locator('.dh-review-panel markdown-toolbar > *').count();
   if (buttons === 0) {
@@ -56,8 +56,14 @@ await check('markdown is written and previewed', async () => {
     el.focus();
   });
   await frame.locator('.dh-review-panel md-bold').click();
-  await page.waitForTimeout(400);
-  const written = await box.inputValue();
+  const written =
+    (await until(
+      async () => {
+        const value = await box.inputValue();
+        return value.startsWith('**') && value;
+      },
+      { timeout: 3000 },
+    )) ?? (await box.inputValue());
   if (!written.startsWith('**bold me**')) {
     console.log('      toolbar wrote', JSON.stringify(written));
     return false;
@@ -65,15 +71,18 @@ await check('markdown is written and previewed', async () => {
 
   // GitHub renders the preview, so it matches what will be posted
   await frame.locator('.dh-review-panel [data-dh-tab="preview"]').click();
-  await page.waitForTimeout(6000);
-  const html = await frame.locator('.dh-review-panel [data-dh-preview]').innerHTML();
+  const preview = frame.locator('.dh-review-panel [data-dh-preview]');
+  await until(async () => (await preview.innerHTML().catch(() => '')).includes('<strong>'), {
+    timeout: 15000,
+  });
+  const html = await preview.innerHTML();
   if (!html.includes('<strong>') || !html.includes('<code')) {
     console.log('      preview came back as', html.slice(0, 120));
     return false;
   }
 
   await frame.locator('.dh-review-panel .dh-review-close').click();
-  await page.waitForTimeout(800);
+  await until(async () => (await frame.locator('.dh-review').count()) === 0, { timeout: 3000 });
   return `${buttons} toolbar buttons, previewed by GitHub`;
 });
 
@@ -96,7 +105,7 @@ const WRITTEN_BODY = `${written}\n\n**bold** and \`code\`\n\n- one\n- two`;
 const mine = () => frame.locator('.dh-thread', { hasText: written }).first();
 const showMine = async () => {
   await frame.locator('[data-item-type="file"]').last().click();
-  await page.waitForTimeout(2500);
+  await scrollSettled(frame);
   await mine().waitFor({ timeout: 25000 });
 };
 
@@ -114,10 +123,13 @@ const watchResponses = (pattern) => {
  * Deletes a comment through its own buttons. They are dispatched rather than
  * clicked, for the reason the reply check gives below
  */
+const ours = () => frame.locator('.dh-comment', { hasText: TEST_TEXT });
 const deleteComment = async (comment) => {
+  const before = await ours().count();
   await comment.locator('[data-dh-comment="delete"]').dispatchEvent('click');
   await comment.locator('[data-dh-comment="confirm-delete"]').dispatchEvent('click');
-  await page.waitForTimeout(8000);
+  // Gone once GitHub has deleted it and the conversations have been read again
+  await until(async () => (await ours().count()) < before, { timeout: 20000 });
 };
 
 let posted = false;
@@ -126,13 +138,14 @@ await check('a comment can be written', async () => {
   const answered = watchResponses(/create_review_comment/);
 
   await frame.locator('[data-item-type="file"]').last().click();
-  await page.waitForTimeout(2000);
+  await scrollSettled(frame);
 
   const line = frame.locator('[data-line]').last();
   await line.scrollIntoViewIfNeeded();
   await line.hover();
-  await page.waitForTimeout(900);
-  const box = await frame.locator('[data-utility-button]').first().boundingBox();
+  const box = await until(() => frame.locator('[data-utility-button]').first().boundingBox(), {
+    timeout: 3000,
+  });
   if (box == null) {
     answered.stop();
     console.log('      no gutter control appeared');
@@ -142,7 +155,7 @@ await check('a comment can be written', async () => {
   await page.mouse.down();
   await page.waitForTimeout(150);
   await page.mouse.up();
-  await page.waitForTimeout(2000);
+  await until(async () => (await frame.locator('.dh-composer').count()) > 0, { timeout: 5000 });
   if ((await frame.locator('.dh-composer').count()) === 0) {
     answered.stop();
     console.log('      the composer did not open');
@@ -151,7 +164,8 @@ await check('a comment can be written', async () => {
 
   await frame.locator('.dh-composer .dh-editor-text').fill(WRITTEN_BODY);
   await frame.locator('.dh-composer-send').click();
-  await page.waitForTimeout(9000);
+  // The box closes once GitHub has kept the comment
+  await until(async () => (await frame.locator('.dh-composer').count()) === 0, { timeout: 20000 });
   answered.stop();
 
   if (!answered.seen.some((one) => one.endsWith(' 200'))) {
@@ -214,7 +228,12 @@ await check('a comment can be replied to', async () => {
   // Dispatched rather than clicked: a forced click still lands wherever the
   // pointer is, and the virtualiser moves rows under it
   await send.dispatchEvent('click');
-  await page.waitForTimeout(9000);
+  await until(
+    async () =>
+      (await mine().locator('.dh-comment', { hasText: replied }).count()) > 0 ||
+      (await frame.locator('.dh-thread-error').count()) > 0,
+    { timeout: 20000 },
+  );
   answered.stop();
 
   const shown = await frame.locator('.dh-thread-error').allTextContents();
@@ -233,12 +252,14 @@ await check('a comment can be replied to', async () => {
 await check('a conversation can be resolved and reopened', async () => {
   const answered = watchResponses(/page_data\/(un)?resolve_thread$/);
 
+  const settledAt = (value) =>
+    until(async () => (await mine().getAttribute('data-resolved')) === value, { timeout: 15000 });
   await mine().locator('[data-dh-thread="resolve"]').click({ timeout: 5000 });
-  await page.waitForTimeout(6000);
+  await settledAt('true');
   const resolved = await mine().getAttribute('data-resolved');
 
   await mine().locator('[data-dh-thread="resolve"]').click({ timeout: 5000 });
-  await page.waitForTimeout(6000);
+  await settledAt('false');
   const reopened = await mine().getAttribute('data-resolved');
   answered.stop();
 
@@ -265,7 +286,9 @@ await check('your own comment can be edited and then deleted', async () => {
   const edited = `${WRITTEN_BODY}\n\nthen edited`;
   await first.locator('.dh-editor-text').fill(edited);
   await first.locator('[data-dh-comment="save"]').dispatchEvent('click');
-  await page.waitForTimeout(8000);
+  await until(async () => (await mine().locator('.dh-comment', { hasText: 'then edited' }).count()) > 0, {
+    timeout: 20000,
+  });
 
   const shows = (await mine().locator('.dh-comment', { hasText: 'then edited' }).count()) > 0;
   if (!shows) {
@@ -296,10 +319,10 @@ await check('your own comment can be edited and then deleted', async () => {
  */
 const sweep = async () => {
   await frame.locator('[data-item-type="file"]').last().click();
-  await page.waitForTimeout(4000);
+  await scrollSettled(frame);
   let removed = 0;
   for (let round = 0; round < 20; round += 1) {
-    const left = frame.locator('.dh-comment', { hasText: TEST_TEXT });
+    const left = ours();
     const count = await left.count();
     if (count === 0) break;
     const last = left.nth(count - 1);
@@ -321,7 +344,10 @@ await check('a review can be submitted', async () => {
   });
 
   await frame.locator('[data-dh-action="review"]').click();
-  await page.waitForTimeout(1500);
+  await frame
+    .locator('.dh-review')
+    .waitFor({ timeout: 5000 })
+    .catch(() => {});
   if ((await frame.locator('.dh-review').count()) === 0) {
     console.log('      the dialog did not open');
     return false;
@@ -330,7 +356,12 @@ await check('a review can be submitted', async () => {
     .locator('.dh-review-panel .dh-editor-text')
     .fill(`Submitted by the browser test at ${new Date().toISOString()}`);
   await frame.locator('.dh-review-send').click();
-  await page.waitForTimeout(8000);
+  await until(
+    async () =>
+      (await frame.locator('.dh-review').count()) === 0 ||
+      (await frame.locator('.dh-review-error').count()) > 0,
+    { timeout: 20000 },
+  );
 
   const shown = await frame
     .locator('.dh-review-error')
@@ -372,12 +403,16 @@ await check('Space in the file tree marks a file viewed and back', async () => {
   await row.focus();
   const top = await scrollTop();
   const initial = await tick();
+  const settled = (count) =>
+    until(() => reviewed.length - before >= count, { timeout: 15000 }).then(() =>
+      until(async () => (await tick()) !== (count === 1 ? initial : once), { timeout: 3000 }),
+    );
   await page.keyboard.press('Space');
-  await page.waitForTimeout(3000);
+  await settled(1);
   const once = await tick();
   const stayed = (await focusedPath()) === file;
   await page.keyboard.press('Space');
-  await page.waitForTimeout(3000);
+  await settled(2);
   const twice = await tick();
   const moved = (await scrollTop()) !== top;
 
@@ -395,7 +430,7 @@ await check('Space in the file tree marks a file viewed and back', async () => {
 await check('viewed state reaches GitHub', async () => {
   const before = reviewed.length;
   await frame.locator(`[data-dh-viewed="${marked}"]`).click();
-  await page.waitForTimeout(3000);
+  await until(() => reviewed.length > before, { timeout: 15000 });
   const sent = reviewed.slice(before);
   if (sent.length === 0) return false;
   const bad = sent.find((entry) => entry.status !== 200);

@@ -5,7 +5,16 @@
  * needs no login. The checks that write have their own suite in `review.mjs`.
  */
 
-import { checker, launch, openOverlay, openViewer, screenshots, until, viewerFrame } from './browser.mjs';
+import {
+  checker,
+  launch,
+  openOverlay,
+  openViewer,
+  screenshots,
+  scrollSettled,
+  until,
+  viewerFrame,
+} from './browser.mjs';
 
 /**
  * A pull request big enough that the viewer recycles rows as you scroll, and
@@ -63,16 +72,18 @@ await check('the tree marks the file on screen', async () => {
   return rows.includes(FIRST_FILE) && rows.length < 5 ? `beside ${rows.join(', ')}` : false;
 });
 
+/** Whether anything matches `selector` in the viewer */
+const shows = async (selector) => (await frame.locator(selector).count()) > 0;
+
 /**
  * Whether a key pressed now reaches the viewer, without clicking into it
  * first. `?` is used because it opens something the check can see
  */
 const keysReachTheViewer = async () => {
   await page.keyboard.press('Shift+Slash');
-  await page.waitForTimeout(500);
-  const open = (await frame.locator('.dh-help').count()) > 0;
+  const open = (await until(() => shows('.dh-help'), { timeout: 2000 })) === true;
   if (open) await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
+  await until(async () => !(await shows('.dh-help')), { timeout: 2000 });
   return open;
 };
 
@@ -175,8 +186,9 @@ await check('sidebar resizes', async () => {
   await page.mouse.down();
   await page.mouse.move(box.x + 152, box.y + 200, { steps: 8 });
   await page.mouse.up();
-  await page.waitForTimeout(400);
-  const after = await frame.locator('.dh-sidebar').evaluate((el) => el.getBoundingClientRect().width);
+  const width = () => frame.locator('.dh-sidebar').evaluate((el) => el.getBoundingClientRect().width);
+  await until(async () => (await width()) > before + 100, { timeout: 2000 });
+  const after = await width();
   await shoot('sidebar-resized');
   return after > before + 100 ? `${Math.round(before)}px -> ${Math.round(after)}px` : false;
 });
@@ -257,8 +269,7 @@ await check('the comments toggle takes the conversations off the diff', async ()
 await check('shortcut help', async () => {
   await frame.locator('.dh-code').click({ position: { x: 5, y: 5 } });
   await page.keyboard.press('Shift+Slash');
-  await page.waitForTimeout(600);
-  const open = (await frame.locator('.dh-help').count()) > 0;
+  const open = (await until(() => shows('.dh-help'), { timeout: 3000 })) === true;
   const groups = await frame.locator('.dh-help-group h3').count();
   // Long key combinations used to run into their description
   const overlapping = await frame.evaluate(
@@ -277,21 +288,21 @@ await check('shortcut help', async () => {
   return 'four groups, no keys over their text';
 });
 await page.keyboard.press('Escape');
-await page.waitForTimeout(400);
+await until(async () => !(await shows('.dh-help')), { timeout: 2000 });
 
 // Nothing is submitted: the dialog is only opened and closed
 await check('approving offers to mark the remaining files, unticked', async () => {
   await frame.locator('[data-dh-action="review"]').click();
-  await page.waitForTimeout(800);
+  await until(() => shows('.dh-review'), { timeout: 3000 });
   const offer = frame.locator('.dh-review-mark-all input');
   const withComment = await offer.count();
   await frame.locator('[data-verdict="approve"]').click();
-  await page.waitForTimeout(300);
+  await until(async () => (await offer.count()) > 0, { timeout: 2000 });
   const withApprove = await offer.count();
   const ticked = withApprove > 0 && (await offer.isChecked());
   await shoot('review-mark-all');
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(400);
+  await until(async () => !(await shows('.dh-review')), { timeout: 2000 });
   if (withComment !== 0 || withApprove !== 1 || ticked) {
     console.log(`      offered with comment ${withComment}, with approve ${withApprove}, ticked ${ticked}`);
     return false;
@@ -307,9 +318,9 @@ await check('Esc in a dialog closes the dialog, not the viewer', async () => {
     ['shortcuts', '[data-dh-action="help"]', '.dh-help'],
   ]) {
     await frame.locator(opener).click();
-    await page.waitForTimeout(500);
+    await until(() => shows(selector), { timeout: 3000 });
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(500);
+    await until(async () => !(await shows(selector)), { timeout: 2000 });
     const dialogGone = (await frame.locator(selector).count()) === 0;
     const viewerOpen = await page.locator('#diffshub-for-github-viewer').isVisible();
     if (!dialogGone || !viewerOpen) {
@@ -360,12 +371,12 @@ const firstLineOnScreen = () =>
 
 await check('n and p step from hunk to hunk', async () => {
   await frame.locator('.dh-code').evaluate((pane) => pane.scrollTo({ top: 0 }));
-  await page.waitForTimeout(800);
+  await scrollSettled(frame);
   await frame.locator('.dh-code').click({ position: { x: 5, y: 5 } });
   const seen = [await firstLineOnScreen()];
   for (const key of ['n', 'n', 'n', 'p']) {
     await page.keyboard.press(key);
-    await page.waitForTimeout(1200);
+    await scrollSettled(frame);
     seen.push(await firstLineOnScreen());
   }
   // Each n lands on the first line of the next hunk, and p goes back one. The
@@ -383,10 +394,10 @@ await check('n and p step from hunk to hunk', async () => {
 await check('j keeps moving down the diff', async () => {
   const start = await scrolled();
   await page.keyboard.press('j');
-  await page.waitForTimeout(1200);
+  await scrollSettled(frame);
   const once = await scrolled();
   await page.keyboard.press('j');
-  await page.waitForTimeout(1200);
+  await scrollSettled(frame);
   const twice = await scrolled();
   // Pressing it a second time has to move again: a check that pressed once
   // would pass even if the diff stopped moving after the first press
@@ -413,9 +424,18 @@ const position = (text) => {
     ? undefined
     : { at: Number(found[1].replace(/,/g, '')), of: Number(found[2].replace(/,/g, '')) };
 };
+/** The bar says `pending` from a keystroke until the search has caught up */
+const searched = () => until(() => shows('[data-dh-find="done"]'), { timeout: 3000 });
 const findFor = async (text) => {
   await findBox.fill(text);
-  await page.waitForTimeout(700);
+  await searched();
+  return findCount();
+};
+/** Does `action` and answers the count once it has changed, or after two seconds if it does not */
+const countAfter = async (action) => {
+  const before = await findCount();
+  await action();
+  await until(async () => (await findCount()) !== before, { timeout: 2000 });
   return findCount();
 };
 const highlights = () =>
@@ -434,11 +454,13 @@ await check('the mark follows the diff, and a closed folder takes it', async () 
   const folder = `${file.split('/').slice(0, -1).join('/')}/`;
   const folderRow = frame.locator(`[role="treeitem"][data-item-path="${folder}"]`);
   await folderRow.click();
-  await page.waitForTimeout(500);
-  const closed = await barRows();
+  const closed =
+    (await until(async () => ((await barRows()).includes(folder) ? barRows() : false), { timeout: 2000 })) ??
+    (await barRows());
   await folderRow.click();
-  await page.waitForTimeout(500);
-  const open = await barRows();
+  const open =
+    (await until(async () => ((await barRows()).includes(file) ? barRows() : false), { timeout: 2000 })) ??
+    (await barRows());
   if (!closed.includes(folder) || !open.includes(file)) {
     console.log(`      closed ${JSON.stringify(closed)}, open again ${JSON.stringify(open)}`);
     return false;
@@ -455,9 +477,10 @@ await check('Cmd+F opens find instead of the browser’s', async () => {
     });
   });
   await page.keyboard.press('ControlOrMeta+f');
-  await page.waitForTimeout(400);
+  const inBox = () => frame.evaluate(() => document.activeElement?.closest('[data-dh-find]') != null);
+  // The box takes the keyboard once the bar has been drawn
+  const typing = (await until(inBox, { timeout: 2000 })) === true;
   const prevented = await frame.evaluate(() => window.findKeyPrevented);
-  const typing = await frame.evaluate(() => document.activeElement?.closest('[data-dh-find]') != null);
   if ((await findBar.count()) === 0 || prevented !== true || !typing) {
     console.log(
       `      bar ${await findBar.count()}, browser's find held back ${prevented}, box focused ${typing}`,
@@ -495,23 +518,24 @@ await check('Enter steps through the matches and the diff follows', async () => 
   const top = await scrolled();
   // Back to the first match, so the steps below cross the end on purpose
   for (let at = start?.at ?? 1; at > 1; at -= 1) await findBox.press('Shift+Enter');
-  await page.waitForTimeout(400);
   const first = await findCount();
-  await findBox.press('Enter');
-  await findBox.press('Enter');
-  await page.waitForTimeout(600);
-  const third = await findCount();
+  const third = await countAfter(async () => {
+    await findBox.press('Enter');
+    await findBox.press('Enter');
+  });
+  await scrollSettled(frame);
   const moved = (await scrolled()) !== top;
+  const second = await countAfter(() => findBox.press('Shift+Enter'));
   await findBox.press('Shift+Enter');
-  await page.waitForTimeout(400);
-  const second = await findCount();
-  await findBox.press('Shift+Enter');
-  await findBox.press('Shift+Enter');
-  await page.waitForTimeout(200);
-  const notice = await findCount();
+  const notice = await countAfter(() => findBox.press('Shift+Enter'));
   // The notice stands in for the count for a moment
-  await page.waitForTimeout(1500);
-  const wrapped = await findCount();
+  const wrapped = await until(
+    async () => {
+      const text = await findCount();
+      return text !== notice && text;
+    },
+    { timeout: 4000 },
+  );
   const seen = [first, third, second, notice, wrapped];
   const expected = ['1 of 28', '3 of 28', '2 of 28', 'Back to the last match', '28 of 28'];
   if (seen.join() !== expected.join() || !moved) {
@@ -523,8 +547,8 @@ await check('Enter steps through the matches and the diff follows', async () => 
 
 await check('a match on a removed line is marked in the old column', async () => {
   const matchCase = frame.locator('[data-dh-find] button[title^="Match case"]');
-  await matchCase.click();
-  await page.waitForTimeout(900);
+  await countAfter(() => matchCase.click());
+  await scrollSettled(frame);
   const where = await frame.evaluate(() => {
     const [range] = CSS.highlights.get('dh-find-current') ?? [];
     const row = range?.startContainer.parentElement?.closest('[data-line]');
@@ -537,16 +561,13 @@ await check('a match on a removed line is marked in the old column', async () =>
     await matchCase.click();
     return false;
   }
-  await matchCase.click();
-  await page.waitForTimeout(700);
+  await countAfter(() => matchCase.click());
   return `line reads "${where.text.trim().slice(0, 40)}"`;
 });
 
 await check('the switches change what is found', async () => {
   const toggle = (title) => frame.locator(`[data-dh-find] button[title^="${title}"]`).click();
-  await toggle('Match case');
-  await page.waitForTimeout(700);
-  const cased = position(await findCount())?.of;
+  const cased = position(await countAfter(() => toggle('Match case')))?.of;
   await toggle('Match case');
 
   await toggle('Match whole word');
@@ -556,8 +577,7 @@ await check('the switches change what is found', async () => {
   await toggle('Use a regular expression');
   const either = position(await findFor('APIFileChange(s|Summary)'))?.of;
   const broken = await findFor('(');
-  await toggle('Use a regular expression');
-  await page.waitForTimeout(700);
+  await countAfter(() => toggle('Use a regular expression'));
 
   const results = { cased, partWord, either, broken };
   if (cased !== 24 || partWord !== 'No matches' || either !== 28 || broken !== 'Invalid pattern') {
@@ -569,8 +589,14 @@ await check('the switches change what is found', async () => {
 
 await check('every match on screen is marked', async () => {
   await findFor('snapshot');
-  await page.waitForTimeout(500);
-  const marked = await highlights();
+  const marked =
+    (await until(
+      async () => {
+        const now = await highlights();
+        return now.all > 0 && now.current === 1 && now;
+      },
+      { timeout: 2000 },
+    )) ?? (await highlights());
   return marked.all > 0 && marked.current === 1 ? `${marked.all} marked besides the current one` : false;
 });
 
@@ -579,22 +605,25 @@ await check('code in a collapsed gap is found once it is opened', async () => {
   const inTheGap = 'TimingAccumulators';
   const before = await findFor(inTheGap);
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
+  await until(async () => !(await shows('[data-dh-find]')), { timeout: 2000 });
 
   await frame.locator('[data-item-path="packages/typescript/src/api/async/api.ts"]').first().click();
-  await page.waitForTimeout(2000);
+  await scrollSettled(frame);
   // The gap is a screen or two into the file, and rows exist only once near
   const gap = frame.locator('[data-unmodified-lines]', { hasText: '55 unmodified' }).first();
   for (let tries = 0; tries < 12 && (await gap.count()) === 0; tries += 1) {
     await frame.locator('.dh-code').evaluate((pane) => pane.scrollBy({ top: 250 }));
-    await page.waitForTimeout(300);
+    await until(async () => (await gap.count()) > 0, { timeout: 300, every: 50 });
   }
   await gap.dispatchEvent('click');
-  await page.waitForTimeout(4000);
+  // The gap goes once the whole file has arrived and filled it
+  await until(async () => (await gap.count()) === 0, { timeout: 15000 });
 
   await page.keyboard.press('ControlOrMeta+f');
-  await page.waitForTimeout(900);
-  const after = await findCount();
+  await searched();
+  const after =
+    (await until(async () => position(await findCount()) != null && findCount(), { timeout: 3000 })) ??
+    (await findCount());
   if (before !== 'No matches' || position(after) == null) {
     console.log(`      before "${before}", after "${after}"`);
     return false;
@@ -604,7 +633,7 @@ await check('code in a collapsed gap is found once it is opened', async () => {
 
 await check('Esc closes find, and only find', async () => {
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(400);
+  await until(async () => !(await shows('[data-dh-find]')), { timeout: 2000 });
   const barGone = (await findBar.count()) === 0;
   const overlayOpen = await page.locator('#diffshub-for-github-viewer').isVisible();
   const marksGone = (await highlights()).all === 0;
@@ -620,7 +649,14 @@ await check('closing and reopening asks GitHub for nothing', async () => {
   page.on('request', watch);
 
   await frame.locator('[data-dh-action="close"]').click();
-  await page.waitForTimeout(1200);
+  await until(
+    async () =>
+      !(await frame
+        .locator('.dh-code')
+        .isVisible()
+        .catch(() => false)),
+    { timeout: 3000 },
+  );
   const gone =
     (await frame
       .locator('.dh-code')
@@ -629,7 +665,10 @@ await check('closing and reopening asks GitHub for nothing', async () => {
   const keyboardBack = await page.evaluate(() => document.activeElement?.tagName !== 'IFRAME');
 
   await page.locator('[data-diffshub-marked]').first().click();
-  await page.waitForTimeout(2500);
+  // A viewer that read the patch again would pass through loading, so the
+  // requests are all in by the time it says ready
+  await frame.locator('.dh-code').waitFor({ state: 'visible', timeout: 5000 });
+  await frame.locator('.dh-overlay[data-dh-phase="ready"]').waitFor({ timeout: 10000 });
   const back = await frame.locator('[data-item-type="file"]').count();
   page.off('request', watch);
   const keyboardIn = await keysReachTheViewer();
