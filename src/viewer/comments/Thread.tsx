@@ -38,10 +38,7 @@ function when(iso: string): { label: string; title: string } | undefined {
 /**
  * `MEMBER` as GitHub writes it, `Member` as it is read.
  *
- * Every field a comment carries is checked here rather than trusted, because
- * the bridge is a boundary between two scripts that are not always the same
- * age: after an update the viewer is new while the content script already in
- * the page is the one from before, and it sends what it knew about then
+ * Missing when an older content script sent the comment: see `ReviewComment`
  */
 function association(value: string | undefined): string | undefined {
   if (value == null || value === '' || value === 'NONE') return undefined;

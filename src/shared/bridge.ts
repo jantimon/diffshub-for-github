@@ -30,10 +30,11 @@ export interface PageInfo {
 /**
  * One comment, as the page read it.
  *
- * The fields marked optional are optional because of when, not whether: an
- * update swaps the viewer while the content script already in the page is the
- * one from before, so for one reload the viewer reads what the older script
- * knew how to send. Everything here is checked at the point of use.
+ * The fields marked optional can be missing when the viewer is newer than the
+ * content script. Chrome leaves an open tab's content script running after the
+ * extension updates or reloads, and nothing tells it to stop, so a viewer frame
+ * reloaded in that tab talks to the old script. The viewer checks each of these
+ * where it uses it.
  */
 export interface ReviewComment {
   /** GitHub's own id for the comment, which a reply has to name */
