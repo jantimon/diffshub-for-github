@@ -298,13 +298,17 @@ export const SEPARATOR_CSS = `
     order: 2;
   }
 
-  /* Shown in both halves: the viewer hides it on the old side, and two copies
-     of different widths would not meet in the middle */
+  /* At the far end of the line, out of the flow so the label stays centred.
+     Each half has a copy at the end of its bar: in a split view the old
+     side's lies past its column and is clipped, so the one seen is the new
+     side's, at the end of the line */
   & [data-expand-all-button] {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 4px;
     display: flex;
-    order: 3;
     inline-size: auto;
-    padding-inline: 6px;
+    padding-inline: 8px;
   }
 }
 
