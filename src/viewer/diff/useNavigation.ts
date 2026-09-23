@@ -94,7 +94,7 @@ export function useNavigation(
       const file = files[index];
       if (file == null) return;
 
-      const hunks = file.item.type === 'diff' ? file.item.fileDiff.hunks : [];
+      const hunks = file.item.fileDiff.hunks;
       const viewer = viewerRef.current;
       const view = viewer?.getInstance();
       if (viewer == null || view == null) return;

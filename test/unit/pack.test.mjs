@@ -3,12 +3,8 @@ import { test } from 'node:test';
 
 import { pack, unpack } from '../../src/viewer/net/pack.ts';
 
-/**
- * Base64 is built by handing bytes to `String.fromCharCode` as arguments, and
- * too many at once throws `RangeError`, which the cache swallows as "not worth
- * keeping". The browser suite cannot see it: its pull request gzips to about
- * 100 KB, under the point where the spread breaks. This one is well over.
- */
+// Well past the size where one `String.fromCharCode` spread would throw, which
+// the browser suite's pull request never reaches
 test('a large patch survives being packed and unpacked', async () => {
   const lines = [];
   for (let at = 0; at < 200_000; at += 1) {

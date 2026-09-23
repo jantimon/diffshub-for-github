@@ -251,8 +251,6 @@ export function useFind({
     clearMatches();
   }, []);
 
-  const setQuery = useCallback((next: string) => setQueryState(next), []);
-
   const toggle = useCallback(
     (option: keyof FindOptions) => {
       if (option === 'caseSensitive') setCase(options.caseSensitive ? 'off' : 'on');
@@ -277,7 +275,7 @@ export function useFind({
     wrapped,
     show,
     hide,
-    setQuery,
+    setQuery: setQueryState,
     toggle,
     step,
     repaint,

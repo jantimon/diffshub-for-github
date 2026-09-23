@@ -13,8 +13,9 @@
  *
  * `String.fromCharCode` takes them as arguments, and a spread of more than
  * roughly 123,000 overflows the stack -- measured, and the number is V8's, not
- * a specification's. Eight thousand leaves more than an order of magnitude of
- * room, and the loop around it costs nothing worth measuring.
+ * a specification's. Past it, packing fails and the cache quietly keeps
+ * nothing. Eight thousand leaves more than an order of magnitude of room, and
+ * the loop around it costs nothing worth measuring.
  *
  * This is about base64 alone. How much of a stored answer is handed back at a
  * time is decided by `Blob.stream()` and the decompressor, not here.
@@ -64,15 +65,7 @@ export function unpack(packed: string): ReadableStream<Uint8Array> | undefined {
   }
 }
 
-/**
- * Base64, a chunk at a time.
- *
- * The chunk is what matters here: spreading a whole patch into
- * `String.fromCharCode` throws `RangeError`, and it throws silently as far as
- * the reader is concerned, because the caller treats a failure to pack as
- * nothing worth keeping. A cache that quietly stops above a size is worse than
- * no cache, so the size is picked well below where it breaks.
- */
+/** Base64, `BASE64_CHUNK` bytes at a time */
 function toBase64(bytes: Uint8Array): string {
   let binary = '';
   for (let at = 0; at < bytes.length; at += BASE64_CHUNK) {

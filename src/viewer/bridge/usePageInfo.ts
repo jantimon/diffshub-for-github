@@ -13,7 +13,7 @@ function firstThemeType(): PageInfo['themeType'] {
 const FALLBACK: PageInfo = {
   title: '',
   themeType: firstThemeType(),
-  lightTheme: 'pierre-light',
+  lightTheme: 'light-plus',
   darkTheme: 'pierre-dark',
 };
 

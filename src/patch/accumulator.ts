@@ -1,11 +1,11 @@
-import { processFile, type CodeViewItem } from '@pierre/diffs';
+import { processFile, type CodeViewDiffItem } from '@pierre/diffs';
 import type { GitStatusEntry } from '@pierre/trees';
 
 import type { ReviewThread } from '../shared/bridge.ts';
 import { changesOnlyWhitespace } from './whitespace.ts';
 
 export interface ParsedFile {
-  item: CodeViewItem<ReviewThread>;
+  item: CodeViewDiffItem<ReviewThread>;
   path: string;
   /** Nothing changed here but spacing */
   spacingOnly: boolean;

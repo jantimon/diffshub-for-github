@@ -108,7 +108,7 @@ Worth building once the rest holds.
 
 | # | Capability | Status | Note |
 | --- | --- | :---: | --- |
-| 18 | Ignore whitespace | 🟡 | Hides files that changed only in spacing. Hiding individual lines would renumber the rest and move every comment anchor, so a file mixing spacing with real edits shows both |
+| 18 | Ignore whitespace | 🟡 | Hides files that changed only in spacing, not single lines: [`whitespace.ts`](../src/patch/whitespace.ts) says why |
 | 19 | Filter files by name, glob or regular expression | ✅ | Include and exclude, remembered along with the case and regex switches on each. A pattern written like a glob stays a glob; anything else matches anywhere in the path. A clear button inside the box, and `Esc`, empty a field |
 | 20 | Diff statistics | ✅ | With the split between additions and deletions |
 | 21 | Follow GitHub's theme, with an override | ✅ | Light and dark, no automatic third state |
@@ -156,15 +156,3 @@ Replying goes through the route a new comment uses, `create_review_comment`,
 with `inReplyTo` set to the database id of the comment it answers. GitHub files
 the reply in that comment's thread, so like resolving it reaches every
 conversation, not only those the page underneath has rendered.
-
-### Ignoring whitespace stops at the file
-
-GitHub's `.diff` endpoint takes no `w=1`, so the comparison is made here. It is
-made a file at a time on purpose: hiding individual lines would renumber the
-ones left, and a comment anchored to a renumbered line is a comment on the
-wrong code. Hiding a whole file changes nothing about the files still shown, so
-every anchor stays sound.
-
-What that leaves: a file mixing a reformatting with a real edit still shows
-both. Doing better means re-comparing inside the file and suppressing
-commenting wherever the anchor cannot be trusted.

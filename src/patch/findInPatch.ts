@@ -71,7 +71,6 @@ export function findInFiles(
 ): { matches: FindMatch[]; capped: boolean } {
   const matches: FindMatch[] = [];
   for (const file of files) {
-    if (file.item.type !== 'diff') continue;
     for (const line of searchableLines(file.item.fileDiff, expansionOf(file.item.fileDiff))) {
       for (const { start, end } of matchesIn(line.text, pattern)) {
         matches.push({ id: file.item.id, side: line.side, lineNumber: line.lineNumber, start, end });

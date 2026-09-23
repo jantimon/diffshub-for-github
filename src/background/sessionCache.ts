@@ -1,4 +1,4 @@
-import { CACHE_CHANNEL, CACHE_PREFIX, type CacheAsk, type CacheBody } from '@/shared/runtime';
+import { CACHE_CHANNEL, CACHE_PREFIX, type CacheAsk } from '@/shared/runtime';
 import { fromViewer } from './sender';
 
 /**
@@ -23,7 +23,7 @@ function sessionArea(): Area {
 async function usageOf(area: Area): Promise<number> {
   let chars = 0;
   for (const [key, value] of Object.entries(await area.get(null))) {
-    if (key.startsWith(CACHE_PREFIX)) chars += (value as Partial<CacheBody>).packed?.length ?? 0;
+    if (key.startsWith(CACHE_PREFIX) && typeof value === 'string') chars += value.length;
   }
   return chars;
 }

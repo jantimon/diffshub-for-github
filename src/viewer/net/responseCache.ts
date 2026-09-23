@@ -1,4 +1,4 @@
-import { CACHE_CHANNEL, CACHE_PREFIX, CACHE_VERSION, type CacheAsk, type CacheBody } from '@/shared/runtime';
+import { CACHE_CHANNEL, CACHE_PREFIX, type CacheAsk } from '@/shared/runtime';
 
 /**
  * A short-lived copy of what github.com answered, keyed by the head commit.
@@ -35,59 +35,24 @@ const BUDGET_CHARS = 8_000_000;
 export const MAX_RAW_BYTES = 48_000_000;
 
 /**
- * The four operations the viewer asks the background for.
- *
- * Always the background, in both browsers. Firefox withholds `browser.storage`
- * from a viewer framed by github.com, and Chrome's viewer has it, but one route
- * is one thing to test: the Chrome suite then runs the same path Firefox does.
- * What crosses is a string, so nothing depends on how a browser serialises a
- * message.
+ * Always through the background, in both browsers. Firefox withholds
+ * `browser.storage` from a viewer framed by github.com, and Chrome's viewer has
+ * it, but one route is one thing to test: the Chrome suite then runs the same
+ * path Firefox does. What crosses is a string, so nothing depends on how a
+ * browser serialises a message.
  */
-interface Store {
-  get: (key: string) => Promise<unknown>;
-  set: (key: string, value: CacheBody) => Promise<void>;
-  usage: () => Promise<number>;
-  clear: () => Promise<void>;
-}
-
 async function askBackground(message: CacheAsk): Promise<unknown> {
   return await browser.runtime.sendMessage(message);
 }
 
-function throughBackground(): Store {
-  return {
-    get: (key) => askBackground({ channel: CACHE_CHANNEL, op: 'get', key }),
-    set: async (key, value) => {
-      if ((await askBackground({ channel: CACHE_CHANNEL, op: 'set', key, value })) !== true) {
-        throw new Error('the background did not store it');
-      }
-    },
-    usage: async () => Number(await askBackground({ channel: CACHE_CHANNEL, op: 'usage' })),
-    clear: async () => {
-      await askBackground({ channel: CACHE_CHANNEL, op: 'clear' });
-    },
-  };
-}
-
-let store: Store | null | undefined;
-
-/** `browser` is named bare because the build rewrites that into an import, and `typeof` keeps it safe in plain node */
-function chosen(): Store | null {
-  if (store !== undefined) return store;
-  try {
-    store =
-      typeof browser !== 'undefined' && browser.runtime?.sendMessage != null ? throughBackground() : null;
-  } catch {
-    store = null;
+async function store(key: string, packed: string): Promise<void> {
+  if ((await askBackground({ channel: CACHE_CHANNEL, op: 'set', key, value: packed })) !== true) {
+    throw new Error('the background did not store it');
   }
-  return store;
 }
 
-/** Where copies go, for the log */
-export function describeStorage(): string {
-  return chosen() == null
-    ? 'off, this browser gives the viewer nowhere to keep a copy'
-    : "copies are saved in the extension's memory until the browser closes, never on disk";
+async function clear(): Promise<void> {
+  await askBackground({ channel: CACHE_CHANNEL, op: 'clear' });
 }
 
 function keyOf(sha: string, url: string): string {
@@ -96,13 +61,9 @@ function keyOf(sha: string, url: string): string {
 
 /** The compressed answer, or nothing */
 export async function readCached(sha: string, url: string): Promise<string | undefined> {
-  const found = chosen();
-  if (found == null) return undefined;
   try {
-    const stored = (await found.get(keyOf(sha, url))) as Partial<CacheBody> | undefined;
-    // A value written by another version reads as absent rather than as content
-    if (stored?.v !== CACHE_VERSION || typeof stored.packed !== 'string') return undefined;
-    return stored.packed;
+    const stored = await askBackground({ channel: CACHE_CHANNEL, op: 'get', key: keyOf(sha, url) });
+    return typeof stored === 'string' ? stored : undefined;
   } catch {
     return undefined;
   }
@@ -110,21 +71,20 @@ export async function readCached(sha: string, url: string): Promise<string | und
 
 /** Says whether it stored, so the log does not report a copy that was never made */
 export async function writeCached(sha: string, url: string, packed: string): Promise<boolean> {
-  const found = chosen();
-  if (found == null || packed.length > BUDGET_CHARS) return false;
+  if (packed.length > BUDGET_CHARS) return false;
 
   const key = keyOf(sha, url);
-  const body: CacheBody = { v: CACHE_VERSION, packed };
   try {
-    if ((await found.usage()) + packed.length > BUDGET_CHARS) await found.clear();
-    await found.set(key, body);
+    const usage = Number(await askBackground({ channel: CACHE_CHANNEL, op: 'usage' }));
+    if (usage + packed.length > BUDGET_CHARS) await clear();
+    await store(key, packed);
     return true;
   } catch {
     // Out of quota after all, most likely. Start from empty once rather than
     // give up on a patch that fits on its own
     try {
-      await found.clear();
-      await found.set(key, body);
+      await clear();
+      await store(key, packed);
       return true;
     } catch {
       return false;

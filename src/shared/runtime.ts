@@ -26,24 +26,19 @@ export type FetchReply =
 /** The message channel for the patch cache */
 export const CACHE_CHANNEL = 'diffshub-cache';
 
-/** Which shape a cache entry was written in. Bumping it orphans the old ones */
+/** Which shape a cache entry is written in. Bumping it orphans the old ones */
 export const CACHE_VERSION = 1;
 
 /** Every cache key starts with this, so the background never touches another key */
 export const CACHE_PREFIX = `diffshub.cache.v${CACHE_VERSION}.`;
 
-/** One stored answer */
-export interface CacheBody {
-  /** Which shape of this the entry was written in */
-  v: number;
-  /** The answer, gzipped and then base64'd so it survives being stored as json */
-  packed: string;
-}
-
-/** The four things the viewer asks of the cache */
+/**
+ * The four things the viewer asks of the cache. A stored value is the answer,
+ * gzipped and then base64'd so it survives being stored as json
+ */
 export type CacheAsk =
   | { channel: typeof CACHE_CHANNEL; op: 'get'; key: string }
-  | { channel: typeof CACHE_CHANNEL; op: 'set'; key: string; value: CacheBody }
+  | { channel: typeof CACHE_CHANNEL; op: 'set'; key: string; value: string }
   | { channel: typeof CACHE_CHANNEL; op: 'usage' }
   | { channel: typeof CACHE_CHANNEL; op: 'clear' };
 

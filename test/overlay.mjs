@@ -748,7 +748,7 @@ await check('the file tree fills after a push has cleared the ticks', async () =
   await opened?.evaluate(() =>
     localStorage.setItem(
       'diffshub-for-github.viewed.microsoft/TypeScript/64204',
-      JSON.stringify({ sha: '0000000000000000000000000000000000000000', ids: [] }),
+      JSON.stringify({ sha: '0000000000000000000000000000000000000000', paths: [] }),
     ),
   );
   await page.reload();

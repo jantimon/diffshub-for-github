@@ -19,15 +19,13 @@ interface Stored {
 /**
  * The files ticked off on this pull request when the viewer last had it open,
  * or none when a push has happened since: what was read no longer applies to
- * the new diff. Kept by path. Entries written as `ids` are read as paths, which
- * they were for every file listed once in its patch.
+ * the new diff. Kept by path.
  */
 export function storedViewed(key: string, headSha: string | undefined): ReadonlySet<string> {
   try {
-    const value = JSON.parse(readSetting(`viewed.${key}`, '{}')) as Partial<Stored> & { ids?: string[] };
+    const value = JSON.parse(readSetting(`viewed.${key}`, '{}')) as Partial<Stored>;
     if (value?.sha != null && headSha != null && value.sha !== headSha) return new Set();
-    const paths = Array.isArray(value?.paths) ? value.paths : Array.isArray(value?.ids) ? value.ids : [];
-    return new Set(paths);
+    return new Set(Array.isArray(value?.paths) ? value.paths : []);
   } catch {
     return new Set();
   }

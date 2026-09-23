@@ -15,7 +15,7 @@
 import { githubFetch } from '@/viewer/net/githubFetch';
 import { pack, unpack } from '@/viewer/net/pack';
 import { debugLog } from '@/viewer/debug';
-import { describeStorage, MAX_RAW_BYTES, readCached, writeCached } from '@/viewer/net/responseCache';
+import { MAX_RAW_BYTES, readCached, writeCached } from '@/viewer/net/responseCache';
 
 /**
  * Answers that mean "not now" rather than "no": rate limited, or a host under
@@ -31,8 +31,6 @@ const MAX_RETRY_AFTER_MS = 10_000;
 
 /** Marks a response that never touched the network, for anyone reading one */
 const CACHE_HEADER = 'x-diffshub-cache';
-
-let said = false;
 
 /**
  * Says where an answer came from and what was kept of it, which is the first
@@ -69,13 +67,6 @@ export async function cachedGithubFetch(url: string, { sha, signal }: CachedFetc
       `${named(url)} downloaded from github.com and not saved: the page did not say which commit it shows`,
     );
     return fetchPatiently(url, signal);
-  }
-
-  // Where copies go is a fact about the session, not about this request, and
-  // expanding a file asks for one of these each time
-  if (!said) {
-    said = true;
-    note(describeStorage());
   }
 
   const hit = await readCached(sha, url);
@@ -190,8 +181,8 @@ function capture(
       chunks = undefined;
       if (kept == null || signal?.aborted === true) return;
       // Nothing waits for this. The patch is downloaded and parsed, and
-      // compressing it is work for a moment nobody is waiting through
-      whenIdle(() => void store(kept, sha, url));
+      // compressing it waits until the diff has finished drawing
+      requestIdleCallback(() => void store(kept, sha, url));
     },
   });
 }
@@ -212,18 +203,4 @@ async function store(chunks: Uint8Array[], sha: string, url: string): Promise<vo
       ? `${named(url)} downloaded (${kb(raw)}) and saved for next time, ${kb(packed.length)} compressed`
       : `${named(url)} downloaded (${kb(raw)}) but not saved: storage refused ${kb(packed.length)}`,
   );
-}
-
-/**
- * Runs the work when the browser has nothing better to do.
- *
- * Compressing a large patch is not free, and the moment it finishes downloading
- * is the moment the diff is still drawing. Firefox and Chrome both have
- * `requestIdleCallback`, and a timeout is the fallback, no worse than what this
- * replaced.
- */
-function whenIdle(work: () => void): void {
-  const idle = (globalThis as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
-  if (typeof idle === 'function') idle(work);
-  else setTimeout(work, 0);
 }

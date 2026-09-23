@@ -17,11 +17,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReviewComment, ReviewThread } from '@/shared/bridge';
 import { ask } from '@/viewer/bridge/ask';
 import { useChoice } from '@/viewer/settings';
-import type { CodeViewItem } from '@pierre/diffs/react';
+import type { CodeViewDiffItem } from '@pierre/diffs';
 
 export interface Threads {
   /** The diff's items with each conversation hung on the file it belongs to */
-  items: readonly CodeViewItem<ReviewThread>[];
+  items: readonly CodeViewDiffItem<ReviewThread>[];
   /** Reading only: no conversations on the diff and no way to start one */
   hidden: boolean;
   /** Shows the conversations, or takes them off the diff */
@@ -45,7 +45,7 @@ export interface Threads {
 }
 
 export function useThreads(
-  items: readonly CodeViewItem<ReviewThread>[],
+  items: readonly CodeViewDiffItem<ReviewThread>[],
   onNotice: (message: string) => void,
 ): Threads {
   const [threads, setThreads] = useState<readonly ReviewThread[]>([]);
@@ -100,7 +100,6 @@ export function useThreads(
     }
 
     return items.map((item) => {
-      if (item.type !== 'diff') return item;
       const list = byPath.get(item.fileDiff.name);
       if (list == null) return item;
       /**
