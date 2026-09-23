@@ -185,7 +185,22 @@ export const SEPARATOR_CSS = `
   align-items: stretch;
   justify-content: center;
   padding-inline-start: 0;
-  background-color: var(--diffs-bg-separator);
+  /* The hatching of a missing row, the viewer's own, over a lighter grey in
+     light mode: the bar stands for lines that are there but not shown */
+  background-color: light-dark(
+    color-mix(in lab, var(--diffs-bg) 98%, var(--diffs-mixer)),
+    var(--diffs-bg-separator)
+  );
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent calc(3px * 1.414),
+    var(--diffs-bg-buffer) calc(3px * 1.414),
+    var(--diffs-bg-buffer) calc(4px * 1.414)
+  );
+  background-position: 5px 0;
+  background-size: 8px 8px;
+  background-origin: border-box;
 }
 
 /* The old side, or the only side: from where the code starts, with as much
@@ -193,6 +208,10 @@ export const SEPARATOR_CSS = `
    label lands on the middle of the line */
 :is([data-deletions], [data-unified]) [data-gutter] [data-separator][data-expand-index] [data-separator-wrapper] {
   inset-inline-start: 100%;
+  /* This copy starts a line-number column further in than the other half's,
+     so its stripes are drawn from where that half's start, to run on
+     unbroken across the middle */
+  background-position: calc(5px - var(--diffs-column-number-width, 0px)) 0;
   inline-size: calc(100cqi - 100%);
   padding-inline-end: 100%;
   border-start-start-radius: 6px;
@@ -278,6 +297,12 @@ export const SEPARATOR_CSS = `
 
 [data-gutter] [data-separator][data-expand-index] [data-expand-button]:hover {
   background-color: color-mix(in srgb, currentColor 10%, var(--diffs-bg-separator));
+}
+
+/* The label and the chevrons sit on the plain grey, so the stripes never run
+   through the text */
+[data-gutter] [data-separator][data-expand-index] :is([data-separator-content], [data-expand-button]:not(:hover)) {
+  background-color: light-dark(color-mix(in lab, var(--diffs-bg) 98%, var(--diffs-mixer)), var(--diffs-bg-separator));
 }
 
 /* A gap opening both ways has one chevron for each way, one either side of
