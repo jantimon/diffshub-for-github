@@ -7,7 +7,8 @@ Review a GitHub pull request without waiting for it to render.
 Click "Files changed" and the diff opens in a fullscreen viewer built on
 Pierre's [`@pierre/diffs`](https://diffs.com), the open-source components
 behind [diffshub.com](https://diffshub.com). In it, a 3,420-file pull request
-scrolls at 120 fps. GitHub's own tab manages 12.
+scrolls at 120 fps with no frame over 50 ms. In GitHub's own tab, one frame in
+three takes longer than that.
 
 The whole review happens in it: read the diff, tick files off, comment on a
 line, reply, resolve a conversation, approve or ask for changes. Everything goes
@@ -46,14 +47,16 @@ machine.
 
 ## Speed
 
-Scrolling `nodejs/node#59805`, 3,420 files and 1.95M lines, over 180 frames:
+Scrolling `nodejs/node#59805`, 3,420 files and 1.95M lines, over 180 frames,
+measured in September 2026:
 
 | | Median frame | p95 | Worst | Frames over 50 ms |
 | --- | --- | --- | --- | --- |
-| This viewer | 8.3 ms (120 fps) | 10.2 ms | 20 ms | 0 / 180 |
-| GitHub's Files changed | 81.5 ms (12 fps) | 201.7 ms | 842 ms | 150 / 180 |
+| This viewer | 8.3 ms (120 fps) | 10.3 ms | 20 ms | 0 / 180 |
+| GitHub's Files changed | 12.3 ms (81 fps) | 98.6 ms | 157 ms | 59 / 180 |
 
-`pnpm test:fps` measures both and prints the table.
+`pnpm test:fps` measures both and prints the table. GitHub's own numbers move
+from run to run: of three runs, its frames over 50 ms ranged from 51 to 61.
 
 The first file is readable long before the download ends, and only the lines
 on screen are drawn, so the page stays light however large the pull request.
