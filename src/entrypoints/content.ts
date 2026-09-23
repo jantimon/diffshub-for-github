@@ -248,7 +248,7 @@ export default defineContentScript({
       'file-review': ({ path, viewed }, pr) => writeViewed(pr, path, viewed),
       threads: (_ask, pr) => readThreads(pr),
       comment: (comment, pr) => writeComment(pr, comment),
-      reply: ({ inReplyTo, body }, pr) => replyToComment(pr, inReplyTo, body),
+      reply: ({ inReplyTo, path, body }, pr) => replyToComment(pr, inReplyTo, path, body),
       resolve: ({ threadId, resolved }, pr) => resolveThread(pr, threadId, resolved),
       'edit-comment': ({ databaseId, body }, pr) => editComment(pr, databaseId, body),
       'delete-comment': ({ databaseId }, pr) => deleteComment(pr, databaseId),

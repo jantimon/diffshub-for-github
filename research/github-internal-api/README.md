@@ -601,7 +601,9 @@ interface FileCommentPosition      { baseCommitOid; headCommitOid; type: 'file';
 `submitBatch: true` publishes immediately and clears the pending review. `submitBatch: false` adds
 the returned thread id to the pending review. `undefined` does neither.
 
-Reply form, same route, different body (**read**, `…/use-create-reply-comment-mutation.ts`):
+Reply form, same route, different body (**measured**, `…/use-create-reply-comment-mutation.ts`: a reply
+with `inReplyTo` set to the database id as a number, `submitBatch: true`, the thread's `path` and both
+oids answered 200 and landed in the same thread):
 
 ```ts
 {text, inReplyTo: number|null|undefined, submitBatch?: boolean, path: string,

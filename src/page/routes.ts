@@ -16,10 +16,8 @@ export const routes = {
   threadPreviews: (pr: PullRequestRef) => `${pullPath(pr)}/page_data/thread_previews`,
   /** The comments of each review thread, forty a page */
   threads: (pr: PullRequestRef) => `${pullPath(pr)}/page_data/threads`,
-  /** A new comment on a line */
+  /** A new comment on a line, or a reply to one */
   createComment: (pr: PullRequestRef) => `${pullPath(pr)}/page_data/create_review_comment`,
-  /** The action of the reply form GitHub renders under each thread */
-  replyForm: (pr: PullRequestRef) => `${pullPath(pr)}/review_comment/create`,
   /** Resolving a conversation, or reopening one */
   resolveThread: (pr: PullRequestRef, resolved: boolean) =>
     `${pullPath(pr)}/page_data/${resolved ? 'resolve_thread' : 'unresolve_thread'}`,

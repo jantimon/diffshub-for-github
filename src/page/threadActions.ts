@@ -1,45 +1,37 @@
 import type { Result } from '@/shared/bridge';
-import { findForm, findFormEndingWith, submitForm } from '@/page/forms';
+import { readComparison } from '@/page/comparison';
 import type { PullRequestRef } from '@/shared/pullRequest';
 import { failed, writeJson } from '@/page/client';
 import { routes } from '@/page/routes';
 
 /**
- * Replying to a comment, and resolving a conversation.
- *
- * The two are not alike. Resolving has a JSON route that takes the thread id
- * and nothing else, so it reaches every conversation on the pull request.
- * Replying has no such route, so it submits the form GitHub itself rendered --
- * read the comment at the top of `forms.ts` for why a token cannot simply be
- * looked up.
+ * Replying to a comment, resolving a conversation, and editing or deleting
+ * the reader's own comments: each one JSON write to a `page_data` route
  */
 
 /**
  * Replies to a review comment.
  *
- * Every thread on the page has its own reply form, all of them posting to the
- * same `review_comment/create` action, so the right one is picked out by the
- * comment it answers. The form already carries the side, the three commit
- * oids, the path and the line. Only the text is ours.
+ * The same route as a new comment, naming the comment it answers by its
+ * database id, with the thread's file and the two commits the diff spans.
+ * GitHub files the reply in that comment's thread.
  */
-export async function replyToComment(pr: PullRequestRef, inReplyTo: string, body: string): Promise<Result> {
-  const action = routes.replyForm(pr);
-
+export async function replyToComment(
+  pr: PullRequestRef,
+  inReplyTo: string,
+  path: string,
+  body: string,
+): Promise<Result> {
   try {
-    // A token is good for the action it was minted for rather than the copy
-    // it came in, so the thread's own form is preferred and any other copy
-    // will do, with the comment it answers set to the one being replied to
-    const form =
-      findForm(
-        action,
-        (candidate: HTMLFormElement) => new FormData(candidate).get('in_reply_to') === inReplyTo,
-      ) ?? findFormEndingWith('/review_comment/create');
-    if (form == null) {
-      return { ok: false, error: 'GitHub did not offer a reply form on this page.' };
-    }
-
-    const result = await submitForm(form, { in_reply_to: inReplyTo, 'comment[body]': body });
-    return result.ok ? { ok: true } : { ok: false, error: `GitHub answered ${result.status}.` };
+    const { baseOid, headOid } = await readComparison(pr);
+    return await writeJson(routes.createComment(pr), 'POST', {
+      text: body,
+      inReplyTo: Number(inReplyTo),
+      submitBatch: true,
+      path,
+      comparisonStartOid: baseOid,
+      comparisonEndOid: headOid,
+    });
   } catch (error) {
     return failed(error);
   }

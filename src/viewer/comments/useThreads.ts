@@ -154,10 +154,10 @@ export function useThreads(
 
   const reply = useCallback(
     async (thread: ReviewThread, body: string): Promise<string | undefined> => {
-      // A reply answers the first comment in the thread, which is what GitHub's
-      // own reply form names
+      // A reply answers the first comment in the thread, as GitHub's own
+      // client does
       const inReplyTo = thread.comments[0]?.databaseId ?? '';
-      const result = await ask('reply', { inReplyTo, body });
+      const result = await ask('reply', { inReplyTo, path: thread.path, body });
       if (!result.ok) return result.error ?? 'GitHub refused the reply.';
       await reload();
       return undefined;

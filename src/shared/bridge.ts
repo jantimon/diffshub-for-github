@@ -120,7 +120,7 @@ export interface Requests {
   /** A new comment on one line */
   comment: { ask: NewComment; reply: Result };
   /** An answer to an existing comment */
-  reply: { ask: { inReplyTo: string; body: string }; reply: Result };
+  reply: { ask: { inReplyTo: string; path: string; body: string }; reply: Result };
   /** Resolving a conversation, or reopening one. `resolved` is the state wanted. */
   resolve: { ask: { threadId: string; resolved: boolean }; reply: Result };
   /** Rewriting one of the reader's own comments */

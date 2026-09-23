@@ -223,7 +223,7 @@ failures += await check('thread sits inside the diff', async () => {
 });
 
 failures += await check('a comment can be replied to', async () => {
-  const answered = watchResponses(/review_comment\/create/);
+  const answered = watchResponses(/create_review_comment/);
 
   const thread = mine();
   await thread.locator('[data-dh-thread="reply"]').click({ timeout: 10000 });
@@ -260,7 +260,7 @@ failures += await check('a comment can be replied to', async () => {
     return false;
   }
   const shows = (await mine().locator('.dh-comment', { hasText: replied }).count()) > 0;
-  return shows ? "posted through GitHub's own reply form" : false;
+  return shows ? "posted through GitHub's JSON route, in the same thread" : false;
 });
 
 failures += await check('a conversation can be resolved and reopened', async () => {

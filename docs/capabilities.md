@@ -99,7 +99,7 @@ Worth building once the rest holds.
 | 11 | Renames and moves are obvious | ✅ | `MOVED` badge and the old path in blue |
 | 12 | Read existing review comments | ✅ | Inline, with outdated and resolved marked. Walks both paginated routes, 40 a page, stopping at 800 and saying so |
 | 13 | Write a review comment | ✅ | From the gutter control, posted at once, shown at its line |
-| 14 | Reply to a comment | ✅ | Submits GitHub's own reply form, so no token is invented |
+| 14 | Reply to a comment | ✅ | The new-comment route, naming the comment it answers |
 | 15 | Resolve a conversation | ✅ | And reopen one, for any conversation on the pull request, through `page_data/resolve_thread` |
 | 16 | Submit a review | ✅ | Comment, approve or request changes, from the toolbar |
 | 17 | Mark a file viewed | ✅ | Both ways: what GitHub has is read on open, and every tick is sent back |
@@ -152,9 +152,10 @@ the pull request. `unresolve_thread` reopens one. The request names the state
 being asked for rather than toggling, because our idea of the current state is
 stale the moment anyone else acts on the thread.
 
-Replying has no such route. It posts to GitHub's own rendered form, which is
-why `page/forms.ts` exists. That costs nothing in reach: every reply posts to
-one shared action, so any reply form on the page serves.
+Replying goes through the route a new comment uses, `create_review_comment`,
+with `inReplyTo` set to the database id of the comment it answers. GitHub files
+the reply in that comment's thread, so like resolving it reaches every
+conversation, not only those the page underneath has rendered.
 
 ### Ignoring whitespace stops at the file
 
