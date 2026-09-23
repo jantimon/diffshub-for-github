@@ -264,12 +264,21 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
   decorationRef.current = { viewed, folders, found };
   viewedRef.current = viewed;
 
-  // Decorations are worked out as rows render, so redraw when a file is ticked
-  // off or the matches change, rather than waiting for the next scroll
+  /**
+   * Decorations are worked out as rows render, so redraw when a file is ticked
+   * off or the matches change, rather than waiting for the next scroll.
+   *
+   * Only once the tree is on the page. Asked to render with no container, the
+   * tree makes one of its own, off the page, draws into that, and keeps the
+   * drawing when the real one arrives, which leaves the sidebar empty. The
+   * ticks change before the tree mounts whenever a push resets them, and a
+   * tree that mounts later draws the current ones anyway.
+   */
   const drawn = useRef({ viewed, found });
   useEffect(() => {
     if (drawn.current.viewed === viewed && drawn.current.found === found) return;
     drawn.current = { viewed, found };
+    if (model.getFileTreeContainer() == null) return;
     model.render({});
   });
 

@@ -611,5 +611,36 @@ await check('a reload reuses the patch instead of fetching it again', async () =
   return `${files} files, no patch fetched`;
 });
 
+/**
+ * After a push, the ticks kept from the last visit belong to an older commit
+ * and are cleared as the viewer starts, before the file tree has mounted. That
+ * must not leave the tree empty
+ */
+await check('the file tree fills after a push has cleared the ticks', async () => {
+  const opened = viewerFrame(page);
+  await opened?.evaluate(() =>
+    localStorage.setItem(
+      'diffshub-for-github.viewed.microsoft/TypeScript/64204',
+      JSON.stringify({ sha: '0000000000000000000000000000000000000000', ids: [] }),
+    ),
+  );
+  await page.reload();
+  await page.waitForTimeout(3500);
+  await page.locator('[data-diffshub-marked]').first().click();
+  await page.waitForTimeout(8000);
+  const tree = await viewerFrame(page)?.evaluate(() => {
+    const root = document.querySelector('.dh-tree')?.shadowRoot;
+    return {
+      rows: root?.querySelectorAll('[role="treeitem"]').length ?? 0,
+      search: root?.querySelector('[data-file-tree-search-input]') != null,
+    };
+  });
+  if (tree == null || tree.rows === 0 || !tree.search) {
+    console.log('      tree', JSON.stringify(tree));
+    return false;
+  }
+  return `${tree.rows} rows and the search field`;
+});
+
 console.log(`\nscreenshots: ${dir}`);
 await finish(context, noise);
