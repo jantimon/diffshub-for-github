@@ -676,6 +676,7 @@ the review silently splits in two — recorded by the tarantool tool, see the ri
 | headers | `Accept: application/json` |
 | errors | `json.error`, `cause` is the status |
 | evidence | **read** — `…/mutations/use-update-file-viewed-status-mutation.ts` (slice 4) |
+| measured | a POST with `viewed: 'unviewed'` is answered 200 and leaves the file marked; only the DELETE unmarks it |
 
 Not a `page_data` route.
 

@@ -23,6 +23,13 @@ import { fromPage, postToPage } from '@/viewer/bridge/postToPage';
 
 const TIMEOUT_MS = 20_000;
 
+/**
+ * Requests that are many round trips to GitHub rather than one. Reading the
+ * comments walks up to twenty pages in a row, which a slow afternoon can take
+ * past the usual limit on a busy pull request
+ */
+const LONGER_MS: Partial<Record<RequestName, number>> = { threads: 60_000 };
+
 let nextId = 0;
 
 export function ask<K extends RequestName>(
@@ -40,7 +47,10 @@ export function ask<K extends RequestName>(
       finish(message.reply as Reply<K>);
     };
 
-    const timer = setTimeout(() => finish(failedReply[name]('GitHub did not answer in time.')), TIMEOUT_MS);
+    const timer = setTimeout(
+      () => finish(failedReply[name]('GitHub did not answer in time.')),
+      LONGER_MS[name] ?? TIMEOUT_MS,
+    );
 
     function finish(reply: Reply<K>): void {
       clearTimeout(timer);

@@ -1,4 +1,4 @@
-import { WRITE_JSON } from '../src/page/headers.ts';
+import { READ_JSON, WRITE_JSON } from '../src/page/headers.ts';
 import { checker, launch, openOverlay, scrollSettled, until } from './browser.mjs';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
@@ -20,8 +20,26 @@ const reviewed = [];
 page.on('response', (r) => {
   if (!r.url().includes('/file_review')) return;
   const body = r.request().postData();
-  reviewed.push({ status: r.status(), path: body == null ? null : JSON.parse(body).path });
+  reviewed.push({
+    status: r.status(),
+    path: body == null ? null : JSON.parse(body).path,
+    marks: r.request().method() === 'POST',
+  });
 });
+
+/**
+ * Whether GitHub itself has the file marked, read back from its file list. A
+ * 200 does not prove a write took: GitHub answers 200 to an unmark it ignores
+ */
+const markedOnGithub = (file) =>
+  page.evaluate(
+    async ({ endpoint, headers, target }) => {
+      const response = await fetch(endpoint, { credentials: 'include', headers });
+      const { diffs } = await response.json();
+      return diffs.find((entry) => entry.path === target)?.markedAsViewed === true;
+    },
+    { endpoint: `${new URL(url).pathname}/page_data/file_tree`, headers: READ_JSON, target: file },
+  );
 
 // Opened twice, with the viewer's settings cleared in between: the profile
 // persists between runs, and a file left ticked would make the click below an
@@ -403,28 +421,32 @@ await check('Space in the file tree marks a file viewed and back', async () => {
   await row.focus();
   const top = await scrollTop();
   const initial = await tick();
+  const onGithub = [await markedOnGithub(file)];
   const settled = (count) =>
     until(() => reviewed.length - before >= count, { timeout: 15000 }).then(() =>
       until(async () => (await tick()) !== (count === 1 ? initial : once), { timeout: 3000 }),
     );
   await page.keyboard.press('Space');
   await settled(1);
+  onGithub.push(await markedOnGithub(file));
   const once = await tick();
   const stayed = (await focusedPath()) === file;
   await page.keyboard.press('Space');
   await settled(2);
+  onGithub.push(await markedOnGithub(file));
   const twice = await tick();
   const moved = (await scrollTop()) !== top;
 
   const sent = reviewed.slice(before);
   const accepted = sent.filter((entry) => entry.status === 200 && entry.path === file).length;
-  if (accepted !== 2 || once === initial || twice !== initial || !stayed || moved) {
+  const followed = onGithub[1] !== onGithub[0] && onGithub[2] === onGithub[0];
+  if (accepted !== 2 || once === initial || twice !== initial || !stayed || moved || !followed) {
     console.log(
-      `      writes ${JSON.stringify(sent)}, tick ${JSON.stringify([initial, once, twice])}, kept focus ${stayed}, diff moved ${moved}`,
+      `      writes ${JSON.stringify(sent)}, tick ${JSON.stringify([initial, once, twice])}, on GitHub ${JSON.stringify(onGithub)}, kept focus ${stayed}, diff moved ${moved}`,
     );
     return false;
   }
-  return `${file.split('/').pop()}: ${JSON.stringify(initial)} -> ${JSON.stringify(once)} -> ${JSON.stringify(twice)}, focus kept`;
+  return `${file.split('/').pop()}: ${JSON.stringify(initial)} -> ${JSON.stringify(once)} -> ${JSON.stringify(twice)}, GitHub agreed each time, focus kept`;
 });
 
 await check('viewed state reaches GitHub', async () => {
@@ -438,7 +460,12 @@ await check('viewed state reaches GitHub', async () => {
     console.log(`      GitHub answered ${bad.status}`);
     return false;
   }
-  return `${sent[0].path} accepted`;
+  const now = await markedOnGithub(sent[0].path);
+  if (now !== sent[0].marks) {
+    console.log(`      GitHub answered 200 but has it ${now ? 'marked' : 'unmarked'}`);
+    return false;
+  }
+  return `${sent[0].path} ${now ? 'marked' : 'unmarked'} on GitHub`;
 });
 
 await check('the tick survives', async () => {
@@ -468,10 +495,10 @@ if (touched.length > 0) {
       const results = [];
       for (const filePath of paths) {
         const res = await fetch(endpoint, {
-          method: 'POST',
+          method: 'DELETE',
           credentials: 'include',
           headers,
-          body: JSON.stringify({ path: filePath, viewed: 'unviewed' }),
+          body: JSON.stringify({ path: filePath, _method: 'delete' }),
         });
         results.push(res.status);
       }
