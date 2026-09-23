@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { MarkdownEditor } from '@/viewer/comments/MarkdownEditor';
+import { useBusy } from '@/viewer/comments/useBusy';
 
 import type { ReviewComment, ReviewThread } from '@/shared/bridge';
 
@@ -78,20 +79,13 @@ function Comment({
 
   const [mode, setMode] = useState<'reading' | 'editing' | 'deleting'>('reading');
   const [draft, setDraft] = useState(comment.body);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const { busy, error, run } = useBusy();
 
-  const run = async (work: () => Promise<string | undefined>): Promise<void> => {
-    if (busy) return;
-    setBusy(true);
-    setError(undefined);
-    const failed = await work();
-    setBusy(false);
-    if (failed == null) setMode('reading');
-    else setError(failed);
-  };
-
-  const save = (): void => void run(() => onEdit(draft));
+  const save = (): void =>
+    void run(
+      () => onEdit(draft),
+      () => setMode('reading'),
+    );
   const unchanged = draft.trim() === '' || draft === comment.body;
 
   return (
@@ -185,7 +179,7 @@ function Comment({
             className="dh-comment-delete"
             data-dh-comment="confirm-delete"
             disabled={busy}
-            onClick={() => void run(onDelete)}
+            onClick={() => void run(onDelete, () => setMode('reading'))}
           >
             {busy ? 'Deleting…' : 'Delete'}
           </button>
@@ -213,8 +207,7 @@ export function Thread({
 }) {
   const [replying, setReplying] = useState(false);
   const [text, setText] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const { busy, error, run } = useBusy();
 
   /**
    * A comment on the file, or on lines that have since changed, is drawn above
@@ -232,24 +225,14 @@ export function Thread({
     thread.line == null ? 'On the file' : undefined,
   ].filter(Boolean);
 
-  const run = async (work: () => Promise<string | undefined>): Promise<void> => {
-    if (busy) return;
-    setBusy(true);
-    setError(undefined);
-    const failed = await work();
-    setBusy(false);
-    if (failed != null) setError(failed);
-  };
-
   const sendReply = (): void =>
-    void run(async () => {
-      const failed = await onReply(text);
-      if (failed == null) {
+    void run(
+      () => onReply(text),
+      () => {
         setText('');
         setReplying(false);
-      }
-      return failed;
-    });
+      },
+    );
 
   return (
     <aside

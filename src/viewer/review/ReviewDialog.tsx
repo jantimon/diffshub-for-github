@@ -1,8 +1,9 @@
 import { IconCheck, IconComment, IconConflict, IconCopy, IconFile, IconX } from '@pierre/icons';
-import { useEffect, useRef, useState, type ComponentType, type JSX } from 'react';
+import { useRef, useState, type ComponentType, type JSX } from 'react';
 
 import type { ReviewEvent } from '@/shared/bridge';
 import { MarkdownEditor } from '@/viewer/comments/MarkdownEditor';
+import { useModalDialog } from '@/viewer/shell/useModalDialog';
 
 const VERDICTS: {
   value: ReviewEvent;
@@ -72,19 +73,7 @@ export function ReviewDialog({
   const [copied, setCopied] = useState(false);
   const [markRemaining, setMarkRemaining] = useState(false);
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (dialog == null) return;
-    dialog.showModal();
-
-    // A click on the backdrop lands on the dialog itself. Esc is the keyboard
-    // way out and the browser handles that one
-    const onBackdropClick = (click: Event): void => {
-      if (click.target === dialog) dialog.close();
-    };
-    dialog.addEventListener('click', onBackdropClick);
-    return () => dialog.removeEventListener('click', onBackdropClick);
-  }, []);
+  useModalDialog(dialogRef);
 
   const remaining = Math.max(total - viewed, 0);
   const read = total === 0 ? 0 : Math.round((viewed / total) * 100);

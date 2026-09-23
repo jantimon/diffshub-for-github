@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, type JSX } from 'react';
+import { useEffect, useRef, type JSX } from 'react';
+import { useModalDialog } from '@/viewer/shell/useModalDialog';
 
 const IS_MAC = /mac/i.test(
   (navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform,
@@ -65,17 +66,13 @@ const GROUPS: readonly Group[] = [
 export function ShortcutHelp({ onClose }: { onClose: () => void }): JSX.Element {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
+  // On the dialog rather than its first control, which would ring the close
+  // button every time the list opens
+  const close = useModalDialog(dialogRef, { focusDialog: true });
+
   useEffect(() => {
     const dialog = dialogRef.current;
     if (dialog == null) return undefined;
-    dialog.showModal();
-    // A modal puts the keyboard on its first control, which here would ring
-    // the close button every time the list opens
-    dialog.focus();
-
-    const onBackdropClick = (event: MouseEvent) => {
-      if (event.target === dialog) dialog.close();
-    };
     const onKeyDown = (event: KeyboardEvent) => {
       event.stopPropagation();
       if (event.key === '?') {
@@ -83,15 +80,9 @@ export function ShortcutHelp({ onClose }: { onClose: () => void }): JSX.Element 
         dialog.close();
       }
     };
-    dialog.addEventListener('click', onBackdropClick);
     dialog.addEventListener('keydown', onKeyDown);
-    return () => {
-      dialog.removeEventListener('click', onBackdropClick);
-      dialog.removeEventListener('keydown', onKeyDown);
-    };
+    return () => dialog.removeEventListener('keydown', onKeyDown);
   }, []);
-
-  const close = useCallback(() => dialogRef.current?.close(), []);
 
   return (
     <dialog

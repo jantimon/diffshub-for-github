@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type JSX, type SyntheticEvent
 
 import { blobUrl, rawUrl, type FileRefs } from '@/viewer/net/fileLinks';
 import { githubFetch } from '@/viewer/net/githubFetch';
+import { useModalDialog } from '@/viewer/shell/useModalDialog';
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg', 'ico', 'bmp']);
 
@@ -65,21 +66,7 @@ export function BinaryCompare({
 }): JSX.Element {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (dialog == null) return;
-    dialog.showModal();
-
-    // A click on the backdrop lands on the dialog itself. Esc is the keyboard
-    // way out and the browser handles that one
-    const onBackdropClick = (event: Event): void => {
-      if (event.target === dialog) dialog.close();
-    };
-    dialog.addEventListener('click', onBackdropClick);
-    return () => dialog.removeEventListener('click', onBackdropClick);
-  }, []);
-
-  const close = useCallback(() => dialogRef.current?.close(), []);
+  const close = useModalDialog(dialogRef);
 
   const preview = isImagePath(path);
 
