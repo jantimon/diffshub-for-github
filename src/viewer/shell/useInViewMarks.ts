@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import type { ReviewThread } from '@/bridge';
 import type { ParsedFile } from '@/patch/accumulator';
-import { debugLog } from '@/viewer/debug';
 import { filesInView } from '@/viewer/diff/filesInView';
 import { inViewCss, inViewRowsCss } from '@/viewer/diff/codeViewStyles';
 
@@ -59,22 +58,13 @@ export function useInViewMarks({
       const view = viewerRef.current?.getInstance();
       const root = model.getFileTreeContainer()?.shadowRoot;
       const list = root?.querySelector('[data-file-tree-virtualized-list]');
-      if (view == null || root == null || list == null) {
-        debugLog('in view: nothing to mark yet', {
-          viewer: view != null,
-          tree: root != null,
-          list: list != null,
-        });
-        return;
-      }
+      if (view == null || root == null || list == null) return;
 
       // The tree sets its own adopted stylesheets as it applies a theme, which
       // replaces the list and drops this one, so it is checked every time
       sheet.current ??= new CSSStyleSheet();
-      if (!root.adoptedStyleSheets.includes(sheet.current)) {
-        debugLog('in view: stylesheet adopted into the tree', { alreadyHad: root.adoptedStyleSheets.length });
+      if (!root.adoptedStyleSheets.includes(sheet.current))
         root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet.current];
-      }
 
       const files = visibleRef.current;
       const ids = new Set(
@@ -96,10 +86,7 @@ export function useInViewMarks({
         bar.current.dataset.dhInView = '';
         bar.current.setAttribute('aria-hidden', 'true');
       }
-      if (bar.current.parentNode !== list) {
-        debugLog('in view: bar put into the tree list');
-        list.append(bar.current);
-      }
+      if (bar.current.parentNode !== list) list.append(bar.current);
 
       const first = paths[0] == null ? undefined : rowFor(model, paths[0]);
       const last = paths.at(-1) == null ? undefined : rowFor(model, paths.at(-1) ?? '');
@@ -107,35 +94,20 @@ export function useInViewMarks({
       // a bar running the length of the list would say nothing
       const drawn = (path: string | undefined) =>
         path != null && root.querySelector(`[data-item-path="${CSS.escape(path)}"]`) != null;
-      const hidden = first == null || last == null || (!drawn(first) && !drawn(last));
-      if (hidden !== bar.current.hidden) {
-        debugLog(`in view: bar ${hidden ? 'hidden' : 'shown'}`, { first, last, paths });
-      }
-      bar.current.hidden = hidden;
+      bar.current.hidden = first == null || last == null || (!drawn(first) && !drawn(last));
 
       const key = `${first}\n${last}`;
       if (first == null || last == null || key === written.current) return;
       written.current = key;
       turn.current = turn.current === 0 ? 1 : 0;
       sheet.current.replaceSync(inViewCss(first, last, turn.current));
-      debugLog('in view: bar moved', {
-        first,
-        last,
-        files: paths.length,
-        scrollTop: Math.round(scrollTop.current),
-        paneHeight: Math.round(paneHeight.current),
-      });
     });
   }, [model, viewerRef, visibleRef]);
 
   useEffect(() => {
     const view = viewerRef.current?.getInstance();
     const pane = view?.getContainerElement();
-    if (view == null || pane == null) {
-      debugLog('in view: the diff viewer was not ready, so the bar will not follow scrolling');
-      return undefined;
-    }
-    debugLog('in view: following the diff', { anchorPositioning: ANCHORS });
+    if (view == null || pane == null) return undefined;
 
     // The height is read here and when it changes, never while scrolling
     const resize = new ResizeObserver(([entry]) => {
@@ -155,8 +127,6 @@ export function useInViewMarks({
       .getFileTreeContainer()
       ?.shadowRoot?.querySelector('[data-file-tree-virtualized-scroll]');
     treeScroll?.addEventListener('scroll', update, { passive: true });
-    if (treeScroll == null)
-      debugLog('in view: the tree had no scroll area yet, tree scrolling is not watched');
 
     return () => {
       unsubscribeScroll();

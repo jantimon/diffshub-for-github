@@ -146,9 +146,11 @@ function chosen(): Store | null {
   return store;
 }
 
-/** Where things are kept, for the log */
+/** Where copies go, for the log */
 export function describeStorage(): string {
-  return chosen() == null ? 'nowhere, nothing will be kept' : 'the background';
+  return chosen() == null
+    ? 'off, this browser gives the viewer nowhere to keep a copy'
+    : "copies are saved in the extension's memory until the browser closes, never on disk";
 }
 
 function keyOf(sha: string, url: string): string {

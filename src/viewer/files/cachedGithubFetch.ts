@@ -22,8 +22,16 @@ const CACHE_HEADER = 'x-diffshub-cache';
 
 let said = false;
 
-/** Says where an answer came from, which is the first thing worth knowing when the cache misbehaves */
-const note = (message: string): void => debugLog(message);
+/**
+ * Says where an answer came from and what was kept of it, which is the first
+ * thing worth knowing when the cache misbehaves. One line per outcome, each
+ * naming the file and the commit it belongs to
+ */
+const note = (message: string): void => debugLog(`cache: ${message}`);
+
+function commit(sha: string): string {
+  return `commit ${sha.slice(0, 7)}`;
+}
 
 function named(url: string): string {
   return url.slice(url.lastIndexOf('/') + 1).slice(0, 60);
@@ -44,22 +52,29 @@ export interface CachedFetchOptions {
 }
 
 export async function cachedGithubFetch(url: string, { sha, signal }: CachedFetchOptions): Promise<Response> {
-  if (sha == null) return githubFetch(url, signal);
+  if (sha == null) {
+    note(
+      `${named(url)} downloaded from github.com and not saved: the page did not say which commit it shows`,
+    );
+    return githubFetch(url, signal);
+  }
 
-  // Where things are kept is a fact about the session, not about this request,
-  // and expanding a file asks for one of these each time
+  // Where copies go is a fact about the session, not about this request, and
+  // expanding a file asks for one of these each time
   if (!said) {
     said = true;
-    note(`keeping what github.com answers in ${describeStorage()}`);
+    note(describeStorage());
   }
 
   const hit = await readCached(sha, url);
   const unpacked = hit == null ? undefined : unpack(hit);
   // A hit that will not unpack is worse than a miss if it goes unsaid: the
   // download happens anyway and nothing explains why
-  if (hit != null && unpacked == null) note(`${named(url)} was cached but would not unpack`);
+  if (hit != null && unpacked == null) {
+    note(`${named(url)} was saved but could not be read back, so it is downloaded again`);
+  }
   if (unpacked != null) {
-    note(`${named(url)} reused from the cache, ${kb(hit?.length ?? 0)} stored`);
+    note(`${named(url)} loaded from the saved copy (${commit(sha)}), nothing downloaded`);
     return new Response(unpacked, {
       status: 200,
       headers: { 'content-type': 'text/plain; charset=utf-8', [CACHE_HEADER]: 'hit' },
@@ -70,10 +85,10 @@ export async function cachedGithubFetch(url: string, { sha, signal }: CachedFetc
   // A 404 from a lapsed session, or a 503 from a host under load, has to be
   // asked again next time rather than remembered for the rest of the session
   if (!response.ok || response.body == null) {
-    note(`${named(url)} refused by github.com, ${response.status} ${response.statusText}`);
+    note(`${named(url)} refused by github.com: ${response.status} ${response.statusText}, nothing saved`);
     return response;
   }
-  note(`${named(url)} fetched from github.com`);
+  note(`${named(url)} not saved yet for ${commit(sha)}, downloading from github.com`);
 
   return new Response(response.body.pipeThrough(capture(sha, url, signal)), {
     status: response.status,
@@ -141,15 +156,15 @@ async function store(chunks: Uint8Array[], sha: string, url: string): Promise<vo
 
   const packed = await pack(chunks);
   if (packed == null) {
-    note(`${named(url)} not kept, ${kb(raw)} would not compress or is too large`);
+    note(`${named(url)} downloaded (${kb(raw)}) but not saved: it would not compress`);
     return;
   }
 
   const kept = await writeCached(sha, url, packed);
   note(
     kept
-      ? `${named(url)} kept, ${kb(raw)} of diff as ${kb(packed.length)}`
-      : `${named(url)} not kept, storage refused ${kb(packed.length)}`,
+      ? `${named(url)} downloaded (${kb(raw)}) and saved for next time, ${kb(packed.length)} compressed`
+      : `${named(url)} downloaded (${kb(raw)}) but not saved: storage refused ${kb(packed.length)}`,
   );
 }
 
