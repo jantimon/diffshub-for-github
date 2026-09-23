@@ -156,7 +156,8 @@ what to know before changing anything.
 
 ### Getting started
 
-Node.js 22 or newer, and pnpm 10.
+Node.js 22.18 or newer, and pnpm 10. The tests import TypeScript straight
+from `src/`, which Node runs without a build step from 22.18 on.
 
 ```sh
 pnpm install

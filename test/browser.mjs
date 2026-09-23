@@ -66,6 +66,19 @@ export async function launch({
     process.exit(1);
   }
 
+  // The recording is made on each machine rather than kept in git, so a fresh
+  // clone has none, and replaying nothing would abort every request
+  if (har && MODE === 'replay' && !fs.existsSync(harFile)) {
+    console.log(`No recording at ${path.relative(process.cwd(), harFile)}.`);
+    console.log('');
+    console.log('The suite replays github.com from a recording you make once, on this machine.');
+    console.log('It is taken signed out, from a public pull request, with credentials stripped.');
+    console.log('');
+    console.log('  pnpm build && pnpm test:record   make the recording, then `pnpm test` runs offline');
+    console.log('  pnpm build && pnpm test:live     or run the same checks against github.com');
+    process.exit(1);
+  }
+
   // A recorded run must not carry a signed-in session into the recording, so it
   // gets a profile of its own that is thrown away afterwards
   const recording = har && MODE !== 'live';
