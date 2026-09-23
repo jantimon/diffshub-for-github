@@ -1,0 +1,46 @@
+.dh-toast-stack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(380px, calc(100vw - 32px));
+}
+
+.dh-toast {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 9px 10px 9px 12px;
+  color: var(--dh-fg);
+  background: var(--dh-chrome);
+  border: 1px solid var(--dh-border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px color-mix(in srgb, #000000 18%, transparent);
+}
+
+.dh-toast-message {
+  flex: 1;
+  min-width: 0;
+}
+
+.dh-toast-action {
+  color: currentColor;
+  white-space: nowrap;
+}
+
+.dh-toast-close {
+  padding: 0 2px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  opacity: 0.6;
+}
+
+.dh-toast-close:hover {
+  opacity: 1;
+}

@@ -1,0 +1,170 @@
+.dh-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 10px;
+  color: var(--dh-fg);
+  background: var(--dh-chrome);
+  border-bottom: 1px solid var(--dh-border);
+}
+
+/*
+ * The name sits beside an avatar and a row of icons, so it lines up with them
+ * rather than on a shared text baseline: an avatar aligned on the baseline
+ * hangs its whole box below the text and reads as too low.
+ *
+ * Centring boxes alone still leaves the text high, because a line box carries
+ * half its leading above the capitals. `text-box` trims that, so what is
+ * centred is the text a reader sees rather than the box around it. Browsers
+ * without it fall back to the centred box, which is the better of the two
+ * anyway.
+ *
+ * Only the top is trimmed. Trimming to the alphabetic baseline as well ends
+ * the line box where the descenders begin, and the title clips its overflow to
+ * keep the ellipsis, so the tail of a `p` was being cut off.
+ */
+.dh-identity {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.dh-identity strong,
+.dh-title {
+  text-box: trim-start cap;
+}
+
+.dh-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.6;
+}
+
+.dh-stats {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-add {
+  color: var(--dh-added);
+}
+.dh-del {
+  color: var(--dh-deleted);
+}
+.dh-loading {
+  opacity: 0.55;
+}
+
+.dh-actions {
+  display: flex;
+  gap: 2px;
+}
+
+/* One shape for every toolbar control, icon-only, so the strip reads as a row
+   of glyphs rather than a row of words. */
+.dh-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  opacity: 0.7;
+}
+
+.dh-icon-button:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  opacity: 1;
+}
+
+.dh-icon-button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+
+.dh-icon-button[aria-pressed='false'] {
+  opacity: 0.4;
+}
+
+/* The icon set has no struck-through bubble, so the stroke is drawn here. The
+   outline under it cuts the gap a slashed icon is normally drawn with. */
+.dh-icon-button[data-dh-action='comments'] {
+  position: relative;
+}
+
+.dh-icon-button[data-dh-action='comments'][aria-pressed='true']::after {
+  position: absolute;
+  inline-size: 19px;
+  block-size: 1.5px;
+  content: '';
+  background: currentColor;
+  outline: 1.5px solid var(--dh-chrome);
+  transform: rotate(-45deg);
+}
+.dh-body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The one thing in the toolbar that finishes the job, so it says what it is. */
+.dh-primary {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  font: inherit;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--dh-added);
+  border: 0;
+  border-radius: 6px;
+}
+
+.dh-primary:hover {
+  filter: brightness(1.08);
+}
+
+.dh-overlay[data-theme='dark'] .dh-primary {
+  color: #06140b;
+}
+
+.dh-actions-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 6px;
+  background: var(--dh-border);
+}
+
+/* Whose work this is, at a glance. */
+.dh-author {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.dh-author img {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.dh-author:hover img {
+  outline: 2px solid color-mix(in srgb, currentColor 35%, transparent);
+  outline-offset: 1px;
+}

@@ -106,6 +106,11 @@ Prose follows Orwell's rules. `eslint-plugin-no-comment-slop` enforces the rest.
 Measure before you claim. Several things here look wrong and are load-bearing;
 each carries its reason in a comment. Do not remove one to satisfy a linter.
 
+Styles sit next to the feature they dress, as a `.css` file in its folder, and
+`src/entrypoints/viewer/style.css` imports them in cascade order. Styles for
+the diff library's shadow DOM are strings in `src/viewer/diff/styles/`, because
+the library takes them that way.
+
 ## Firefox
 
 Firefox differs enough to have its own page. **Read

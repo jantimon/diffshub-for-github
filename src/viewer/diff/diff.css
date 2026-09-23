@@ -1,0 +1,69 @@
+/*
+ * Room under the last file, so the end of a diff can be read at a comfortable
+ * height instead of against the bottom edge, the way an editor leaves space
+ * past the final line.
+ */
+.dh-code {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  contain: strict;
+  scroll-padding-block-end: 30vh;
+}
+
+.dh-code::after {
+  display: block;
+  block-size: 30vh;
+  content: '';
+}
+
+/*
+ * Where each file is, and which one the keyboard is on.
+ *
+ * Ticking a file off puts the keyboard on the next file's eye, and without a
+ * mark the reader has to hunt for where that landed. The whole file is lifted
+ * rather than the button, because the file is what they are about to read.
+ *
+ * `:focus` rather than `:focus-visible`, because the focus is moved for the
+ * reader rather than by them, and `:focus-visible` would not match after a
+ * click.
+ *
+ * Every file has a faint border, so where one ends and the next begins can be
+ * seen at a glance, and the file with the keyboard takes the accent colour.
+ * The border never changes width, so nothing moves when a file takes the
+ * focus. The viewer measures every row, and a row that grew on focus would
+ * push the diff around under the reader.
+ *
+ * The space above and below a file is the viewer's own layout, not a margin
+ * here: see `FILE_GAP`. The margin on the right only narrows the file, which
+ * the viewer does not measure.
+ *
+ * The border colour is solid rather than translucent: where two edges meet or
+ * overlap, a translucent colour would add up to a darker spot. Mixed into the
+ * diff's own background, it looks like 12% black or white laid over it.
+ */
+.dh-overlay {
+  --dh-file-edge: color-mix(in srgb, #000 12%, var(--dh-bg));
+}
+
+.dh-overlay[data-theme='dark'] {
+  --dh-file-edge: color-mix(in srgb, #fff 12%, var(--dh-bg));
+}
+
+diffs-container {
+  margin-inline-end: 10px;
+  border: 1px solid var(--dh-file-edge);
+  border-radius: 6px;
+  transition: border-color 200ms ease;
+}
+
+diffs-container:has(.dh-viewed:focus) {
+  border-color: var(--dh-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  diffs-container {
+    transition: none;
+  }
+}

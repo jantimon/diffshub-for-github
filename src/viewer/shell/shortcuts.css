@@ -1,0 +1,121 @@
+.dh-help {
+  width: min(520px, 92vw);
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+}
+
+.dh-help:focus {
+  outline: none;
+}
+
+.dh-help::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.dh-help-panel {
+  padding: 14px 16px 16px;
+  color: var(--dh-fg);
+  background: var(--dh-chrome);
+  border: 1px solid var(--dh-border);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px color-mix(in srgb, #000000 28%, transparent);
+}
+
+.dh-help-header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.dh-help-close {
+  padding: 0 2px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  opacity: 0.6;
+}
+
+.dh-help-close:hover {
+  opacity: 1;
+}
+
+/* Grouped as the shortcut sheets people know: what it does on the left, the
+   keys on the right, one keycap per key. */
+.dh-help-group + .dh-help-group {
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.dh-help-group h3 {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dh-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dh-help-group dl {
+  margin: 0;
+}
+
+.dh-help-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 5px;
+}
+
+.dh-help-row dt {
+  opacity: 0.9;
+}
+
+.dh-help-row dd {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+}
+
+.dh-help-combo {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.dh-help-or {
+  margin-inline-end: 3px;
+  color: var(--dh-muted);
+}
+
+.dh-help-combo kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 22px;
+  block-size: 22px;
+  padding-inline: 6px;
+  font: inherit;
+  font-size: 12px;
+  background: var(--dh-surface);
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+}
+
+.dh-help-note {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--dh-muted);
+}

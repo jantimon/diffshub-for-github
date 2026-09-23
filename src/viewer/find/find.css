@@ -1,0 +1,127 @@
+/*
+ * Find floats over the top right of the diff, as an editor's find widget
+ * does, above the sticky file headers. It is a card like a conversation, so
+ * it takes the same surface and edge.
+ */
+.dh-find {
+  position: absolute;
+  top: 8px;
+  right: 20px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  font-size: 13px;
+  color: var(--dh-fg);
+  background: var(--dh-surface);
+  border: 1px solid var(--dh-edge);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
+}
+
+.dh-find-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.dh-find-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 300px;
+  padding: 0 3px 0 8px;
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.dh-find-field:focus-within {
+  border-color: color-mix(in srgb, var(--dh-accent) 70%, transparent);
+}
+
+.dh-find-field[data-invalid='true'] {
+  border-color: var(--dh-deleted);
+}
+
+.dh-find-field > svg {
+  flex: none;
+  opacity: 0.5;
+}
+
+.dh-find-field input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 0;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.dh-find-field input::placeholder {
+  color: inherit;
+  opacity: 0.4;
+}
+
+.dh-find-word {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Wide enough for "10,000+ of 10,000+", so the arrows never move as it counts */
+.dh-find-count {
+  min-width: 92px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dh-muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.dh-find-count[data-none='true'] {
+  color: var(--dh-deleted);
+}
+
+.dh-find-rule {
+  width: 1px;
+  height: 16px;
+  margin: 0 2px;
+  background: var(--dh-edge);
+}
+
+.dh-find .dh-icon-button {
+  width: 26px;
+  height: 26px;
+}
+
+.dh-find .dh-icon-button:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
+.dh-find-previous svg {
+  transform: rotate(180deg);
+}
+
+.dh-find-note {
+  margin: 0 6px 2px;
+  font-size: 12px;
+  color: var(--dh-muted);
+}
+
+.dh-find-hidden {
+  padding: 0;
+  font: inherit;
+  color: var(--dh-accent);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.dh-find-hidden:hover {
+  text-decoration: underline;
+}

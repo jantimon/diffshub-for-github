@@ -1,0 +1,56 @@
+* {
+  box-sizing: border-box;
+}
+
+/* Defaults until the diff's theme resolves. The resolved values are set on
+   `.dh-overlay`, so the chrome matches the diff. */
+:root {
+  --dh-bg: #ffffff;
+  --dh-fg: #1f2328;
+  --dh-chrome: #ffffff;
+  --dh-sidebar: #ffffff;
+  --dh-border: rgb(0 0 0 / 12%);
+  --dh-added: #1a7f37;
+  --dh-deleted: #cf222e;
+  --dh-accent: #0969da;
+  /*
+   * A panel laid over the code, the line around it, and the text beside the
+   * point. `--dh-edge` is its own token rather than `--dh-border`, which a
+   * theme naming no panel colour leaves transparent, and a panel needs an
+   * edge.
+   *
+   * These hold only until the theme resolves, so they are plain values like
+   * the rest of the block. `light-dark()` cannot be used here: the build
+   * lowers it to custom properties it emits only where it finds a CSS
+   * `color-scheme`, and this one is set from the theme at run time.
+   */
+  --dh-surface: #ffffff;
+  --dh-edge: #d1d9e0;
+  --dh-muted: #59636e;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  color: var(--dh-fg);
+  background: var(--dh-bg);
+}
+
+#root {
+  height: 100%;
+}
+
+.dh-overlay {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  color: var(--dh-fg);
+  background: var(--dh-bg);
+}
