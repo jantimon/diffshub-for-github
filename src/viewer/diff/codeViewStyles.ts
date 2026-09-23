@@ -13,14 +13,25 @@ import type { WorkerInitializationRenderOptions, WorkerPoolOptions } from '@pier
 import type { CSSProperties } from 'react';
 
 /**
- * The space above a file header, which is what makes a new file read as a new
- * file rather than more of the last one.
+ * The space around each file, which is what makes a new file read as a new
+ * file rather than more of the last one: this much above a file, and a little
+ * below the one before it.
  *
- * It is a number rather than a line of CSS because the space belongs to neither
- * file: it sits between them, and anything working out which file is on screen
- * has to allow for it. `useNavigation` imports it for exactly that.
+ * It goes to the viewer as its own layout rather than as CSS margins, because
+ * the viewer works out where every file sits from their heights and its gap,
+ * and a margin it did not know about would move every file after the first.
+ * The gap belongs to neither file, so anything working out which file is on
+ * screen has to allow for it, which is why `FILE_GAP` is exported.
  */
-export const FILE_GAP = 26;
+export const SPACE_ABOVE_FILE = 26;
+
+/**
+ * The curve inside a file's border: its 6px radius, less the 1px border, both
+ * set on `diffs-container` in the viewer's stylesheet
+ */
+const INNER_RADIUS = 5;
+const SPACE_BELOW_FILE = 5;
+export const FILE_GAP = SPACE_ABOVE_FILE + SPACE_BELOW_FILE;
 
 export const POOL_OPTIONS: WorkerPoolOptions = {
   poolSize: Math.min(Math.max(1, (navigator.hardwareConcurrency ?? 1) - 1), 3),
@@ -176,14 +187,39 @@ export const DIFF_TINT_CSS = `
  * header, the path in a heavier weight than the code under it, and the change
  * icon large enough to read at a glance.
  *
- * The gap is a margin rather than padding because these headers stick to the
- * top as you scroll, and padding would leave the stuck bar with a dead band
- * above the filename.
+ * The space above a file sits outside it, in the viewer's layout, because
+ * these headers stick to the top as you scroll, and space inside would leave
+ * the stuck bar with a dead band above the filename.
  */
 export const HEADER_CSS = `
+/*
+ * The file's border is rounded, and the header and the rows are square and
+ * fill it edge to edge, so their corners would paint over the border's curve.
+ * The header keeps its square background, so that stuck to the top while
+ * scrolling it still covers the code going under it, and starts one corner's
+ * depth lower instead. A rounded cap in its own colour fills the space above
+ * it, and is clipped off with the rest of the file above the pane once the
+ * header sticks. The rows are rounded at the bottom and clipped to it.
+ */
 [data-diffs-header] {
-  margin-block-start: ${FILE_GAP}px;
-  border-block-start: 1px solid var(--dh-border, rgb(128 128 128 / 22%));
+  margin-block-start: ${INNER_RADIUS}px;
+}
+
+[data-diffs-header]::before {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: -${INNER_RADIUS}px;
+  block-size: ${INNER_RADIUS}px;
+  content: '';
+  background: inherit;
+  border-start-start-radius: ${INNER_RADIUS}px;
+  border-start-end-radius: ${INNER_RADIUS}px;
+}
+
+pre[data-diff] {
+  overflow: clip;
+  border-end-start-radius: ${INNER_RADIUS}px;
+  border-end-end-radius: ${INNER_RADIUS}px;
 }
 
 [data-diffs-header] [data-title] {

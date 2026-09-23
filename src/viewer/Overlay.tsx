@@ -45,11 +45,13 @@ import { readSetting, useChoice, writeSetting } from '@/viewer/settings';
 import {
   ANNOTATION_CSS,
   DIFF_TINT_CSS,
+  FILE_GAP,
   FIND_CSS,
   HEADER_CSS,
   HIGHLIGHTER_OPTIONS,
   POOL_OPTIONS,
   SEPARATOR_CSS,
+  SPACE_ABOVE_FILE,
   TREE_CSS,
 } from '@/viewer/diff/codeViewStyles';
 
@@ -495,7 +497,7 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
 
   const options = useMemo<CodeViewReactOptions<ReviewThread, undefined>>(
     () => ({
-      layout: { paddingTop: 0, gap: 1, paddingBottom: 0 },
+      layout: { paddingTop: SPACE_ABOVE_FILE, gap: FILE_GAP, paddingBottom: 0 },
       diffStyle,
       themeType: themeChoice ?? page.themeType,
       theme: { light: page.lightTheme, dark: page.darkTheme },

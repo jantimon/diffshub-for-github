@@ -440,7 +440,7 @@ body {
 }
 
 /*
- * Which file the keyboard is on.
+ * Where each file is, and which one the keyboard is on.
  *
  * Ticking a file off puts the keyboard on the next file's eye, and without a
  * mark the reader has to hunt for where that landed. The whole file is lifted
@@ -450,13 +450,31 @@ body {
  * reader rather than by them, and `:focus-visible` would not match after a
  * click.
  *
- * The border is there the whole time and only changes colour, so nothing moves
- * when a file takes the focus. The viewer measures every row, and a row that
- * grew on focus would push the diff around under the reader.
+ * Every file has a faint border, so where one ends and the next begins can be
+ * seen at a glance, and the file with the keyboard takes the accent colour.
+ * The border never changes width, so nothing moves when a file takes the
+ * focus. The viewer measures every row, and a row that grew on focus would
+ * push the diff around under the reader.
+ *
+ * The space above and below a file is the viewer's own layout, not a margin
+ * here: see `FILE_GAP`. The margin on the right only narrows the file, which
+ * the viewer does not measure.
  */
+/* Solid rather than translucent: where two edges meet or overlap, a
+   translucent colour would add up to a darker spot. Mixed into the diff's own
+   background, it looks like 12% black or white laid over it. */
+.dh-overlay {
+  --dh-file-edge: color-mix(in srgb, #000 12%, var(--dh-bg, #fff));
+}
+
+.dh-overlay[data-theme='dark'] {
+  --dh-file-edge: color-mix(in srgb, #fff 12%, var(--dh-bg, #0d1117));
+}
+
 diffs-container {
   box-sizing: border-box;
-  border: 2px solid transparent;
+  margin-inline-end: 10px;
+  border: 1px solid var(--dh-file-edge);
   border-radius: 6px;
   transition: border-color 200ms ease;
 }
