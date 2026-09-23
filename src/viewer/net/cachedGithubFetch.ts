@@ -17,6 +17,18 @@ import { pack, unpack } from '@/viewer/net/pack';
 import { debugLog } from '@/viewer/debug';
 import { describeStorage, MAX_RAW_BYTES, readCached, writeCached } from '@/viewer/net/responseCache';
 
+/**
+ * Answers that mean "not now" rather than "no": rate limited, or a host under
+ * load. `patch-diff.githubusercontent.com` gives a 503 often enough to matter
+ */
+const TRY_AGAIN = new Set([429, 502, 503, 504]);
+
+/** The waits before each further try. Two more tries, then the refusal is shown */
+const RETRY_DELAYS_MS = [1000, 3000];
+
+/** The longest a `Retry-After` is followed, so a reader is never left waiting a minute */
+const MAX_RETRY_AFTER_MS = 10_000;
+
 /** Marks a response that never touched the network, for anyone reading one */
 const CACHE_HEADER = 'x-diffshub-cache';
 
@@ -56,7 +68,7 @@ export async function cachedGithubFetch(url: string, { sha, signal }: CachedFetc
     note(
       `${named(url)} downloaded from github.com and not saved: the page did not say which commit it shows`,
     );
-    return githubFetch(url, signal);
+    return fetchPatiently(url, signal);
   }
 
   // Where copies go is a fact about the session, not about this request, and
@@ -81,7 +93,7 @@ export async function cachedGithubFetch(url: string, { sha, signal }: CachedFetc
     });
   }
 
-  const response = await githubFetch(url, signal);
+  const response = await fetchPatiently(url, signal);
   // A 404 from a lapsed session, or a 503 from a host under load, has to be
   // asked again next time rather than remembered for the rest of the session
   if (!response.ok || response.body == null) {
@@ -94,6 +106,40 @@ export async function cachedGithubFetch(url: string, { sha, signal }: CachedFetc
     status: response.status,
     statusText: response.statusText,
     headers: response.headers,
+  });
+}
+
+/** `githubFetch`, asked again after a refusal that says to come back later */
+async function fetchPatiently(url: string, signal: AbortSignal | undefined): Promise<Response> {
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await githubFetch(url, signal);
+    const delay = RETRY_DELAYS_MS[attempt];
+    if (!TRY_AGAIN.has(response.status) || delay == null) return response;
+
+    const asked = Number(response.headers.get('retry-after')) * 1000;
+    const wait = Number.isFinite(asked) && asked > 0 ? Math.min(asked, MAX_RETRY_AFTER_MS) : delay;
+    note(`${named(url)} refused by github.com: ${response.status}, try ${attempt + 2} in ${wait / 1000} s`);
+    await response.body?.cancel();
+    await pause(wait, signal);
+  }
+}
+
+/** Waits, or rejects as a fetch does when the signal gives up */
+function pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted === true) {
+      reject(signal.reason);
+      return;
+    }
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        reject(signal.reason);
+      },
+      { once: true },
+    );
   });
 }
 

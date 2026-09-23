@@ -31,6 +31,18 @@ const { context, page, noise } = await launch({ har: true });
 const { dir, shoot } = screenshots(page);
 const { check, finish } = checker();
 
+/**
+ * GitHub's patch host refuses with a 503 under load, so the first ask for the
+ * patch is refused here, and the viewer has to ask again on its own. Routes
+ * added later run first, so this sits in front of the recording
+ */
+let refusedPatches = 0;
+await context.route(/\/pull\/\d+\.diff$/, (route) => {
+  if (refusedPatches > 0) return route.fallback();
+  refusedPatches += 1;
+  return route.fulfill({ status: 503, body: 'refused by the test' });
+});
+
 const frame = await openOverlay(page, url, { noise });
 if (frame == null) {
   console.log('FAIL  the viewer did not open');
@@ -45,6 +57,11 @@ await check('the diff renders', async () => {
   const files = await frame.locator('[data-item-type="file"]').count();
   const stats = (await frame.locator('.dh-stats').textContent())?.trim() ?? '';
   return files > 0 && /\+[1-9]/.test(stats) ? `${files} files, ${stats}` : false;
+});
+
+await check('a patch refused with 503 is asked for again', async () => {
+  const files = await frame.locator('[data-item-type="file"]').count();
+  return refusedPatches === 1 && files > 0 ? `refused once, then ${files} files` : false;
 });
 
 /**

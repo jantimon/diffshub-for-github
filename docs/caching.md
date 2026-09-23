@@ -97,5 +97,6 @@ localStorage.setItem('diffshub-for-github.debug', 'on');
 
 ## What it does not fix
 
-A cold 503. Nothing is kept for a commit that was never read, and nothing in
-the extension retries a refused request. See [todo.md](todo.md).
+A cold 503. Nothing is kept for a commit that was never read. A 429, 502, 503
+or 504 is asked again twice, after one second and then three, or after what
+GitHub's `Retry-After` says up to ten; after that the refusal is shown.

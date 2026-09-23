@@ -145,9 +145,9 @@ export async function launch({
 export async function openViewer(page, { pace = 0 } = {}) {
   const tab = page.locator('[data-diffshub-marked]').first();
   await tab.waitFor({ timeout: 30_000 });
-  // The tab is marked before GitHub's page has finished loading, and a click
-  // that early can go nowhere. So the page's load comes first, and a click that
-  // opened nothing is made again
+  // The page's load comes first, and a click that opened nothing is made
+  // again, so one lost click does not fail a run. `docs/todo.md` has what is
+  // known about when a click was lost
   await page.waitForLoadState('load');
   if (pace > 0) await page.waitForTimeout(pace);
   let frame;

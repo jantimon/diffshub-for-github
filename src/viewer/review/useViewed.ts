@@ -4,6 +4,13 @@ import { ask } from '@/viewer/bridge/ask';
 import { readSetting, writeSetting } from '@/viewer/settings';
 import type { Session } from '@/viewer/state/session';
 
+/**
+ * How long after one read of GitHub's ticks the next may happen. The read is the
+ * whole file list, over a megabyte on a large pull request, so coming back to
+ * the viewer does not ask every time
+ */
+const READ_AGAIN_AFTER_MS = 60_000;
+
 interface Stored {
   sha?: string;
   paths: string[];
@@ -29,10 +36,11 @@ export function storedViewed(key: string, headSha: string | undefined): Readonly
 /**
  * Keeps the viewed ticks in step with GitHub.
  *
- * GitHub is the source of truth: what it already has marked is read once when
- * the viewer opens, and every tick is sent to it, so its own Files-changed tab
- * and this one agree in both directions. A copy is kept in this browser, so the
- * ticks are there before GitHub answers.
+ * GitHub is the source of truth: what it has marked is read when the viewer
+ * opens and again when the reader comes back to it, and every tick is sent to
+ * it, so its own Files-changed tab and this one agree in both directions. A
+ * copy is kept in this browser, so the ticks are there before GitHub answers,
+ * and stay when it does not.
  */
 export function useViewed(
   session: Session,
@@ -52,21 +60,42 @@ export function useViewed(
     return session.subscribe(persist);
   }, [session, key, headSha]);
 
-  // What GitHub already has wins over the local copy, but only before the
-  // reader has ticked anything: a tick made while this is in flight would
-  // otherwise be thrown away when it lands
-  const touched = useRef(false);
+  /**
+   * Counts the reader's own changes, and the writes GitHub has not answered
+   * yet. What GitHub answers replaces the ticks here, unless a tick was made
+   * while it was on its way or is still being sent: that tick is newer than
+   * the answer, and would be thrown away
+   */
+  const changes = useRef(0);
+  const sending = useRef(0);
   useEffect(() => {
-    void (async () => {
-      const { paths, baseSha } = await ask('viewed');
-      session.set({ baseSha });
-      if (touched.current || paths.length === 0) return;
-      session.set(({ viewed }) => ({ viewed: new Set([...viewed, ...paths]) }));
-    })();
+    let lastRead = 0;
+    const read = async (): Promise<void> => {
+      lastRead = Date.now();
+      const before = changes.current;
+      const { paths, baseSha, error } = await ask('viewed');
+      if (baseSha != null) session.set({ baseSha });
+      if (error != null || changes.current !== before || sending.current > 0) return;
+      if (!sameSet(session.get().viewed, paths)) session.set({ viewed: new Set(paths) });
+    };
+    void read();
+
+    // Back from another tab, or the overlay opened again over GitHub's own
+    // page, where either could have changed the ticks
+    const onReturn = (): void => {
+      if (document.visibilityState === 'visible' && Date.now() - lastRead > READ_AGAIN_AFTER_MS) void read();
+    };
+    addEventListener('focus', onReturn);
+    document.addEventListener('visibilitychange', onReturn);
+    return () => {
+      removeEventListener('focus', onReturn);
+      document.removeEventListener('visibilitychange', onReturn);
+    };
   }, [session]);
 
   const apply = useCallback(
     (path: string, next: boolean) => {
+      changes.current += 1;
       session.set(({ viewed }) => {
         const updated = new Set(viewed);
         if (next) updated.add(path);
@@ -77,21 +106,29 @@ export function useViewed(
     [session],
   );
 
+  const send = useCallback(async (path: string, viewed: boolean) => {
+    sending.current += 1;
+    try {
+      return await ask('file-review', { path, viewed });
+    } finally {
+      sending.current -= 1;
+    }
+  }, []);
+
   // The tick lands at once and is taken back, with a toast, if GitHub refuses
   // it, so the two never quietly disagree
   const toggle = useCallback(
     (path: string) => {
-      touched.current = true;
       const next = !session.get().viewed.has(path);
       apply(path, next);
       void (async () => {
-        const { ok, error } = await ask('file-review', { path, viewed: next });
+        const { ok, error } = await send(path, next);
         if (ok) return;
         apply(path, !next);
         onFailure(error ?? `GitHub did not record ${path} as ${next ? 'viewed' : 'not viewed'}.`);
       })();
     },
-    [apply, onFailure, session],
+    [apply, onFailure, send, session],
   );
 
   /**
@@ -102,19 +139,22 @@ export function useViewed(
    */
   const markAll = useCallback(
     async (paths: readonly string[]): Promise<string[]> => {
-      touched.current = true;
       const refused: string[] = [];
       for (const path of paths.filter((one) => !session.get().viewed.has(one))) {
         apply(path, true);
-        const { ok } = await ask('file-review', { path, viewed: true });
+        const { ok } = await send(path, true);
         if (ok) continue;
         apply(path, false);
         refused.push(path);
       }
       return refused;
     },
-    [apply, session],
+    [apply, send, session],
   );
 
   return { toggle, markAll };
+}
+
+function sameSet(set: ReadonlySet<string>, list: readonly string[]): boolean {
+  return set.size === new Set(list).size && list.every((item) => set.has(item));
 }

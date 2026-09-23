@@ -157,6 +157,7 @@ export function useThreads(
       // A reply answers the first comment in the thread, as GitHub's own
       // client does
       const inReplyTo = thread.comments[0]?.databaseId ?? '';
+      if (inReplyTo === '') return 'GitHub did not say which comment this conversation starts with.';
       const result = await ask('reply', { inReplyTo, path: thread.path, body });
       if (!result.ok) return result.error ?? 'GitHub refused the reply.';
       await reload();
