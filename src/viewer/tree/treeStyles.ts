@@ -92,14 +92,3 @@ export function inViewCss(first: string, last: string, turn: 0 | 1): string {
   bottom: anchor(${end} bottom, 0px);
 }`;
 }
-
-/**
- * The same mark for a browser without anchor positioning: a line inside each
- * row, which no row changes size for, and without the slide
- */
-export function inViewRowsCss(paths: readonly string[]): string {
-  if (paths.length === 0) return '';
-  return `${paths.map(rowSelector).join(',\n')} {
-  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--dh-accent) 45%, transparent);
-}`;
-}

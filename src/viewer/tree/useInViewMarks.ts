@@ -5,9 +5,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { ReviewThread } from '@/shared/bridge';
 import type { Session } from '@/viewer/state/session';
 import { filesInView } from '@/viewer/tree/filesInView';
-import { inViewCss, inViewRowsCss } from '@/viewer/tree/treeStyles';
-
-const ANCHORS = typeof CSS !== 'undefined' && CSS.supports('anchor-name: --a');
+import { inViewCss } from '@/viewer/tree/treeStyles';
 
 /**
  * The row that stands for a file: its own, or the outermost folder that is
@@ -72,13 +70,6 @@ export function useInViewMarks({
         filesInView(files, (id) => view.getTopForItem(id), scrollTop.current, paneHeight.current),
       );
       const paths = files.filter((file) => ids.has(file.item.id)).map((file) => file.path);
-
-      if (!ANCHORS) {
-        const css = inViewRowsCss(paths);
-        if (css !== written.current) sheet.current.replaceSync(css);
-        written.current = css;
-        return;
-      }
 
       // The tree redraws its list as it scrolls, and may drop an element it
       // did not make, so the bar is put back whenever it has gone

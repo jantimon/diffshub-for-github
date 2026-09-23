@@ -16,16 +16,12 @@ interface RenderedFile {
  * no row changes height and the viewer has nothing to measure again. Only the
  * rows that exist are painted, and the rest as they scroll in. They are found
  * by walking each file's rows: `docs/upstream.md#line-lookup`.
- *
- * A browser without the API gets no marks, and the current line is still
- * scrolled to the middle of the screen.
  */
 export function paintMatches(
   rendered: readonly RenderedFile[],
   pattern: RegExp | undefined,
   current: FindMatch | undefined,
 ): void {
-  if (!('highlights' in CSS)) return;
   if (pattern == null) {
     clearMatches();
     return;
@@ -61,7 +57,6 @@ export function paintMatches(
 }
 
 export function clearMatches(): void {
-  if (!('highlights' in CSS)) return;
   CSS.highlights.delete(ALL_MATCHES);
   CSS.highlights.delete(CURRENT_MATCH);
 }

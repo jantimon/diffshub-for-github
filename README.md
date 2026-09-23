@@ -15,7 +15,7 @@ line, reply, resolve a conversation, approve or ask for changes. Everything goes
 to github.com from your own browser, signed in as you already are. No token to
 paste, no other server, nothing about the code leaves your machine.
 
-For Chrome and Firefox.
+For Chrome and Firefox 147 or later.
 
 ![The viewer on microsoft/TypeScript#64204, dark](docs/images/overlay-dark.png)
 

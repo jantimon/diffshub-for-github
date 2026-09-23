@@ -73,12 +73,11 @@ export default defineConfig({
     browser_specific_settings: {
       gecko: {
         id: 'diffshub-for-github@jantimon.dev',
-        strict_min_version: '128.0',
+        strict_min_version: '147.0',
         /**
          * Required of every new Firefox extension. Nothing is collected: the
          * diff is fetched from github.com and rendered, and nothing leaves the
-         * machine. Firefox reads this from 140 and ignores it before that,
-         * which `web-ext lint` notes against the 128 minimum kept here
+         * machine
          */
         data_collection_permissions: { required: ['none'] },
       },
