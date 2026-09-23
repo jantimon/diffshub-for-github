@@ -112,7 +112,9 @@ when you only want to read.
 **Reading a pull request twice is free.** The viewer keeps the diff in memory
 until the browser closes, so a reload, or a trip to another page and back,
 downloads nothing. A new push means a new diff, so what you see is never behind
-the page you are on. Nothing is written to disk. See
+the page you are on. The diff is never written to disk. What the viewer does
+keep, in the extension's own storage, is your preferences: the filter patterns,
+the layout, and which files you ticked as viewed. See
 [`docs/caching.md`](docs/caching.md).
 
 **The rest.** Split and unified layouts. Collapsed lines expand in place. Copy

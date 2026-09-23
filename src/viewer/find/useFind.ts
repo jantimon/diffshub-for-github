@@ -6,7 +6,7 @@ import { compileQuery, findInFiles, type FindMatch, type FindOptions } from '@/p
 import type { ParsedFiles } from '@/patch/usePatchStream';
 import type { ExpansionMemory } from '@/viewer/diff/expandedRegions';
 import { clearMatches, paintMatches } from '@/viewer/find/paintMatches';
-import { readSetting, useChoice, writeSetting } from '@/viewer/settings';
+import { useChoice } from '@/viewer/settings';
 
 /** Long enough that typing a word searches once, short enough to feel live */
 const TYPING_PAUSE_MS = 120;
@@ -80,7 +80,9 @@ export function useFind({
   currentFile: () => number;
 }): Find {
   const [open, setOpen] = useState(false);
-  const [query, setQueryState] = useState(() => readSetting('find.query', ''));
+  // Kept while the viewer is open, never stored: what someone searched a
+  // private repository for is not worth leaving behind
+  const [query, setQueryState] = useState('');
   const [searched, setSearched] = useState<Searched>({ text: query, fromFile: 0 });
   const [caseChoice = 'off', setCase] = useChoice('find.case', SWITCH, 'off');
   const [wordChoice = 'off', setWord] = useChoice('find.word', SWITCH, 'off');
@@ -225,7 +227,6 @@ export function useFind({
     (seed?: string) => {
       if (seed != null && seed !== '') {
         setQueryState(seed);
-        writeSetting('find.query', seed);
         setSearched({ text: seed, fromFile: currentFile() });
       } else {
         setSearched((before) => ({ ...before, fromFile: currentFile() }));
@@ -241,10 +242,7 @@ export function useFind({
     clearMatches();
   }, []);
 
-  const setQuery = useCallback((next: string) => {
-    setQueryState(next);
-    writeSetting('find.query', next);
-  }, []);
+  const setQuery = useCallback((next: string) => setQueryState(next), []);
 
   const toggle = useCallback(
     (option: keyof FindOptions) => {

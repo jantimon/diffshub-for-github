@@ -44,6 +44,11 @@ which treats a disconnect before `end` as an error for the same reason.
 `storage.session`: in memory, shared across tabs, gone when the browser closes.
 Never `storage.local` or the Cache API, which would put private diffs on disk.
 
+Preferences are a different matter and do stay: the viewer's own
+`localStorage` holds the filter patterns, the layout and theme choices, and the
+paths of the files ticked as viewed, per pull request. No diff content, and no
+find query.
+
 The background holds it in both browsers and the viewer asks over
 `runtime.sendMessage`. Firefox would leave no choice, since it withholds
 `browser.storage` from a viewer framed by github.com; Chrome's viewer has the
