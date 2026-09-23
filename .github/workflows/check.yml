@@ -1,0 +1,30 @@
+# Everything that runs without a browser or a GitHub login. The browser suites
+# replay recordings that stay on the machine that made them, so they run locally
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm compile
+      - run: pnpm test:units
+      - run: pnpm build
+      - run: pnpm build:firefox
+      - run: pnpm lint:firefox
