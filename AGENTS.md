@@ -11,9 +11,14 @@ The code runs in **two places with different powers**, and the tree says so:
   write goes here.
 - `src/viewer/` runs on the extension's own origin. It gets module workers and
   code splitting; GitHub treats it as a stranger and refuses its writes.
-- `src/bridge.ts` is the contract between them. One table: add a request there
-  and a handler in `src/entrypoints/content.ts`, and nothing else.
-- `src/patch/` is pure. A `.diff` becomes files, hunks and filters.
+- `src/shared/bridge.ts` is the contract between them. One table: add a
+  request there and a handler in `src/entrypoints/content.ts`, and nothing
+  else. Every GitHub URL the page calls is in `src/page/routes.ts`.
+- `src/background/` is the service worker. It serves the viewer only, and
+  checks the sender before it fetches or caches anything.
+- `src/patch/` is pure: a `.diff` becomes files, hunks and filters. It imports
+  no browser API and uses relative `.ts` paths, never `@/`, so Node's test
+  runner loads it as is.
 
 No token, ever. Everything goes to github.com on the reader's own session
 cookie.
@@ -29,6 +34,10 @@ pnpm lint                 # oxlint
 pnpm format               # oxfmt, Prettier's options at Prettier's defaults
 pnpm compile              # tsc --noEmit
 ```
+
+CI (`.github/workflows/check.yml`) runs lint, format, types, the unit tests
+and both builds. The browser suites stay local: their recordings do not leave
+the machine that made them.
 
 Anything that writes to GitHub runs only against `jantimon/diffshub-for-github`.
 

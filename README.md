@@ -223,17 +223,22 @@ The source is laid out by where the code runs, because that decides what each
 part is allowed to do. `AGENTS.md` has the reasoning.
 
 ```
-src/bridge.ts                 what the two sides say to each other
-src/pullRequest.ts            which pull request, and where its parts live
+src/shared/                   what both sides share: the messages between
+                              them, which pull request, which URLs to trust
+src/background/               the service worker: fetches for Firefox and the
+                              in-memory cache, for the viewer only
 src/page/                     runs on github.com, as you: every write, and
                               everything read out of GitHub's own markup
 src/viewer/                   runs on the extension's own origin
-  files/                      fetching file contents in both browsers
+  state/                      what the viewer knows, and loading the patch
+  net/                        fetching file contents in both browsers
+  bridge/                     asking the page to read or write
   diff/                       the diff view, its styling and its workers
+  tree/                       the file tree, its filters and what is on screen
   comments/                   conversations, and the box for a new one
   review/                     the verdict, and which files are read
   find/                       find in the diff, and its marks
-  shell/                      the frame: toolbar, sidebar, toasts, shortcuts
+  shell/                      the frame: toolbar, toasts, dialogs, shortcuts
 src/patch/                    a .diff becomes files, hunks and filters
 src/entrypoints/              WXT's entry points, kept thin
 public/                       files copied as-is
