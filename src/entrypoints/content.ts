@@ -64,20 +64,24 @@ const collectPageInfo = (): PageInfo => {
   };
 };
 
-// The marker is drawn with a stylesheet keyed on the link's own href, so
-// GitHub can re-render the tab strip as often as it likes without losing it
+/**
+ * The marker is drawn with a stylesheet keyed on the link's own href, so
+ * GitHub can re-render the tab strip as often as it likes without losing it.
+ *
+ * This runs whenever the page changes, which on github.com is all the time, so
+ * it does as little as it can: the stylesheet is rewritten only when its text
+ * would change, and the page is searched for the tab only until it is found.
+ */
 const markTab = (): void => {
   const pr = readPullRequestRef();
   if (pr == null) return;
 
-  const style = document.getElementById(MARKER_ATTRIBUTE) ?? document.createElement('style');
-  style.id = MARKER_ATTRIBUTE;
   const selectors = filesPaths(pr).flatMap((path) => {
-    const value = path.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
-    return [`a[href="${value}"]::after`, `a[href="${GITHUB_ORIGIN}${value}"]::after`];
+    const value = CSS.escape(path);
+    return [`a[href="${value}"]::after`, `a[href="${CSS.escape(GITHUB_ORIGIN)}${value}"]::after`];
   });
   const badge = browser.runtime.getURL('/icon/32.png');
-  style.textContent = `${selectors.join(', ')} {
+  const text = `${selectors.join(', ')} {
     content: "";
     display: inline-block;
     width: 14px;
@@ -88,11 +92,15 @@ const markTab = (): void => {
     background-size: contain;
     background-repeat: no-repeat;
   }`;
-  document.head.append(style);
+  const style = document.getElementById(MARKER_ATTRIBUTE) ?? document.createElement('style');
+  style.id = MARKER_ATTRIBUTE;
+  if (style.textContent !== text) style.textContent = text;
+  if (!style.isConnected) document.head.append(style);
 
   // The attribute carries the tooltip and gives the tests something to click
+  if (document.querySelector(`[${MARKER_ATTRIBUTE}]`) != null) return;
   const tab = findFilesChangedTab(pr);
-  if (tab == null || tab.hasAttribute(MARKER_ATTRIBUTE)) return;
+  if (tab == null) return;
   tab.setAttribute(MARKER_ATTRIBUTE, 'true');
   tab.title = 'Opens the DiffsHub viewer. Cmd- or Ctrl-click for GitHub’s own view.';
 };
@@ -325,9 +333,18 @@ export default defineContentScript({
 
     // GitHub swaps the page body on client-side navigation, so the tab has to
     // be found again each time
-    const observer = new MutationObserver(() => markTab());
+    // At most once a frame, however many changes the page makes in it
+    let pending = 0;
+    const observer = new MutationObserver(() => {
+      if (pending !== 0) return;
+      pending = requestAnimationFrame(() => {
+        pending = 0;
+        markTab();
+      });
+    });
     observer.observe(document.body, { childList: true, subtree: true });
     ctx.onInvalidated(() => {
+      cancelAnimationFrame(pending);
       observer.disconnect();
       destroy();
     });
