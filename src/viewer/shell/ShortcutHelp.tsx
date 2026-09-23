@@ -1,16 +1,60 @@
 import { useCallback, useEffect, useRef, type JSX } from 'react';
 
-const SHORTCUTS: readonly { keys: string; action: string }[] = [
-  { keys: 'j / k', action: 'Next / previous file' },
-  { keys: 'n / p', action: 'Next / previous hunk' },
-  { keys: 'v', action: 'Mark viewed and go to the next file' },
-  { keys: 'space', action: 'Same, when the tick box has focus' },
-  { keys: '/', action: 'Focus the file-tree filter' },
-  { keys: '⌘F / Ctrl+F', action: 'Find in the diff. Press again in the box for the browser’s own find' },
-  { keys: 'Enter / Shift+Enter', action: 'Next / previous match, also ⌘G / ⌘⇧G' },
-  { keys: 'Alt+C / W / R', action: 'Match case / whole word / regular expression' },
-  { keys: '?', action: 'Shortcut help' },
-  { keys: 'Esc', action: 'Close find, then the overlay' },
+const IS_MAC = /mac/i.test(
+  (navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform,
+);
+
+/** The modifier keys as this platform prints them. The handlers accept both */
+const KEY = IS_MAC
+  ? { command: '⌘', option: '⌥', shift: '⇧' }
+  : { command: 'Ctrl', option: 'Alt', shift: 'Shift' };
+
+interface Shortcut {
+  /** What the keys do */
+  action: string;
+  /** Each entry is one way to do it, its keys pressed together. More than one are alternatives */
+  keys: readonly (readonly string[])[];
+}
+
+interface Group {
+  title: string;
+  shortcuts: readonly Shortcut[];
+  /** A line under the group, for what does not fit a row */
+  note?: string;
+}
+
+const GROUPS: readonly Group[] = [
+  {
+    title: 'Moving around',
+    shortcuts: [
+      { action: 'Next / previous file', keys: [['j'], ['k']] },
+      { action: 'Next / previous change', keys: [['n'], ['p']] },
+      { action: 'Filter the file tree', keys: [['/']] },
+    ],
+  },
+  {
+    title: 'Reviewing',
+    shortcuts: [
+      { action: 'Mark viewed, go to the next file', keys: [['v']] },
+      { action: 'In the file tree: viewed / not viewed', keys: [['Space']] },
+    ],
+  },
+  {
+    title: 'Find',
+    shortcuts: [
+      { action: 'Find in the diff', keys: [[KEY.command, 'F']] },
+      { action: 'Next / previous match', keys: [['Enter'], [KEY.shift, 'Enter']] },
+      { action: 'Match case / whole word / regex', keys: [[KEY.option, 'C'], ['W'], ['R']] },
+    ],
+    note: `${KEY.command} F again in the box opens the browser's own find. ${KEY.command} G steps through matches too.`,
+  },
+  {
+    title: 'General',
+    shortcuts: [
+      { action: 'This list', keys: [['?']] },
+      { action: 'Close find, then the viewer', keys: [['Esc']] },
+    ],
+  },
 ];
 
 /**
@@ -25,6 +69,9 @@ export function ShortcutHelp({ onClose }: { onClose: () => void }): JSX.Element 
     const dialog = dialogRef.current;
     if (dialog == null) return undefined;
     dialog.showModal();
+    // A modal puts the keyboard on its first control, which here would ring
+    // the close button every time the list opens
+    dialog.focus();
 
     const onBackdropClick = (event: MouseEvent) => {
       if (event.target === dialog) dialog.close();
@@ -47,7 +94,13 @@ export function ShortcutHelp({ onClose }: { onClose: () => void }): JSX.Element 
   const close = useCallback(() => dialogRef.current?.close(), []);
 
   return (
-    <dialog className="dh-help" ref={dialogRef} aria-label="Keyboard shortcuts" onClose={onClose}>
+    <dialog
+      className="dh-help"
+      ref={dialogRef}
+      aria-label="Keyboard shortcuts"
+      tabIndex={-1}
+      onClose={onClose}
+    >
       <div className="dh-help-panel">
         <div className="dh-help-header">
           <strong>Keyboard shortcuts</strong>
@@ -55,18 +108,29 @@ export function ShortcutHelp({ onClose }: { onClose: () => void }): JSX.Element 
             ✕
           </button>
         </div>
-        <table className="dh-help-table">
-          <tbody>
-            {SHORTCUTS.map((shortcut) => (
-              <tr key={shortcut.keys}>
-                <td className="dh-help-keys">
-                  <kbd>{shortcut.keys}</kbd>
-                </td>
-                <td className="dh-help-action">{shortcut.action}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {GROUPS.map((group) => (
+          <section key={group.title} className="dh-help-group">
+            <h3>{group.title}</h3>
+            <dl>
+              {group.shortcuts.map((shortcut) => (
+                <div key={shortcut.action} className="dh-help-row">
+                  <dt>{shortcut.action}</dt>
+                  <dd>
+                    {shortcut.keys.map((combination, at) => (
+                      <span key={combination.join('+')} className="dh-help-combo">
+                        {at > 0 && <span className="dh-help-or">/</span>}
+                        {combination.map((key) => (
+                          <kbd key={key}>{key}</kbd>
+                        ))}
+                      </span>
+                    ))}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            {group.note != null && <p className="dh-help-note">{group.note}</p>}
+          </section>
+        ))}
       </div>
     </dialog>
   );

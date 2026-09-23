@@ -314,12 +314,42 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
   }, [find]);
 
   /**
+   * Space on a file in the tree marks it viewed, or not, and leaves the
+   * keyboard on it, so a second Space takes the mark back off.
+   *
+   * The rows are buttons, so without this Space would press one, which opens
+   * the file in the diff. Enter and a click still do that, and Space on a
+   * folder still opens or closes it. Listened for on the window, ahead of
+   * everything else, so it does not depend on when the tree mounts.
+   */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== ' ' || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      const path = event.composedPath();
+      if (!path.some((node) => node instanceof HTMLElement && node.classList.contains('dh-tree'))) return;
+      const row = path.find(
+        (node): node is HTMLElement => node instanceof HTMLElement && node.dataset.type === 'item',
+      );
+      if (row?.dataset.itemType !== 'file' || row.dataset.fileTreeStickyRow != null) return;
+      const file = row.dataset.itemPath;
+      const id = file == null ? undefined : pathToItemIdRef.current.get(file);
+      if (file == null || id == null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      toggle(id, file);
+    };
+    addEventListener('keydown', onKeyDown, true);
+    return () => removeEventListener('keydown', onKeyDown, true);
+  }, [toggle]);
+
+  /**
    * Ticking a file off moves to the next one still to read and puts the
    * keyboard on its eye, so the whole review is space, read, space. Files
    * already read are skipped: stopping on one would mean ticking it off again
    * or stepping past it by hand. Unticking a file leaves you on it, because
    * you went back to it on purpose.
    */
+
   const markViewed = useCallback(
     (id: string) => {
       // Read through a ref: the header this button lives in is rendered by the

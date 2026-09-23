@@ -250,8 +250,22 @@ await check('shortcut help', async () => {
   await page.keyboard.press('Shift+Slash');
   await page.waitForTimeout(600);
   const open = (await frame.locator('.dh-help').count()) > 0;
+  const groups = await frame.locator('.dh-help-group h3').count();
+  // Long key combinations used to run into their description
+  const overlapping = await frame.evaluate(
+    () =>
+      [...document.querySelectorAll('.dh-help-row')].filter(
+        (row) =>
+          row.querySelector('dt').getBoundingClientRect().right >
+          row.querySelector('dd').getBoundingClientRect().left,
+      ).length,
+  );
   await shoot('shortcut-help');
-  return open && 'dialog open';
+  if (!open || groups !== 4 || overlapping > 0) {
+    console.log(`      open ${open}, groups ${groups}, rows whose keys overlap their text ${overlapping}`);
+    return false;
+  }
+  return 'four groups, no keys over their text';
 });
 await page.keyboard.press('Escape');
 await page.waitForTimeout(400);

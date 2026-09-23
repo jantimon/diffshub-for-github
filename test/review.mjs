@@ -383,6 +383,47 @@ failures += await check('a review can be submitted', async () => {
   return 'submitted, and the dialog closed';
 });
 
+/**
+ * Space on a file in the tree toggles it, and leaves the keyboard there, so a
+ * second Space takes the mark back off. The row is a button, so if Space
+ * pressed it instead the diff would jump to the file
+ */
+failures += await check('Space in the file tree marks a file viewed and back', async () => {
+  const before = reviewed.length;
+  const row = frame.locator('[role="treeitem"][data-item-type="file"]').first();
+  const file = await row.getAttribute('data-item-path');
+  const tick = async () =>
+    (await row
+      .locator('[data-item-section="decoration"]')
+      .textContent()
+      .catch(() => '')) ?? '';
+  const scrollTop = () => frame.locator('.dh-code').evaluate((pane) => pane.scrollTop);
+  const focusedPath = () =>
+    frame.evaluate(() => document.querySelector('.dh-tree')?.shadowRoot?.activeElement?.dataset.itemPath);
+
+  await row.focus();
+  const top = await scrollTop();
+  const initial = await tick();
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(3000);
+  const once = await tick();
+  const stayed = (await focusedPath()) === file;
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(3000);
+  const twice = await tick();
+  const moved = (await scrollTop()) !== top;
+
+  const sent = reviewed.slice(before);
+  const accepted = sent.filter((entry) => entry.status === 200 && entry.path === file).length;
+  if (accepted !== 2 || once === initial || twice !== initial || !stayed || moved) {
+    console.log(
+      `      writes ${JSON.stringify(sent)}, tick ${JSON.stringify([initial, once, twice])}, kept focus ${stayed}, diff moved ${moved}`,
+    );
+    return false;
+  }
+  return `${file.split('/').pop()}: ${JSON.stringify(initial)} -> ${JSON.stringify(once)} -> ${JSON.stringify(twice)}, focus kept`;
+});
+
 failures += await check('viewed state reaches GitHub', async () => {
   const before = reviewed.length;
   await frame.locator(`[data-dh-viewed="${marked}"]`).click();
