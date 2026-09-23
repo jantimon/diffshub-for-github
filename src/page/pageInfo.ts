@@ -7,7 +7,7 @@
  * page embeds for its own React app -- rather than by the classes around it.
  */
 
-import { filesPaths, type PullRequestRef } from '@/shared/pullRequest';
+import { filesPaths, readPullRequestRef, type PullRequestRef } from '@/shared/pullRequest';
 
 /** The PR title, from the page if it exposes one and from the tab title if not */
 export function readPullRequestTitle(): string {
@@ -67,36 +67,52 @@ function linkPath(link: HTMLAnchorElement): string {
   }
 }
 
+interface EmbeddedPullRequest {
+  number?: number;
+  headSha?: string;
+  author?: { login?: string };
+}
+
 /**
- * The head commit sha, read from the JSON the pull request page embeds for its
- * own React app. Expanding collapsed context needs it. Without it that feature
- * stays off rather than guessing a revision.
+ * The pull request as the page's own React app received it: an object under
+ * one of the routes in `react-app.embeddedData`. Parsed rather than searched
+ * with a pattern, so a key of the same name elsewhere in the payload, or
+ * another pull request's data on the same page, cannot be read by mistake.
  */
-export function readHeadSha(): string | undefined {
-  for (const script of document.querySelectorAll('script[type="application/json"]')) {
-    const text = script.textContent ?? '';
-    if (!text.includes('headSha')) continue;
-    const match = /"headSha"\s*:\s*"([0-9a-f]{40})"/.exec(text);
-    if (match?.[1] != null) return match[1];
+function embeddedPullRequest(): EmbeddedPullRequest | undefined {
+  const number = readPullRequestRef()?.number;
+  for (const script of document.querySelectorAll(
+    'script[type="application/json"][data-target="react-app.embeddedData"]',
+  )) {
+    let data: { payload?: Record<string, { pullRequest?: EmbeddedPullRequest } | null> };
+    try {
+      data = JSON.parse(script.textContent ?? '') as typeof data;
+    } catch {
+      continue;
+    }
+    for (const route of Object.values(data?.payload ?? {})) {
+      const pullRequest = route?.pullRequest;
+      if (pullRequest == null || typeof pullRequest !== 'object') continue;
+      if (pullRequest.number != null && pullRequest.number !== number) continue;
+      return pullRequest;
+    }
   }
   return undefined;
 }
 
 /**
- * Who opened the pull request.
- *
- * Taken from the JSON the page embeds for its own React app, under the pull
- * request itself: the first author link in the document belongs to whoever
- * acted last, which is often somebody else.
+ * The head commit sha. Expanding collapsed context and the patch cache need
+ * it. Without it both stay off rather than guessing a revision.
+ */
+export function readHeadSha(): string | undefined {
+  const sha = embeddedPullRequest()?.headSha;
+  return sha != null && /^[0-9a-f]{40}$/.test(sha) ? sha : undefined;
+}
+
+/**
+ * Who opened the pull request: the pull request's own author, not the first
+ * author link in the document, which belongs to whoever acted last
  */
 export function readAuthor(): string | undefined {
-  for (const script of document.querySelectorAll('script[type="application/json"]')) {
-    const text = script.textContent ?? '';
-    if (!text.includes('"pullRequest"')) continue;
-    const match = /"pullRequest"\s*:\s*\{[\s\S]{0,4000}?"author"\s*:\s*\{[^}]*?"login"\s*:\s*"([^"]+)"/.exec(
-      text,
-    );
-    if (match?.[1] != null) return match[1];
-  }
-  return undefined;
+  return embeddedPullRequest()?.author?.login;
 }
