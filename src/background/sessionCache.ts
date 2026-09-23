@@ -9,16 +9,8 @@ import { fromViewer } from './sender';
  * lives with the viewer in `src/viewer/net/responseCache.ts`, and this only stores.
  */
 
-/** The part of `storage.session` this uses */
-interface Area {
-  get: (keys: string | null) => Promise<Record<string, unknown>>;
-  set: (items: Record<string, unknown>) => Promise<void>;
-  remove: (keys: string[]) => Promise<void>;
-}
-
-function sessionArea(): Area {
-  return browser.storage.session as unknown as Area;
-}
+/** The background's own `storage.session` */
+type Area = typeof browser.storage.session;
 
 async function usageOf(area: Area): Promise<number> {
   let chars = 0;
@@ -49,7 +41,7 @@ export function serveResponseCache(): void {
         return undefined;
       }
 
-      const area = sessionArea();
+      const area = browser.storage.session;
       const run = async (): Promise<unknown> => {
         if (ask.op === 'get') return (await area.get(ask.key))[ask.key];
         if (ask.op === 'usage') return await usageOf(area);

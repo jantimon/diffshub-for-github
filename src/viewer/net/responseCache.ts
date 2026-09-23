@@ -80,14 +80,6 @@ export async function writeCached(sha: string, url: string, packed: string): Pro
     await store(key, packed);
     return true;
   } catch {
-    // Out of quota after all, most likely. Start from empty once rather than
-    // give up on a patch that fits on its own
-    try {
-      await clear();
-      await store(key, packed);
-      return true;
-    } catch {
-      return false;
-    }
+    return false;
   }
 }

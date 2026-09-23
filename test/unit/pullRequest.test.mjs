@@ -1,17 +1,22 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { filesPaths, readPullRequestRef } from '../../src/shared/pullRequest.ts';
+import { readPullRequestRef } from '../../src/shared/pullRequest.ts';
 
-// GitHub serves two pull request layouts. The older one links its Files-changed
-// tab at /files, the React one at /changes, and both have to open the viewer,
-// while the browser suite only meets whichever layout its pull request renders
-test('both Files-changed paths open the viewer', () => {
-  const paths = filesPaths(readPullRequestRef('/octocat/hello-world/pull/347'));
-  assert.ok(paths.includes('/octocat/hello-world/pull/347/files'));
-  assert.ok(paths.includes('/octocat/hello-world/pull/347/changes'));
-});
-
-test('a path that is not a pull request has no reference', () => {
-  assert.equal(readPullRequestRef('/octocat/hello-world/issues/347'), undefined);
+// Every page of a pull request names it, and nothing else does. The browser
+// suite opens one URL, so the others are pinned here
+test('which pull request a path names', () => {
+  const hello = (number) => ({ owner: 'octocat', repo: 'hello-world', number });
+  for (const [path, expected] of [
+    ['/octocat/hello-world/pull/347', hello(347)],
+    ['/octocat/hello-world/pull/347/files', hello(347)],
+    ['/octocat/hello-world/pull/347/changes', hello(347)],
+    ['/octocat/hello-world/pull/347/commits/abc123', hello(347)],
+    ['/my.org/repo-name.js/pull/5', { owner: 'my.org', repo: 'repo-name.js', number: 5 }],
+    ['/octocat/hello-world/pulls', undefined],
+    ['/octocat/hello-world/pull/new/main', undefined],
+    ['/octocat/hello-world/issues/347', undefined],
+  ]) {
+    assert.deepEqual(readPullRequestRef(path), expected, path);
+  }
 });
