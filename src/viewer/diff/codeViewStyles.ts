@@ -106,6 +106,18 @@ export const TREE_CSS = `
   opacity: 0.45;
 }
 
+/* The row the keyboard is on, or that was just clicked: a faint tint rather
+   than the tree's own ring, which outweighed everything else in the panel. */
+[data-type='item'][data-item-focused='true']::before,
+[data-type='item']:focus-visible::before {
+  outline: none;
+}
+
+[data-type='item'][data-item-focused='true'],
+[data-type='item']:focus-visible {
+  background-color: color-mix(in srgb, var(--dh-accent) 8%, transparent);
+}
+
 /* The bar beside the rows of the files on screen in the diff. Faint, so the
    focused row, the ticks and the find counts all read first. */
 [data-dh-in-view] {
@@ -131,6 +143,13 @@ export const TREE_CSS = `
  * Clicking the label already reveals the whole gap, while the chevrons step
  * through it, so the label is marked as clickable and given a verb. Nothing
  * here may change a row's height -- the viewer measures them.
+ *
+ * The chevrons follow the label rather than sitting in the line-number column,
+ * where they read as an accordion's toggle for the file. The viewer draws the
+ * bar twice, in the gutter and in the code column, and shows the gutter's copy
+ * stretched across the column. Only that copy is laid out again here, so the
+ * copies the viewer hides stay hidden, and a filler after the chevrons carries
+ * the grey to the far edge.
  */
 export const SEPARATOR_CSS = `
 [data-unmodified-lines] {
@@ -149,6 +168,62 @@ export const SEPARATOR_CSS = `
 
 [data-unmodified-lines]::before {
   content: 'Show ';
+}
+
+/*
+ * The line-number column stays empty and the grey starts where the code does.
+ * The bar is placed inside a box exactly as wide as that column, so 100% of it
+ * is the column's width, whatever the line numbers need.
+ */
+:is([data-deletions], [data-unified]) [data-gutter] [data-separator][data-expand-index] [data-separator-wrapper] {
+  display: flex;
+  box-sizing: border-box;
+  padding-inline-start: 100%;
+}
+
+:is([data-deletions], [data-unified]) [data-gutter] [data-separator][data-expand-index] [data-separator-content] {
+  flex: none;
+  order: 0;
+  padding-inline-end: 2px;
+  border-start-start-radius: 6px;
+  border-end-start-radius: 6px;
+}
+
+:is([data-deletions], [data-unified]) [data-gutter] [data-separator][data-expand-index] [data-expand-button] {
+  flex: none;
+  order: 1;
+  justify-content: center;
+  inline-size: 22px;
+  block-size: 100%;
+  border: 0;
+  border-radius: 4px;
+}
+
+:is([data-deletions], [data-unified]) [data-gutter] [data-separator][data-expand-index] [data-expand-button]:hover {
+  background-color: color-mix(in srgb, currentColor 10%, var(--diffs-bg-separator));
+}
+
+:is([data-deletions], [data-unified]) [data-gutter] [data-separator][data-expand-index] [data-separator-wrapper]::after {
+  flex: auto;
+  order: 2;
+  align-self: stretch;
+  content: '';
+  background-color: var(--diffs-bg-separator);
+  border-start-end-radius: 6px;
+  border-end-end-radius: 6px;
+}
+
+/* The other half of a split bar, lined up with the first */
+[data-additions] [data-gutter] [data-separator='line-info'] {
+  background-color: var(--diffs-bg);
+}
+
+[data-additions] [data-gutter] [data-separator='line-info'] [data-separator-wrapper] {
+  box-sizing: border-box;
+  inset-inline-start: 100%;
+  inline-size: calc(100cqi - var(--diffs-gap-inline, 8px) - 100%);
+  padding-inline-start: 0;
+  border-radius: 6px;
 }
 `;
 
