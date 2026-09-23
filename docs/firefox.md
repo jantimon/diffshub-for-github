@@ -8,7 +8,7 @@ What differs from Chrome, and the traps. Each item cost real time to find.
 extension iframe inside a github.com page, so its cookie jar is keyed by the
 top-level site and every github.com request from it leaves signed out. A
 private patch gets 404 there and 200 through the background script.
-`src/viewer/files/githubFetch.ts` proxies through the background on Firefox
+`src/viewer/net/githubFetch.ts` proxies through the background on Firefox
 only, streamed in chunks so rendering stays progressive.
 
 **Do not remove that proxy because a test says it is unneeded.** A profile with

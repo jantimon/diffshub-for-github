@@ -2,7 +2,7 @@ import type { CodeViewHandle } from '@pierre/diffs/react';
 import type { FileTree } from '@pierre/trees';
 import { useCallback, useEffect, useRef } from 'react';
 
-import type { ReviewThread } from '@/bridge';
+import type { ReviewThread } from '@/shared/bridge';
 import type { ParsedFile } from '@/patch/accumulator';
 import { filesInView } from '@/viewer/diff/filesInView';
 import { inViewCss, inViewRowsCss } from '@/viewer/diff/codeViewStyles';

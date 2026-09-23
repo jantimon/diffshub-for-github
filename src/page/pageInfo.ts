@@ -7,7 +7,7 @@
  * page embeds for its own React app -- rather than by the classes around it.
  */
 
-import { filesPaths, type PullRequestRef } from '@/pullRequest';
+import { filesPaths, type PullRequestRef } from '@/shared/pullRequest';
 
 /** The PR title, from the page if it exposes one and from the tab title if not */
 export function readPullRequestTitle(): string {

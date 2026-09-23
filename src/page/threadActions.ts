@@ -1,6 +1,6 @@
-import type { Result } from '@/bridge';
+import type { Result } from '@/shared/bridge';
 import { findForm, findFormEndingWith, submitForm } from '@/page/forms';
-import { pullPath, type PullRequestRef } from '@/pullRequest';
+import { pullPath, type PullRequestRef } from '@/shared/pullRequest';
 import { refusal, WRITE_JSON } from '@/page/requests';
 
 /**

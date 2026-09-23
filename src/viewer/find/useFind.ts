@@ -1,7 +1,7 @@
 import type { CodeViewHandle } from '@pierre/diffs/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { ReviewThread } from '@/bridge';
+import type { ReviewThread } from '@/shared/bridge';
 import { compileQuery, findInFiles, type FindMatch, type FindOptions } from '@/patch/findInPatch';
 import type { ParsedFiles } from '@/patch/usePatchStream';
 import type { ExpansionMemory } from '@/viewer/diff/expandedRegions';

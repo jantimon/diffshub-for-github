@@ -5,8 +5,8 @@
  * GitHub's own Files-changed tab agreeing in both directions.
  */
 
-import type { Result } from '@/bridge';
-import { pullPath, type PullRequestRef } from '@/pullRequest';
+import type { Result } from '@/shared/bridge';
+import { pullPath, type PullRequestRef } from '@/shared/pullRequest';
 import { WRITE_JSON } from '@/page/requests';
 
 export async function writeViewed(ref: PullRequestRef, path: string, viewed: boolean): Promise<Result> {

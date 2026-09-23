@@ -1,7 +1,7 @@
 import '@github/markdown-toolbar-element';
 import { useEffect, useId, useRef, useState, type JSX, type KeyboardEvent } from 'react';
 
-import { ask } from '@/viewer/ask';
+import { ask } from '@/viewer/bridge/ask';
 
 /**
  * The box for writing a comment, with GitHub's own formatting toolbar.

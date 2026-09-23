@@ -9,7 +9,7 @@
  * Offline. Node has `CompressionStream`, `Blob`, `btoa` and `atob`.
  */
 
-import { pack, unpack } from '../src/viewer/files/pack.ts';
+import { pack, unpack } from '../src/viewer/net/pack.ts';
 
 const lines = [];
 for (let at = 0; at < 200_000; at += 1) {

@@ -1,7 +1,7 @@
 import { processFile, type CodeViewItem } from '@pierre/diffs';
 import type { GitStatusEntry } from '@pierre/trees';
 
-import type { ReviewThread } from '@/bridge';
+import type { ReviewThread } from '@/shared/bridge';
 import { changesOnlyWhitespace } from './whitespace';
 
 export interface ParsedFile {

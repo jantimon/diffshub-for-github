@@ -1,7 +1,7 @@
 import { IconCheck, IconComment, IconConflict, IconCopy, IconFile, IconX } from '@pierre/icons';
 import { useEffect, useRef, useState, type ComponentType, type JSX } from 'react';
 
-import type { ReviewEvent } from '@/bridge';
+import type { ReviewEvent } from '@/shared/bridge';
 import { MarkdownEditor } from '@/viewer/comments/MarkdownEditor';
 
 const VERDICTS: {

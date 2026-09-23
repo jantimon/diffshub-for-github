@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { MarkdownEditor } from '@/viewer/comments/MarkdownEditor';
 
-import type { ReviewComment, ReviewThread } from '@/bridge';
+import type { ReviewComment, ReviewThread } from '@/shared/bridge';
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;

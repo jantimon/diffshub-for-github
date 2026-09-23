@@ -1,5 +1,5 @@
-import type { Result, ReviewEvent } from '@/bridge';
-import { pullPath, type PullRequestRef } from '@/pullRequest';
+import type { Result, ReviewEvent } from '@/shared/bridge';
+import { pullPath, type PullRequestRef } from '@/shared/pullRequest';
 import { refusal, WRITE_JSON } from '@/page/requests';
 
 /**

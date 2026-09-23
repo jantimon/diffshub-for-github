@@ -4,10 +4,17 @@ import {
   isFromViewer,
   type Ask,
   type PageInfo,
+  type ToViewer,
   type Reply,
   type RequestName,
-} from '@/bridge';
-import { filesPaths, pullPath, readPullRequestRef, GITHUB_ORIGIN, type PullRequestRef } from '@/pullRequest';
+} from '@/shared/bridge';
+import {
+  filesPaths,
+  pullPath,
+  readPullRequestRef,
+  GITHUB_ORIGIN,
+  type PullRequestRef,
+} from '@/shared/pullRequest';
 import {
   findFilesChangedLink,
   findFilesChangedTab,
@@ -109,6 +116,15 @@ export default defineContentScript({
     let previousOverflow = '';
     let release: ReturnType<typeof setTimeout> | undefined;
     /**
+     * The viewer's origin, which every message to it is addressed to and every
+     * message from it must come from. Whatever else could end up loaded in the
+     * frame would then neither read what is sent nor be listened to
+     */
+    const viewerOrigin = new URL(browser.runtime.getURL('/')).origin;
+    const toViewer = (message: ToViewer): void => {
+      frame?.contentWindow?.postMessage(message, viewerOrigin);
+    };
+    /**
      * Where the keyboard was before the overlay opened, to put it back after.
      * While open, the keyboard is in the viewer: a key pressed here would reach
      * a page nobody can see, and Cmd+F would open the browser's find over it
@@ -121,7 +137,7 @@ export default defineContentScript({
      * moves them, so it is asked to, now and again once it has loaded
      */
     const askViewerToFocus = (): void => {
-      frame?.contentWindow?.postMessage({ channel: BRIDGE_CHANNEL, type: 'focus' }, '*');
+      toViewer({ channel: BRIDGE_CHANNEL, type: 'focus' });
     };
 
     const takeFocus = (): void => {
@@ -237,7 +253,7 @@ export default defineContentScript({
     };
 
     ctx.addEventListener(window, 'message', async (event: MessageEvent) => {
-      if (frame == null || event.source !== frame.contentWindow) return;
+      if (frame == null || event.source !== frame.contentWindow || event.origin !== viewerOrigin) return;
       if (!isFromViewer(event.data)) return;
       const message = event.data;
 
@@ -248,10 +264,7 @@ export default defineContentScript({
 
       if (message.type === 'ready') {
         if (showing()) askViewerToFocus();
-        frame.contentWindow?.postMessage(
-          { channel: BRIDGE_CHANNEL, type: 'page-info', info: collectPageInfo() },
-          '*',
-        );
+        toViewer({ channel: BRIDGE_CHANNEL, type: 'page-info', info: collectPageInfo() });
         return;
       }
 
@@ -270,7 +283,9 @@ export default defineContentScript({
               pr,
             );
 
-      frame?.contentWindow?.postMessage({ channel: BRIDGE_CHANNEL, type: 'response', id, name, reply }, '*');
+      // The same pairing as above, from the other side: this reply is the one
+      // the table gives for this name
+      toViewer({ channel: BRIDGE_CHANNEL, type: 'response', id, name, reply } as ToViewer);
     });
 
     browser.runtime.onMessage.addListener((message: { channel?: string; type?: string }) => {

@@ -23,8 +23,8 @@ import {
 import type { JSX } from 'react';
 
 import type { DiffStats } from '@/patch/accumulator';
-import { filesUrl, GITHUB_ORIGIN, type PullRequestRef } from '@/pullRequest';
-import type { PageInfo } from '@/bridge';
+import { filesUrl, GITHUB_ORIGIN, type PullRequestRef } from '@/shared/pullRequest';
+import type { PageInfo } from '@/shared/bridge';
 
 export function Toolbar({
   pr,

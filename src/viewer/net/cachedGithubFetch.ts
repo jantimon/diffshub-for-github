@@ -12,10 +12,10 @@
  * `docs/caching.md` draws the path a request takes through here.
  */
 
-import { githubFetch } from '@/viewer/files/githubFetch';
-import { pack, unpack } from '@/viewer/files/pack';
+import { githubFetch } from '@/viewer/net/githubFetch';
+import { pack, unpack } from '@/viewer/net/pack';
 import { debugLog } from '@/viewer/debug';
-import { describeStorage, MAX_RAW_BYTES, readCached, writeCached } from '@/viewer/files/responseCache';
+import { describeStorage, MAX_RAW_BYTES, readCached, writeCached } from '@/viewer/net/responseCache';
 
 /** Marks a response that never touched the network, for anyone reading one */
 const CACHE_HEADER = 'x-diffshub-cache';

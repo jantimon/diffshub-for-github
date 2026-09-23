@@ -1,5 +1,5 @@
-import type { NewComment, Result } from '@/bridge';
-import { pullPath, type PullRequestRef } from '@/pullRequest';
+import type { NewComment, Result } from '@/shared/bridge';
+import { pullPath, type PullRequestRef } from '@/shared/pullRequest';
 import { READ_JSON, WRITE_JSON } from '@/page/requests';
 
 let comparison: { base: string; oids: Promise<{ baseOid: string; headOid: string }> } | undefined;

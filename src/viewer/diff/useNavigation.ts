@@ -1,6 +1,6 @@
 import type { CodeViewHandle } from '@pierre/diffs/react';
 
-import type { ReviewThread } from '@/bridge';
+import type { ReviewThread } from '@/shared/bridge';
 import { useCallback } from 'react';
 
 import type { ParsedFile } from '@/patch/accumulator';

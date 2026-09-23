@@ -10,7 +10,16 @@
  * coming. A reader who is told is better off than one left watching a spinner.
  */
 
-import { BRIDGE_CHANNEL, failedReply, isToViewer, type Ask, type Reply, type RequestName } from '@/bridge';
+import {
+  BRIDGE_CHANNEL,
+  failedReply,
+  isToViewer,
+  type Ask,
+  type FromViewer,
+  type Reply,
+  type RequestName,
+} from '@/shared/bridge';
+import { fromPage, postToPage } from '@/viewer/bridge/postToPage';
 
 const TIMEOUT_MS = 20_000;
 
@@ -26,7 +35,8 @@ export function ask<K extends RequestName>(
 
     const onMessage = (event: MessageEvent): void => {
       const message = event.data;
-      if (!isToViewer(message) || message.type !== 'response' || message.id !== id) return;
+      if (!fromPage(event) || !isToViewer(message) || message.type !== 'response' || message.id !== id)
+        return;
       finish(message.reply as Reply<K>);
     };
 
@@ -39,6 +49,8 @@ export function ask<K extends RequestName>(
     }
 
     addEventListener('message', onMessage);
-    parent.postMessage({ channel: BRIDGE_CHANNEL, type: 'request', id, name, ask: payload }, '*');
+    // The table pairs each name with its payload, which TypeScript cannot follow
+    // across the generic, so the pairing is asserted here once
+    postToPage({ channel: BRIDGE_CHANNEL, type: 'request', id, name, ask: payload } as FromViewer);
   });
 }

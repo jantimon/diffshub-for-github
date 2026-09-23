@@ -1,3 +1,5 @@
+import { FETCH_PORT, type FetchReply, type FetchRequest } from '@/shared/runtime';
+
 /**
  * Fetches github.com from the viewer with the reader's own session.
  *
@@ -14,22 +16,12 @@
  * through the background gets 200. A public patch downloads either way.
  *
  * The background script is its own top-level context, so it keeps the real
- * jar. The response is streamed back a chunk at a time, which keeps the patch
- * rendering progressively rather than landing in one lump at the end.
+ * jar. `src/background/fetchProxy.ts` fetches there and streams the answer back
+ * a chunk at a time, so the patch still renders as it arrives.
  *
  * A browser test pins this down, because a profile with Total Cookie
  * Protection turned off makes the detour look unnecessary.
  */
-
-const PORT_NAME = 'diffshub-github-fetch';
-
-type Request = { url: string };
-
-type Reply =
-  | { type: 'head'; status: number; statusText: string; headers: [string, string][] }
-  | { type: 'chunk'; chunk: Uint8Array }
-  | { type: 'end' }
-  | { type: 'error'; message: string };
 
 /** These statuses are bodyless by spec, so a stream must not be attached */
 function allowsBody(status: number): boolean {
@@ -42,12 +34,12 @@ export function githubFetch(url: string, signal?: AbortSignal): Promise<Response
   }
 
   return new Promise<Response>((resolve, reject) => {
-    const port = browser.runtime.connect({ name: PORT_NAME });
+    const port = browser.runtime.connect({ name: FETCH_PORT });
     let settled = false;
-    let push: ((reply: Reply) => void) | undefined;
+    let push: ((reply: FetchReply) => void) | undefined;
     /** The background said it reached the end, rather than the port simply going */
     let finished = false;
-    let pending: Reply[] = [];
+    let pending: FetchReply[] = [];
 
     const fail = (reason: Error): void => {
       if (settled) return;
@@ -66,7 +58,7 @@ export function githubFetch(url: string, signal?: AbortSignal): Promise<Response
     signal?.addEventListener('abort', onAbort, { once: true });
 
     port.onMessage.addListener((message: unknown) => {
-      const reply = message as Reply;
+      const reply = message as FetchReply;
 
       // The head arrives first and decides the Response. Everything after it
       // belongs to the body stream, which may not exist yet on this turn
@@ -126,66 +118,6 @@ export function githubFetch(url: string, signal?: AbortSignal): Promise<Response
       push?.({ type: 'error', message: 'The background script stopped before the download finished.' });
     });
 
-    port.postMessage({ url } satisfies Request);
-  });
-}
-
-/**
- * Serves {@link githubFetch} from the background script. Firefox only: on every
- * other browser the viewer fetches for itself and nothing connects here.
- */
-export function serveGithubFetch(): void {
-  browser.runtime.onConnect.addListener((port) => {
-    if (port.name !== PORT_NAME) return;
-
-    const controller = new AbortController();
-    port.onDisconnect.addListener(() => controller.abort());
-
-    const send = (reply: Reply): boolean => {
-      try {
-        port.postMessage(reply);
-        return true;
-      } catch {
-        // The viewer went away mid-stream, which is ordinary: the reader closed
-        // the overlay or navigated away
-        controller.abort();
-        return false;
-      }
-    };
-
-    port.onMessage.addListener((message: unknown) => {
-      void (async () => {
-        try {
-          const response = await fetch((message as Request).url, {
-            credentials: 'include',
-            signal: controller.signal,
-          });
-          const headers: [string, string][] = [...response.headers];
-          if (
-            !send({
-              type: 'head',
-              status: response.status,
-              statusText: response.statusText,
-              headers,
-            })
-          ) {
-            return;
-          }
-
-          const reader = response.body?.getReader();
-          if (reader != null) {
-            for (;;) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              if (value != null && !send({ type: 'chunk', chunk: value })) return;
-            }
-          }
-          send({ type: 'end' });
-        } catch (error) {
-          if (controller.signal.aborted) return;
-          send({ type: 'error', message: error instanceof Error ? error.message : String(error) });
-        }
-      })();
-    });
+    port.postMessage({ url } satisfies FetchRequest);
   });
 }

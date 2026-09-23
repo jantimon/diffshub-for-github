@@ -6,8 +6,8 @@
  * as `truncated` rather than silently cut short or walked for ever.
  */
 
-import type { ReviewComment, ReviewThread } from '@/bridge';
-import { pullPath, type PullRequestRef } from '@/pullRequest';
+import type { ReviewComment, ReviewThread } from '@/shared/bridge';
+import { pullPath, type PullRequestRef } from '@/shared/pullRequest';
 import { READ_JSON } from '@/page/requests';
 
 const PAGE_LIMIT = 40;

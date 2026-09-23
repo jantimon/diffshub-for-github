@@ -16,13 +16,13 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 
-import type { ReviewThread } from '@/bridge';
-import { createFileLoader } from '@/viewer/files/fileLoader';
-import { blameUrl, blobUrl, copyPath, type FileRefs } from '@/viewer/files/fileLinks';
-import { filesUrl, patchUrl, GITHUB_ORIGIN, type PullRequestRef } from '@/pullRequest';
+import type { ReviewThread } from '@/shared/bridge';
+import { createFileLoader } from '@/viewer/net/fileLoader';
+import { blameUrl, blobUrl, copyPath, type FileRefs } from '@/viewer/net/fileLinks';
+import { filesUrl, patchUrl, GITHUB_ORIGIN, type PullRequestRef } from '@/shared/pullRequest';
 import { usePatchStream } from '@/patch/usePatchStream';
-import { ask } from '@/viewer/ask';
-import { BinaryCompare, isImagePath } from '@/viewer/files/BinaryCompare';
+import { ask } from '@/viewer/bridge/ask';
+import { BinaryCompare, isImagePath } from '@/viewer/diff/BinaryCompare';
 import { CommentComposer } from '@/viewer/comments/CommentComposer';
 import { ReviewDialog } from '@/viewer/review/ReviewDialog';
 import { ShortcutHelp } from '@/viewer/shell/ShortcutHelp';
@@ -31,7 +31,7 @@ import { Thread } from '@/viewer/comments/Thread';
 import { Toolbar } from '@/viewer/shell/Toolbar';
 import { useThreads } from '@/viewer/comments/useThreads';
 import { ToastStack, useToasts } from '@/viewer/shell/Toast';
-import { closeViewer, usePageInfo } from '@/viewer/shell/usePageInfo';
+import { closeViewer, usePageInfo } from '@/viewer/bridge/usePageInfo';
 import { useNavigation } from '@/viewer/diff/useNavigation';
 import { useThemeSurfaces } from '@/viewer/shell/useThemeSurfaces';
 import { useFocusTrap } from '@/viewer/shell/useFocusTrap';

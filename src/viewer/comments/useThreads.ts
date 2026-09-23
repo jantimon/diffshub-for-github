@@ -14,8 +14,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { ReviewComment, ReviewThread } from '@/bridge';
-import { ask } from '@/viewer/ask';
+import type { ReviewComment, ReviewThread } from '@/shared/bridge';
+import { ask } from '@/viewer/bridge/ask';
 import { useChoice } from '@/viewer/settings';
 import type { CodeViewItem } from '@pierre/diffs/react';
 

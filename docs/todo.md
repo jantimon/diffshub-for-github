@@ -28,23 +28,6 @@ every read passes through and already tells a refusal from an answer. Only
 retry what is worth retrying — 429, 502, 503, 504, the set `test/browser.mjs`
 already names as `REFUSED` — and give up loudly rather than quietly.
 
-## `serveGithubFetch` validates nothing
-
-`src/viewer/files/githubFetch.ts:138` fetches whatever url arrives on the port,
-verbatim, with `credentials: 'include'`, and never reads `port.sender`.
-`GITHUB_ORIGINS` in `src/entrypoints/background.ts:4` looks like it guards this
-and does not — it is only used for the toolbar badge's permission check.
-
-So anything able to open that port gets a credentialed streaming proxy to any
-origin the extension holds host permissions for. The blast radius is small
-today: the port exists on Firefox alone, `viewer.html` is web-accessible only to
-`https://github.com/*`, and host permissions are the two GitHub origins. Every
-one of those is incidental rather than enforced.
-
-A sender check against `browser.runtime.getURL('/viewer.html')` and an origin
-allowlist is a few lines. Worth doing **before** anything moves Chrome onto the
-same port, which would hand Chrome the same capability.
-
 ## Smaller things
 
 - `usePatchStream` never sets `phase` back to `loading` when the patch url

@@ -5,7 +5,7 @@
  * file-filter menu on GitHub's own page would persist the setting server side.
  */
 
-import { pullPath, type PullRequestRef } from '@/pullRequest';
+import { pullPath, type PullRequestRef } from '@/shared/pullRequest';
 import { READ_JSON } from '@/page/requests';
 
 export async function readViewed(

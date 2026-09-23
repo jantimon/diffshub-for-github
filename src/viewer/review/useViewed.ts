@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { ask } from '@/viewer/ask';
+import { ask } from '@/viewer/bridge/ask';
 import { readSetting, writeSetting } from '@/viewer/settings';
 
 interface Stored {

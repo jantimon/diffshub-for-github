@@ -1,10 +1,10 @@
 import type { CodeViewItem } from '@pierre/diffs';
 import type { FileTree } from '@pierre/trees';
 
-import type { ReviewThread } from '@/bridge';
+import type { ReviewThread } from '@/shared/bridge';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { cachedGithubFetch } from '@/viewer/files/cachedGithubFetch';
+import { cachedGithubFetch } from '@/viewer/net/cachedGithubFetch';
 import { compileFilters, type MatchOptions } from './filters';
 import { streamPatchFiles } from './stream';
 import {
