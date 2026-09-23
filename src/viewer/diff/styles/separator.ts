@@ -9,7 +9,8 @@
  * the copy in each half of a split view is laid out twice as wide as its
  * column and centred on the line between them: each column shows its half,
  * and the halves meet in the middle. Both copies are the viewer's own, so a
- * click on either half does what it always did.
+ * click on either half does what it always did. `docs/upstream.md#spanning-separator`
+ * asks for a bar the viewer draws once.
  *
  * Measures used below: 100% is the width of the line-number column, the box
  * the bar is placed in, and 100cqi the width of the code column.

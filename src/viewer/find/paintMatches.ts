@@ -14,7 +14,8 @@ interface RenderedFile {
  *
  * The CSS Custom Highlight API paints over text without touching the DOM, so
  * no row changes height and the viewer has nothing to measure again. Only the
- * rows that exist are painted, and the rest as they scroll in.
+ * rows that exist are painted, and the rest as they scroll in. They are found
+ * by walking each file's rows: `docs/upstream.md#line-lookup`.
  *
  * A browser without the API gets no marks, and the current line is still
  * scrolled to the middle of the screen.

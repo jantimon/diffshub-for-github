@@ -125,4 +125,6 @@ including the dev server.
 - [docs/todo.md](docs/todo.md) open items, each with enough detail to pick up cold
 - [docs/capabilities.md](docs/capabilities.md) what it takes to replace GitHub's
   review page, and where each piece stands
+- [docs/upstream.md](docs/upstream.md) where this works around Pierre's
+  libraries, and the change to each that would end it
 - [docs/analysis.md](docs/analysis.md) how diffshub.com works

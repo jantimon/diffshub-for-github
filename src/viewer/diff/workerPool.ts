@@ -15,7 +15,7 @@ export const POOL_OPTIONS: WorkerPoolOptions = {
      *
      * Silently, too: highlighting falls back to the main thread, which is the
      * one thread this viewer cannot afford to spend. `worker-portable.js` is
-     * the same worker with its dependencies built in.
+     * the same worker with its dependencies built in. `docs/upstream.md#worker-portable`
      */
     const worker = new URL('@pierre/diffs/worker/worker-portable.js', import.meta.url);
     if (worker.origin === location.origin) return new Worker(worker, { type: 'module' });

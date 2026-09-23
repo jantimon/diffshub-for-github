@@ -61,7 +61,8 @@ export function useInViewMarks({
       if (view == null || root == null || list == null) return;
 
       // The tree sets its own adopted stylesheets as it applies a theme, which
-      // replaces the list and drops this one, so it is checked every time
+      // replaces the list and drops this one, so it is checked every time:
+      // `docs/upstream.md#adopted-sheets`
       sheet.current ??= new CSSStyleSheet();
       if (!root.adoptedStyleSheets.includes(sheet.current))
         root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet.current];

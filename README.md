@@ -146,6 +146,8 @@ viewer did not expect, naming what broke, while the diff keeps rendering.
 - [`research/github-internal-api/`](research/github-internal-api/) the
   undocumented API this extension runs on, read out of GitHub's own published
   sourcemaps. As far as we can tell, nobody else has written it down
+- [`docs/upstream.md`](docs/upstream.md) where this works around Pierre's
+  libraries, and what would let it stop
 - [`docs/analysis.md`](docs/analysis.md) how diffshub.com works, read from its
   own source in the submodule
 - [`docs/todo.md`](docs/todo.md) open items, each with enough detail to pick up

@@ -7,7 +7,7 @@
  * the viewer works out where every file sits from their heights and its gap,
  * and a margin it did not know about would move every file after the first.
  * The gap belongs to neither file, so anything working out which file is on
- * screen has to allow for it.
+ * screen has to allow for it. `docs/upstream.md#host-margins`.
  */
 export const SPACE_ABOVE_FILE = 26;
 const SPACE_BELOW_FILE = 5;

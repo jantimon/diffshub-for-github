@@ -129,6 +129,7 @@ export function useTreeModel({
    * Only once the tree is on the page. Asked to render with no container, the
    * tree makes one of its own, off the page, draws into that, and keeps the
    * drawing when the real one arrives, which leaves the sidebar empty.
+   * `docs/upstream.md#render-before-mount` and `#row-state`.
    */
   useEffect(() => {
     let drawn = { viewed: session.get().viewed, found: session.get().found };
@@ -148,6 +149,7 @@ export function useTreeModel({
    * the file in the diff. Enter and a click still do that, and Space on a
    * folder still opens or closes it. Listened for on the window, ahead of
    * everything else, so it does not depend on when the tree mounts.
+   * `docs/upstream.md#row-keys`
    */
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {

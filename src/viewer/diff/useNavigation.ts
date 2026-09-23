@@ -22,6 +22,7 @@ function hunkAt(hunks: readonly { additionStart: number }[], line: number): numb
  * The first line of the new side the reader can see in a file: the top row
  * below the file's own header, which sticks and covers what scrolls under it.
  * Removed lines are skipped, since their numbers belong to the old side.
+ * The viewer has no lookup by line: `docs/upstream.md#line-lookup`.
  */
 function firstLineOnScreen(element: HTMLElement, paneTop: number): number | undefined {
   const root = element.shadowRoot ?? element;

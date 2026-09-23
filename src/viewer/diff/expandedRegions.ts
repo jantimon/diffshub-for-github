@@ -10,6 +10,7 @@ import type { Expansion } from '@/patch/findInPatch';
  * each render, when the viewer hands the file's instance over, and remembered
  * against the file, since instances outlive the rows they draw. If the shape is
  * ever not there, opened gaps drop out of find and the patch is still searched.
+ * `docs/upstream.md#expanded-regions` asks for a public way in.
  */
 export interface ExpansionMemory {
   /** Answers whether anything find depends on changed */
