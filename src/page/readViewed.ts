@@ -5,23 +5,19 @@
  * file-filter menu on GitHub's own page would persist the setting server side.
  */
 
-import { pullPath, type PullRequestRef } from '@/shared/pullRequest';
-import { READ_JSON } from '@/page/requests';
+import type { PullRequestRef } from '@/shared/pullRequest';
+import { describeError } from '@/shared/errors';
+import { readJson } from '@/page/client';
+import { routes } from '@/page/routes';
 
 export async function readViewed(
   ref: PullRequestRef,
 ): Promise<{ paths: string[]; baseSha?: string; error?: string }> {
   try {
-    const response = await fetch(`${pullPath(ref)}/page_data/file_tree`, {
-      credentials: 'include',
-      headers: READ_JSON,
-    });
-    if (!response.ok) return { paths: [], error: `GitHub answered ${response.status} for the file list.` };
-
-    const payload = (await response.json()) as {
+    const { json: payload } = await readJson<{
       baseRefOid?: string;
       diffs?: { path?: string; markedAsViewed?: boolean | null }[];
-    };
+    }>(routes.fileTree(ref), 'the file list');
 
     return {
       paths: (payload?.diffs ?? [])
@@ -30,6 +26,6 @@ export async function readViewed(
       baseSha: payload?.baseRefOid,
     };
   } catch (error) {
-    return { paths: [], error: error instanceof Error ? error.message : String(error) };
+    return { paths: [], error: describeError(error) };
   }
 }

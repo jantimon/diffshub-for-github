@@ -1,6 +1,7 @@
 import type { Result, ReviewEvent } from '@/shared/bridge';
-import { pullPath, type PullRequestRef } from '@/shared/pullRequest';
-import { refusal, WRITE_JSON } from '@/page/requests';
+import type { PullRequestRef } from '@/shared/pullRequest';
+import { writeJson } from '@/page/client';
+import { routes } from '@/page/routes';
 
 /**
  * Submits a review: a verdict and a covering note.
@@ -14,19 +15,7 @@ export async function submitReview(
   event: ReviewEvent,
   body: string,
 ): Promise<Result> {
-  try {
-    const response = await fetch(`${pullPath(ref)}/page_data/submit_review`, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: WRITE_JSON,
-      body: JSON.stringify({ body, event, headSha }),
-    });
-
-    if (response.ok) return { ok: true };
-    return { ok: false, error: (await refusal(response)) ?? refusedWithout(response.status) };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
+  return await writeJson(routes.submitReview(ref), 'PUT', { body, event, headSha }, refusedWithout);
 }
 
 /**

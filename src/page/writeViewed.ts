@@ -6,20 +6,15 @@
  */
 
 import type { Result } from '@/shared/bridge';
-import { pullPath, type PullRequestRef } from '@/shared/pullRequest';
-import { WRITE_JSON } from '@/page/requests';
+import type { PullRequestRef } from '@/shared/pullRequest';
+import { writeJson } from '@/page/client';
+import { routes } from '@/page/routes';
 
 export async function writeViewed(ref: PullRequestRef, path: string, viewed: boolean): Promise<Result> {
-  try {
-    const response = await fetch(`${pullPath(ref)}/file_review`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: WRITE_JSON,
-      body: JSON.stringify({ path, viewed: viewed ? 'viewed' : 'unviewed' }),
-    });
-    if (response.ok) return { ok: true };
-    return { ok: false, error: `GitHub answered ${response.status} for ${path}.` };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
+  return await writeJson(
+    routes.fileReview(ref),
+    'POST',
+    { path, viewed: viewed ? 'viewed' : 'unviewed' },
+    (status) => `GitHub answered ${status} for ${path}.`,
+  );
 }

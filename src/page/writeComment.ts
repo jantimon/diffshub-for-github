@@ -1,6 +1,7 @@
 import type { NewComment, Result } from '@/shared/bridge';
 import { pullPath, type PullRequestRef } from '@/shared/pullRequest';
-import { READ_JSON, WRITE_JSON } from '@/page/requests';
+import { failed, readJson, writeJson } from '@/page/client';
+import { routes } from '@/page/routes';
 
 let comparison: { base: string; oids: Promise<{ baseOid: string; headOid: string }> } | undefined;
 
@@ -15,19 +16,15 @@ let comparison: { base: string; oids: Promise<{ baseOid: string; headOid: string
  * across GitHub's client-side navigation, so without that a comment written on
  * the second pull request of a visit would name the first one's commits.
  */
-function readComparison(base: string): Promise<{ baseOid: string; headOid: string }> {
+function readComparison(ref: PullRequestRef): Promise<{ baseOid: string; headOid: string }> {
+  const base = pullPath(ref);
   if (comparison?.base !== base) {
     comparison = {
       base,
       oids: (async () => {
-        const response = await fetch(`${base}/page_data/base_comparison_info`, {
-          credentials: 'include',
-          headers: READ_JSON,
-        });
-        if (!response.ok) throw new Error(`GitHub answered ${response.status} for the commit range.`);
-        const payload = (await response.json()) as {
+        const { json: payload } = await readJson<{
           pullRequest?: { comparison?: { baseOid?: string; headOid?: string } };
-        };
+        }>(routes.baseComparison(ref), 'the commit range');
         const { baseOid, headOid } = payload?.pullRequest?.comparison ?? {};
         if (baseOid == null || headOid == null)
           throw new Error('GitHub did not say which commits this diff spans.');
@@ -45,39 +42,29 @@ function readComparison(base: string): Promise<{ baseOid: string; headOid: strin
  * the content script rather than the viewer.
  */
 export async function writeComment(ref: PullRequestRef, comment: NewComment): Promise<Result> {
-  const base = pullPath(ref);
-
   try {
-    const { baseOid, headOid } = await readComparison(base);
+    const { baseOid, headOid } = await readComparison(ref);
     const side = comment.side === 'deletions' ? 'left' : 'right';
 
-    const response = await fetch(`${base}/page_data/create_review_comment`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: WRITE_JSON,
-      body: JSON.stringify({
-        comparisonStartOid: baseOid,
-        comparisonEndOid: headOid,
-        text: comment.text,
-        submitBatch: true,
-        line: comment.line,
+    return await writeJson(routes.createComment(ref), 'POST', {
+      comparisonStartOid: baseOid,
+      comparisonEndOid: headOid,
+      text: comment.text,
+      submitBatch: true,
+      line: comment.line,
+      path: comment.path,
+      positioning: {
+        type: 'line',
+        baseCommitOid: baseOid,
+        headCommitOid: headOid,
         path: comment.path,
-        positioning: {
-          type: 'line',
-          baseCommitOid: baseOid,
-          headCommitOid: headOid,
-          path: comment.path,
-          line: comment.line,
-          commitOid: headOid,
-        },
-        side,
-        subjectType: 'line',
-      }),
+        line: comment.line,
+        commitOid: headOid,
+      },
+      side,
+      subjectType: 'line',
     });
-
-    if (!response.ok) return { ok: false, error: `GitHub answered ${response.status}.` };
-    return { ok: true };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    return failed(error);
   }
 }

@@ -20,7 +20,7 @@ import type { ReviewThread } from '@/shared/bridge';
 import { createFileLoader } from '@/viewer/net/fileLoader';
 import { blameUrl, blobUrl, copyPath, type FileRefs } from '@/viewer/net/fileLinks';
 import { filesUrl, patchUrl, GITHUB_ORIGIN, type PullRequestRef } from '@/shared/pullRequest';
-import { usePatchStream } from '@/patch/usePatchStream';
+import { usePatchStream } from '@/viewer/diff/usePatchStream';
 import { ask } from '@/viewer/bridge/ask';
 import { BinaryCompare, isImagePath } from '@/viewer/diff/BinaryCompare';
 import { CommentComposer } from '@/viewer/comments/CommentComposer';

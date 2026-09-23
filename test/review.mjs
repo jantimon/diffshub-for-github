@@ -1,3 +1,4 @@
+import { WRITE_JSON } from '../src/page/headers.ts';
 import { launch, viewerFrame } from './browser.mjs';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
@@ -461,24 +462,20 @@ await page.screenshot({ path: path.join(shots, 'comments.png') });
 const touched = [...new Set(reviewed.map((entry) => entry.path).filter(Boolean))];
 if (touched.length > 0) {
   const cleaned = await page.evaluate(
-    async ({ paths, endpoint }) => {
+    async ({ paths, endpoint, headers }) => {
       const results = [];
       for (const filePath of paths) {
         const res = await fetch(endpoint, {
           method: 'POST',
           credentials: 'include',
-          headers: {
-            'content-type': 'application/json',
-            'x-requested-with': 'XMLHttpRequest',
-            'github-verified-fetch': 'true',
-          },
+          headers,
           body: JSON.stringify({ path: filePath, viewed: 'unviewed' }),
         });
         results.push(res.status);
       }
       return results;
     },
-    { paths: touched, endpoint: `${new URL(url).pathname}/file_review` },
+    { paths: touched, endpoint: `${new URL(url).pathname}/file_review`, headers: WRITE_JSON },
   );
   console.log(`unmarked ${touched.length} file(s) on GitHub: ${cleaned.join(', ')}`);
 }

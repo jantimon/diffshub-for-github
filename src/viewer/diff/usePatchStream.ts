@@ -5,8 +5,8 @@ import type { ReviewThread } from '@/shared/bridge';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { cachedGithubFetch } from '@/viewer/net/cachedGithubFetch';
-import { compileFilters, type MatchOptions } from './filters';
-import { streamPatchFiles } from './stream';
+import { compileFilters, type MatchOptions } from '@/patch/filters';
+import { streamPatchFiles } from '@/patch/stream';
 import {
   appendFile,
   createAccumulator,
@@ -14,7 +14,8 @@ import {
   type DiffStats,
   type ParsedFile,
   type PatchAccumulator,
-} from './accumulator';
+} from '@/patch/accumulator';
+import { describeError } from '@/shared/errors';
 
 /** Publish cadence, mirroring what diffshub.com settled on */
 const WORK_BUDGET_MS = 8;
@@ -209,7 +210,7 @@ export function usePatchStream({
       setState((current) => ({
         ...current,
         phase: 'error',
-        error: error instanceof Error ? error.message : String(error),
+        error: describeError(error),
       }));
     });
 

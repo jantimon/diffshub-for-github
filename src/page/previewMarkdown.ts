@@ -12,7 +12,8 @@
  * looks, from its published source `behaviors/commenting/preview.ts`.
  */
 
-import { POST_FORM } from '@/page/requests';
+import { describeError } from '@/shared/errors';
+import { POST_FORM } from '@/page/headers';
 
 export async function previewMarkdown(text: string): Promise<{ html?: string; error?: string }> {
   const host = document.querySelector<HTMLElement>('[data-preview-url]');
@@ -42,6 +43,6 @@ export async function previewMarkdown(text: string): Promise<{ html?: string; er
     if (!response.ok) return { error: `GitHub answered ${response.status} for the preview.` };
     return { html: await response.text() };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : String(error) };
+    return { error: describeError(error) };
   }
 }

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ReviewThread } from '@/shared/bridge';
 import { compileQuery, findInFiles, type FindMatch, type FindOptions } from '@/patch/findInPatch';
-import type { ParsedFiles } from '@/patch/usePatchStream';
+import type { ParsedFiles } from '@/viewer/diff/usePatchStream';
 import type { ExpansionMemory } from '@/viewer/diff/expandedRegions';
 import { clearMatches, paintMatches } from '@/viewer/find/paintMatches';
 import { useChoice } from '@/viewer/settings';

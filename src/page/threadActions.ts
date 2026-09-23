@@ -1,7 +1,8 @@
 import type { Result } from '@/shared/bridge';
 import { findForm, findFormEndingWith, submitForm } from '@/page/forms';
-import { pullPath, type PullRequestRef } from '@/shared/pullRequest';
-import { refusal, WRITE_JSON } from '@/page/requests';
+import type { PullRequestRef } from '@/shared/pullRequest';
+import { failed, writeJson } from '@/page/client';
+import { routes } from '@/page/routes';
 
 /**
  * Replying to a comment, and resolving a conversation.
@@ -22,7 +23,7 @@ import { refusal, WRITE_JSON } from '@/page/requests';
  * oids, the path and the line. Only the text is ours.
  */
 export async function replyToComment(pr: PullRequestRef, inReplyTo: string, body: string): Promise<Result> {
-  const action = `${pullPath(pr)}/review_comment/create`;
+  const action = routes.replyForm(pr);
 
   try {
     // A token is good for the action it was minted for rather than the copy
@@ -40,7 +41,7 @@ export async function replyToComment(pr: PullRequestRef, inReplyTo: string, body
     const result = await submitForm(form, { in_reply_to: inReplyTo, 'comment[body]': body });
     return result.ok ? { ok: true } : { ok: false, error: `GitHub answered ${result.status}.` };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    return failed(error);
   }
 }
 
@@ -60,8 +61,7 @@ export async function resolveThread(
   threadId: string,
   resolved: boolean,
 ): Promise<Result> {
-  const route = resolved ? 'resolve_thread' : 'unresolve_thread';
-  return await write(`${pullPath(pr)}/page_data/${route}`, 'POST', { threadId });
+  return await writeJson(routes.resolveThread(pr, resolved), 'POST', { threadId });
 }
 
 /**
@@ -72,10 +72,7 @@ export async function resolveThread(
  * the field a string.
  */
 export async function editComment(pr: PullRequestRef, databaseId: string, body: string): Promise<Result> {
-  return await write(`${pullPath(pr)}/page_data/update_review_comment`, 'PUT', {
-    body,
-    commentId: databaseId,
-  });
+  return await writeJson(routes.updateComment(pr), 'PUT', { body, commentId: databaseId });
 }
 
 /**
@@ -86,25 +83,5 @@ export async function editComment(pr: PullRequestRef, databaseId: string, body: 
  * reported as it comes rather than smoothed over.
  */
 export async function deleteComment(pr: PullRequestRef, databaseId: string): Promise<Result> {
-  return await write(`${pullPath(pr)}/page_data/review_comments/${encodeURIComponent(databaseId)}`, 'DELETE');
-}
-
-/**
- * One JSON write to a `page_data` route. GitHub says why it refused in the body
- * -- that the reader may not do this, or that somebody already has -- and that
- * sentence is what reaches the reader
- */
-async function write(url: string, method: 'POST' | 'PUT' | 'DELETE', body?: unknown): Promise<Result> {
-  try {
-    const response = await fetch(url, {
-      method,
-      credentials: 'include',
-      headers: WRITE_JSON,
-      body: body == null ? undefined : JSON.stringify(body),
-    });
-    if (response.ok) return { ok: true };
-    return { ok: false, error: (await refusal(response)) ?? `GitHub answered ${response.status}.` };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
+  return await writeJson(routes.deleteComment(pr, databaseId), 'DELETE');
 }

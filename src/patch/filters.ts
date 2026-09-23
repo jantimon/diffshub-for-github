@@ -1,4 +1,5 @@
 import picomatch from 'picomatch/posix.js';
+import { describeError } from '../shared/errors.ts';
 
 export interface MatchOptions {
   caseSensitive: boolean;
@@ -87,7 +88,7 @@ function compileRegex(patterns: readonly string[], caseSensitive: boolean): Fiel
     try {
       expressions.push(new RegExp(pattern, flags));
     } catch (error) {
-      return { error: error instanceof Error ? error.message : String(error) };
+      return { error: describeError(error) };
     }
   }
 
@@ -122,6 +123,6 @@ function compileGlob(
     const match = picomatch(expanded, { dot: true, nocase: !caseSensitive });
     return { match: (path) => match(path) };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : String(error) };
+    return { error: describeError(error) };
   }
 }

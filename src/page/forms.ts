@@ -35,7 +35,7 @@
  * never cross into the extension's viewer, and none is stored or logged.
  */
 
-import { POST_FORM } from '@/page/requests';
+import { POST_FORM } from '@/page/headers';
 
 /**
  * Finds a form by the action it ends with, for actions that are the same for

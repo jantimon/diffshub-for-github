@@ -1,8 +1,8 @@
 import { processFile, type CodeViewItem } from '@pierre/diffs';
 import type { GitStatusEntry } from '@pierre/trees';
 
-import type { ReviewThread } from '@/shared/bridge';
-import { changesOnlyWhitespace } from './whitespace';
+import type { ReviewThread } from '../shared/bridge.ts';
+import { changesOnlyWhitespace } from './whitespace.ts';
 
 export interface ParsedFile {
   item: CodeViewItem<ReviewThread>;

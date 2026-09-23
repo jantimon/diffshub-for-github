@@ -7,8 +7,10 @@
  */
 
 import type { ReviewComment, ReviewThread } from '@/shared/bridge';
-import { pullPath, type PullRequestRef } from '@/shared/pullRequest';
-import { READ_JSON } from '@/page/requests';
+import type { PullRequestRef } from '@/shared/pullRequest';
+import { describeError } from '@/shared/errors';
+import { readJson } from '@/page/client';
+import { routes } from '@/page/routes';
 
 const PAGE_LIMIT = 40;
 const MAX_PAGES = 20;
@@ -57,12 +59,10 @@ interface RawComment {
 export async function readThreads(
   ref: PullRequestRef,
 ): Promise<{ threads: ReviewThread[]; truncated: boolean; error?: string }> {
-  const base = `${pullPath(ref)}/page_data`;
-
   try {
     const [previews, threads] = await Promise.all([
-      walk<Preview>(`${base}/thread_previews`),
-      walk<Thread>(`${base}/threads`),
+      walk<Preview>(routes.threadPreviews(ref)),
+      walk<Thread>(routes.threads(ref)),
     ]);
 
     const bodies = new Map<string, Thread>();
@@ -96,7 +96,7 @@ export async function readThreads(
     return {
       threads: [],
       truncated: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: describeError(error),
     };
   }
 }
@@ -123,13 +123,10 @@ async function walk<T>(start: string): Promise<{ items: T[]; truncated: boolean 
   let url: string | undefined = start;
 
   for (let page = 0; page < MAX_PAGES && url != null; page += 1) {
-    const response: Response = await fetch(url, {
-      credentials: 'include',
-      headers: READ_JSON,
-    });
-    if (!response.ok) throw new Error(`GitHub answered ${response.status} for the comments.`);
-
-    const batch: unknown = await response.json();
+    const { json: batch, response }: { json: unknown; response: Response } = await readJson(
+      url,
+      'the comments',
+    );
     if (!Array.isArray(batch)) break;
     items.push(...(batch as T[]));
 

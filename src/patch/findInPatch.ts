@@ -1,6 +1,7 @@
 import type { FileDiffMetadata } from '@pierre/diffs';
 
-import type { ParsedFile } from './accumulator';
+import type { ParsedFile } from './accumulator.ts';
+import { describeError } from '../shared/errors.ts';
 
 export interface FindOptions {
   caseSensitive: boolean;
@@ -40,7 +41,7 @@ export function compileQuery(query: string, options: FindOptions): { pattern?: R
   try {
     return { pattern: new RegExp(source, options.caseSensitive ? 'gu' : 'giu') };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : String(error) };
+    return { error: describeError(error) };
   }
 }
 
