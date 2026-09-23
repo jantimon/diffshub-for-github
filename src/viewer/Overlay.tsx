@@ -26,7 +26,7 @@ import { BinaryCompare, isImagePath } from '@/viewer/diff/BinaryCompare';
 import { CommentComposer } from '@/viewer/comments/CommentComposer';
 import { ReviewDialog } from '@/viewer/review/ReviewDialog';
 import { ShortcutHelp } from '@/viewer/shell/ShortcutHelp';
-import { Sidebar } from '@/viewer/shell/Sidebar';
+import { Sidebar } from '@/viewer/tree/Sidebar';
 import { Thread } from '@/viewer/comments/Thread';
 import { Toolbar } from '@/viewer/shell/Toolbar';
 import { useThreads } from '@/viewer/comments/useThreads';
@@ -36,25 +36,21 @@ import { useNavigation } from '@/viewer/diff/useNavigation';
 import { whenScrolled } from '@/viewer/diff/whenScrolled';
 import { useThemeSurfaces } from '@/viewer/shell/useThemeSurfaces';
 import { useFocusTrap } from '@/viewer/shell/useFocusTrap';
-import { useInViewMarks } from '@/viewer/shell/useInViewMarks';
+import { useInViewMarks } from '@/viewer/tree/useInViewMarks';
 import { useShortcuts } from '@/viewer/shell/useShortcuts';
 import { useViewed } from '@/viewer/review/useViewed';
 import { createExpansionMemory } from '@/viewer/diff/expandedRegions';
 import { FindBar } from '@/viewer/find/FindBar';
 import { useFind } from '@/viewer/find/useFind';
 import { readSetting, useChoice, writeSetting } from '@/viewer/settings';
-import {
-  ANNOTATION_CSS,
-  DIFF_TINT_CSS,
-  FILE_GAP,
-  FIND_CSS,
-  HEADER_CSS,
-  HIGHLIGHTER_OPTIONS,
-  POOL_OPTIONS,
-  SEPARATOR_CSS,
-  SPACE_ABOVE_FILE,
-  TREE_CSS,
-} from '@/viewer/diff/codeViewStyles';
+import { FILE_GAP, SPACE_ABOVE_FILE } from '@/viewer/diff/layout';
+import { ANNOTATION_CSS } from '@/viewer/diff/styles/annotation';
+import { FIND_CSS } from '@/viewer/diff/styles/find';
+import { HEADER_CSS } from '@/viewer/diff/styles/header';
+import { SEPARATOR_CSS } from '@/viewer/diff/styles/separator';
+import { DIFF_TINT_CSS } from '@/viewer/diff/styles/tint';
+import { HIGHLIGHTER_OPTIONS, POOL_OPTIONS } from '@/viewer/diff/workerPool';
+import { TREE_CSS } from '@/viewer/tree/treeStyles';
 
 const NO_MATCHES: ReadonlyMap<string, number> = new Map();
 

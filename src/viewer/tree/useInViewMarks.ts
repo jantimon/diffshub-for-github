@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import type { ReviewThread } from '@/shared/bridge';
 import type { ParsedFile } from '@/patch/accumulator';
-import { filesInView } from '@/viewer/diff/filesInView';
-import { inViewCss, inViewRowsCss } from '@/viewer/diff/codeViewStyles';
+import { filesInView } from '@/viewer/tree/filesInView';
+import { inViewCss, inViewRowsCss } from '@/viewer/tree/treeStyles';
 
 const ANCHORS = typeof CSS !== 'undefined' && CSS.supports('anchor-name: --a');
 

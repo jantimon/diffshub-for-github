@@ -1,5 +1,5 @@
 import type { ParsedFile } from '@/patch/accumulator';
-import { FILE_GAP } from '@/viewer/diff/codeViewStyles';
+import { FILE_GAP } from '@/viewer/diff/layout';
 
 /**
  * The files with any part inside the diff pane, in the order they are drawn.

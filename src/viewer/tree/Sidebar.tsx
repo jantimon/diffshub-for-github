@@ -13,7 +13,7 @@ import { IconX } from '@pierre/icons';
 import type { CSSProperties, JSX, KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 import type { DiffStats } from '@/patch/accumulator';
-import { TREE_STYLE } from '@/viewer/diff/codeViewStyles';
+import { TREE_STYLE } from '@/viewer/tree/treeStyles';
 
 /**
  * What sits inside the box: a clear button that appears only when there is
