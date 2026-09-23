@@ -33,6 +33,7 @@ import { useThreads } from '@/viewer/comments/useThreads';
 import { ToastStack, useToasts } from '@/viewer/shell/Toast';
 import { closeViewer, usePageInfo } from '@/viewer/bridge/usePageInfo';
 import { useNavigation } from '@/viewer/diff/useNavigation';
+import { whenScrolled } from '@/viewer/diff/whenScrolled';
 import { useThemeSurfaces } from '@/viewer/shell/useThemeSurfaces';
 import { useFocusTrap } from '@/viewer/shell/useFocusTrap';
 import { useInViewMarks } from '@/viewer/shell/useInViewMarks';
@@ -375,10 +376,11 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
         // reader may have worked through the list out of order
         files.slice(0, from).find((file) => !seen.has(file.item.id));
       if (next == null) return;
-      viewerRef.current?.scrollTo({ type: 'item', id: next.item.id, align: 'start', behavior: 'smooth' });
-      setTimeout(() => {
+      const viewer = viewerRef.current;
+      viewer?.scrollTo({ type: 'item', id: next.item.id, align: 'start', behavior: 'smooth' });
+      whenScrolled(viewer?.getInstance()?.getContainerElement(), () => {
         document.querySelector<HTMLInputElement>(`[data-dh-viewed="${CSS.escape(next.item.id)}"]`)?.focus();
-      }, 350);
+      });
     },
     [toggle, viewedRef, visibleRef],
   );
@@ -555,7 +557,10 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
       },
       unsafeCSS: `${HEADER_CSS}\n${SEPARATOR_CSS}\n${DIFF_TINT_CSS}\n${ANNOTATION_CSS}\n${FIND_CSS}`,
       loadDiffFiles,
-      onPostRender: (_node: HTMLElement, instance: unknown) => afterRender.current(instance),
+      /** A file leaving the screen reports too, and has nothing to add */
+      onPostRender: (_node: HTMLElement, instance: unknown, phase: string) => {
+        if (phase !== 'unmount') afterRender.current(instance);
+      },
     }),
     [
       diffStyle,

@@ -4,44 +4,39 @@ import type { ReviewThread } from '@/shared/bridge';
 import { useCallback } from 'react';
 
 import type { ParsedFile } from '@/patch/accumulator';
-import { FILE_GAP } from '@/viewer/diff/codeViewStyles';
 
-/**
- * How far below the top of the pane a file may start and still count as the one
- * being read.
- *
- * The gap between files belongs to neither of them, so a file scrolled to the
- * top of the pane starts that far down. Without allowing for it the file just
- * left looks like the current one and every press lands back on the same file.
- * The few pixels on top cover rounding and a border.
- */
-const EDGE_TOLERANCE = FILE_GAP + 4;
+/** A file this close under the top of the pane already counts as reached: rounding and a border */
+const EDGE_TOLERANCE = 4;
 
-/**
- * Where the diff starts on screen.
- *
- * The diff scrolls inside its own pane, which sits below the toolbar, so a file
- * scrolled to the top of that pane is still some way down the window. Measuring
- * against the window instead would make the file above always look like the one
- * being read, and every press would land back on the same file.
- *
- * The pane is found by walking up from the file, through shadow boundaries,
- * rather than being passed in: the viewer library owns that element.
- */
-function paneTop(element: Element): number {
-  let node: Node | null = element.parentNode;
-  while (node != null) {
-    if (node instanceof ShadowRoot) {
-      node = node.host;
-      continue;
-    }
-    if (node instanceof HTMLElement) {
-      const overflow = getComputedStyle(node).overflowY;
-      if (overflow === 'auto' || overflow === 'scroll') return node.getBoundingClientRect().top;
-    }
-    node = node.parentNode;
+/** The hunk holding a new-file line, or the one before it: -1 above the first */
+function hunkAt(hunks: readonly { additionStart: number }[], line: number): number {
+  let found = -1;
+  for (const [index, hunk] of hunks.entries()) {
+    if (hunk.additionStart > line) break;
+    found = index;
   }
-  return 0;
+  return found;
+}
+
+/**
+ * The first line of the new side the reader can see in a file: the top row
+ * below the file's own header, which sticks and covers what scrolls under it.
+ * Removed lines are skipped, since their numbers belong to the old side.
+ */
+function firstLineOnScreen(element: HTMLElement, paneTop: number): number | undefined {
+  const root = element.shadowRoot ?? element;
+  // The header is measured rather than assumed: it is whatever height the
+  // viewer and this extension's styles make it
+  const header = root.querySelector('[data-diffs-header]')?.getBoundingClientRect().bottom ?? paneTop;
+  const below = Math.max(paneTop, header);
+  for (const row of root.querySelectorAll<HTMLElement>('code:not([data-deletions]) [data-line]')) {
+    if (row.dataset.lineType === 'change-deletion') continue;
+    // A line counts once most of it shows: the viewer leaves a sliver of the
+    // line before the one it scrolled to
+    const { top, bottom } = row.getBoundingClientRect();
+    if ((top + bottom) / 2 > below) return Number(row.dataset.line);
+  }
+  return undefined;
 }
 
 /**
@@ -55,41 +50,30 @@ export function useNavigation(
   viewerRef: { current: CodeViewHandle<ReviewThread, undefined> | null },
   visibleRef: { current: readonly ParsedFile[] },
 ) {
+  /**
+   * The file being read: the last one whose top has reached the top of the
+   * pane. Worked out from where the viewer laid the files out, which is what
+   * the tree's in-view bar uses too, so the two never disagree.
+   */
   const currentIndex = useCallback((): number => {
     const files = visibleRef.current;
-    const rendered = viewerRef.current?.getInstance()?.getRenderedItems() ?? [];
-
-    // The file you are on is the last one that has reached the top of the diff
-    // pane. It has to have reached past the tolerance to count, so that the
-    // file just scrolled off does not keep the claim
-    const first = rendered[0];
-    if (first == null) return 0;
-    const edge = paneTop(first.element) + EDGE_TOLERANCE;
-
-    let reached: string | undefined;
-    let reachedTop = Number.NEGATIVE_INFINITY;
-    let below: string | undefined;
-    let belowTop = Number.POSITIVE_INFINITY;
-
-    for (const entry of rendered) {
-      const { top } = entry.element.getBoundingClientRect();
-      if (top <= edge) {
-        if (top > reachedTop) {
-          reachedTop = top;
-          reached = entry.id;
-        }
-      } else if (top < belowTop) {
-        // Nothing has reached the top yet, so the first file below it is the
-        // one being read
-        belowTop = top;
-        below = entry.id;
+    const view = viewerRef.current?.getInstance();
+    const scrollTop = view?.getContainerElement()?.scrollTop ?? 0;
+    let low = 0;
+    let high = files.length - 1;
+    let found = 0;
+    while (low <= high) {
+      const middle = (low + high) >> 1;
+      const file = files[middle];
+      const top = file == null ? undefined : view?.getTopForItem(file.item.id);
+      if (top != null && top <= scrollTop + EDGE_TOLERANCE) {
+        found = middle;
+        low = middle + 1;
+      } else {
+        high = middle - 1;
       }
     }
-
-    const topId = reached ?? below;
-    if (topId == null) return 0;
-    const index = files.findIndex((file) => file.item.id === topId);
-    return index < 0 ? 0 : index;
+    return found;
   }, [viewerRef, visibleRef]);
 
   const goToFile = useCallback(
@@ -111,18 +95,17 @@ export function useNavigation(
 
       const hunks = file.item.type === 'diff' ? file.item.fileDiff.hunks : [];
       const viewer = viewerRef.current;
-      if (viewer == null) return;
+      const view = viewer?.getInstance();
+      if (viewer == null || view == null) return;
 
-      // How far down the file the viewport has reached picks the hunk to step
-      // from: the viewer renders a file as one element, so the hunks inside it
-      // cannot be measured separately from here
-      const rendered = viewer.getInstance()?.getRenderedItems() ?? [];
-      const element = rendered.find((entry) => entry.id === file.item.id)?.element;
-      const offset = element == null ? 0 : -element.getBoundingClientRect().top;
-      const height = element == null ? 1 : element.getBoundingClientRect().height;
-      const progress = height === 0 ? 0 : offset / height;
-      const near = Math.round(progress * Math.max(hunks.length - 1, 0));
-      const next = near + delta;
+      // Stepping goes from the hunk the reader is looking at, found from the
+      // first line on screen rather than guessed from how far down the file
+      // they are, which hunks of different lengths would throw off
+      const element = view.getRenderedItems().find((entry) => entry.id === file.item.id)?.element;
+      const paneTop = view.getContainerElement()?.getBoundingClientRect().top ?? 0;
+      const line = element == null ? undefined : firstLineOnScreen(element, paneTop);
+      const current = line == null ? -1 : hunkAt(hunks, line);
+      const next = current + delta;
 
       if (next >= 0 && next < hunks.length) {
         viewer.scrollTo({

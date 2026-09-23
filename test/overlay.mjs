@@ -329,6 +329,48 @@ const scrolled = () =>
     return furthest;
   });
 
+/**
+ * The first line of the new side on screen below the sticky file header, which
+ * is what `n` and `p` step from
+ */
+const firstLineOnScreen = () =>
+  frame.evaluate(() => {
+    const pane = document.querySelector('.dh-code').getBoundingClientRect().top;
+    for (const host of document.querySelectorAll('diffs-container')) {
+      const header =
+        host.shadowRoot.querySelector('[data-diffs-header]')?.getBoundingClientRect().bottom ?? pane;
+      const below = Math.max(pane, header);
+      for (const row of host.shadowRoot.querySelectorAll('code:not([data-deletions]) [data-line]')) {
+        if (row.dataset.lineType === 'change-deletion') continue;
+        const { top, bottom } = row.getBoundingClientRect();
+        if ((top + bottom) / 2 > below) return Number(row.dataset.line);
+      }
+    }
+    return undefined;
+  });
+
+await check('n and p step from hunk to hunk', async () => {
+  await frame.locator('.dh-code').evaluate((pane) => pane.scrollTo({ top: 0 }));
+  await page.waitForTimeout(800);
+  await frame.locator('.dh-code').click({ position: { x: 5, y: 5 } });
+  const seen = [await firstLineOnScreen()];
+  for (const key of ['n', 'n', 'n', 'p']) {
+    await page.keyboard.press(key);
+    await page.waitForTimeout(1200);
+    seen.push(await firstLineOnScreen());
+  }
+  // Each n lands on the first line of the next hunk, and p goes back one. The
+  // gap above the first hunk may be open by now, so the file can start above 58
+  const hunks = [58, 86, 157, 170];
+  const at = hunks.indexOf(seen[1] ?? -1);
+  const stepped = at >= 0 && seen[2] === hunks[at + 1] && seen[3] === hunks[at + 2] && seen[4] === seen[2];
+  if (!stepped) {
+    console.log('      first lines', JSON.stringify(seen));
+    return false;
+  }
+  return seen.join(' → ');
+});
+
 await check('j keeps moving down the diff', async () => {
   const start = await scrolled();
   await page.keyboard.press('j');
