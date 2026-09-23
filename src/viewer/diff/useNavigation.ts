@@ -3,7 +3,7 @@ import type { CodeViewHandle } from '@pierre/diffs/react';
 import type { ReviewThread } from '@/shared/bridge';
 import { useCallback } from 'react';
 
-import type { ParsedFile } from '@/patch/accumulator';
+import type { Session } from '@/viewer/state/session';
 
 /** A file this close under the top of the pane already counts as reached: rounding and a border */
 const EDGE_TOLERANCE = 4;
@@ -48,7 +48,7 @@ function firstLineOnScreen(element: HTMLElement, paneTop: number): number | unde
  */
 export function useNavigation(
   viewerRef: { current: CodeViewHandle<ReviewThread, undefined> | null },
-  visibleRef: { current: readonly ParsedFile[] },
+  session: Session,
 ) {
   /**
    * The file being read: the last one whose top has reached the top of the
@@ -56,7 +56,7 @@ export function useNavigation(
    * the tree's in-view bar uses too, so the two never disagree.
    */
   const currentIndex = useCallback((): number => {
-    const files = visibleRef.current;
+    const files = session.get().visible;
     const view = viewerRef.current?.getInstance();
     const scrollTop = view?.getContainerElement()?.scrollTop ?? 0;
     let low = 0;
@@ -74,21 +74,21 @@ export function useNavigation(
       }
     }
     return found;
-  }, [viewerRef, visibleRef]);
+  }, [viewerRef, session]);
 
   const goToFile = useCallback(
     (index: number) => {
-      const files = visibleRef.current;
+      const files = session.get().visible;
       const file = files[Math.min(Math.max(index, 0), files.length - 1)];
       if (file == null) return;
       viewerRef.current?.scrollTo({ type: 'item', id: file.item.id, align: 'start', behavior: 'smooth' });
     },
-    [viewerRef, visibleRef],
+    [viewerRef, session],
   );
 
   const stepHunk = useCallback(
     (delta: number) => {
-      const files = visibleRef.current;
+      const files = session.get().visible;
       const index = currentIndex();
       const file = files[index];
       if (file == null) return;
@@ -121,7 +121,7 @@ export function useNavigation(
 
       goToFile(index + (delta > 0 ? 1 : -1));
     },
-    [currentIndex, goToFile, viewerRef, visibleRef],
+    [currentIndex, goToFile, viewerRef, session],
   );
 
   return {

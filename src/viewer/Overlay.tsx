@@ -3,56 +3,44 @@ import {
   WorkerPoolContextProvider,
   type CodeViewHandle,
   type CodeViewItem,
-  type CodeViewReactOptions,
 } from '@pierre/diffs/react';
-import { useFileTree, useFileTreeSearch } from '@pierre/trees/react';
-import { IconEye, IconEyeSlash } from '@pierre/icons';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from 'react';
+import { useFileTreeSearch } from '@pierre/trees/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ReviewThread } from '@/shared/bridge';
-import { createFileLoader } from '@/viewer/net/fileLoader';
-import { blameUrl, blobUrl, copyPath, type FileRefs } from '@/viewer/net/fileLinks';
-import { filesUrl, patchUrl, GITHUB_ORIGIN, type PullRequestRef } from '@/shared/pullRequest';
-import { usePatchStream } from '@/viewer/diff/usePatchStream';
+import { filesUrl, GITHUB_ORIGIN, patchUrl, type PullRequestRef } from '@/shared/pullRequest';
 import { ask } from '@/viewer/bridge/ask';
-import { BinaryCompare, isImagePath } from '@/viewer/diff/BinaryCompare';
-import { CommentComposer } from '@/viewer/comments/CommentComposer';
-import { ReviewDialog } from '@/viewer/review/ReviewDialog';
-import { ShortcutHelp } from '@/viewer/shell/ShortcutHelp';
-import { Sidebar } from '@/viewer/tree/Sidebar';
-import { Thread } from '@/viewer/comments/Thread';
-import { Toolbar } from '@/viewer/shell/Toolbar';
-import { useThreads } from '@/viewer/comments/useThreads';
-import { ToastStack, useToasts } from '@/viewer/shell/Toast';
 import { closeViewer, usePageInfo } from '@/viewer/bridge/usePageInfo';
-import { useNavigation } from '@/viewer/diff/useNavigation';
-import { whenScrolled } from '@/viewer/diff/whenScrolled';
-import { useThemeSurfaces } from '@/viewer/shell/useThemeSurfaces';
-import { useFocusTrap } from '@/viewer/shell/useFocusTrap';
-import { useInViewMarks } from '@/viewer/tree/useInViewMarks';
-import { useShortcuts } from '@/viewer/shell/useShortcuts';
-import { useViewed } from '@/viewer/review/useViewed';
+import { CommentComposer } from '@/viewer/comments/CommentComposer';
+import { Thread } from '@/viewer/comments/Thread';
+import { useThreads } from '@/viewer/comments/useThreads';
+import { BinaryCompare } from '@/viewer/diff/BinaryCompare';
 import { createExpansionMemory } from '@/viewer/diff/expandedRegions';
+import { FileLinks, ViewedButton } from '@/viewer/diff/FileHeader';
+import { useDiffOptions } from '@/viewer/diff/useDiffOptions';
+import { useNavigation } from '@/viewer/diff/useNavigation';
+import { HIGHLIGHTER_OPTIONS, POOL_OPTIONS } from '@/viewer/diff/workerPool';
 import { FindBar } from '@/viewer/find/FindBar';
 import { useFind } from '@/viewer/find/useFind';
-import { readSetting, useChoice, writeSetting } from '@/viewer/settings';
-import { FILE_GAP, SPACE_ABOVE_FILE } from '@/viewer/diff/layout';
-import { ANNOTATION_CSS } from '@/viewer/diff/styles/annotation';
-import { FIND_CSS } from '@/viewer/diff/styles/find';
-import { HEADER_CSS } from '@/viewer/diff/styles/header';
-import { SEPARATOR_CSS } from '@/viewer/diff/styles/separator';
-import { DIFF_TINT_CSS } from '@/viewer/diff/styles/tint';
-import { HIGHLIGHTER_OPTIONS, POOL_OPTIONS } from '@/viewer/diff/workerPool';
-import { TREE_CSS } from '@/viewer/tree/treeStyles';
-
-const NO_MATCHES: ReadonlyMap<string, number> = new Map();
+import { createFileLoader } from '@/viewer/net/fileLoader';
+import { copyPath, type FileRefs } from '@/viewer/net/fileLinks';
+import { ReviewDialog } from '@/viewer/review/ReviewDialog';
+import { useMarkViewed } from '@/viewer/review/useMarkViewed';
+import { storedViewed, useViewed } from '@/viewer/review/useViewed';
+import { ShortcutHelp } from '@/viewer/shell/ShortcutHelp';
+import { ToastStack, useToasts } from '@/viewer/shell/Toast';
+import { Toolbar } from '@/viewer/shell/Toolbar';
+import { useFocusTrap } from '@/viewer/shell/useFocusTrap';
+import { useShortcuts } from '@/viewer/shell/useShortcuts';
+import { useThemeSurfaces } from '@/viewer/shell/useThemeSurfaces';
+import { useViewerChoices } from '@/viewer/shell/useViewerChoices';
+import { createSession, useSession } from '@/viewer/state/session';
+import { usePatchLoader } from '@/viewer/state/usePatchLoader';
+import { Sidebar } from '@/viewer/tree/Sidebar';
+import { useFilters } from '@/viewer/tree/useFilters';
+import { useInViewMarks } from '@/viewer/tree/useInViewMarks';
+import { useSidebarWidth } from '@/viewer/tree/useSidebarWidth';
+import { useTreeModel } from '@/viewer/tree/useTreeModel';
 
 export function Overlay({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string }) {
   return (
@@ -62,150 +50,25 @@ export function Overlay({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?:
   );
 }
 
+/**
+ * The viewer: the toolbar, the file tree, the diff and the dialogs, put
+ * together. Each feature lives in a hook or a component of its own, and this
+ * only connects them. What they share is the session (`state/session.ts`).
+ */
 function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string }) {
   const page = usePageInfo();
   const toasts = useToasts();
   const pushToast = toasts.push;
   const viewerRef = useRef<CodeViewHandle<ReviewThread, undefined> | null>(null);
 
-  const [layout = 'split', setLayout] = useChoice('layout', ['split', 'unified'] as const, 'split');
-  const [sidebar = 'open', setSidebar] = useChoice('sidebar', ['open', 'closed'] as const, 'open');
-  const [whitespace = 'show', setWhitespace] = useChoice('whitespace', ['show', 'ignore'] as const, 'show');
-  const diffStyle = layout;
-  const sidebarOpen = sidebar === 'open';
-  const ignoreWhitespace = whitespace === 'ignore';
+  const choices = useViewerChoices(page.themeType);
+  const sidebar = useSidebarWidth();
+  const filters = useFilters();
 
-  const [sidebarWidth, setSidebarWidth] = useState(() => Number(readSetting('sidebarWidth', '280')) || 280);
-
-  const startResize = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      const startX = event.clientX;
-      let width = sidebarWidth;
-      const onMove = (move: globalThis.PointerEvent) => {
-        width = Math.min(Math.max(sidebarWidth + move.clientX - startX, 160), 720);
-        setSidebarWidth(width);
-      };
-      const onUp = () => {
-        removeEventListener('pointermove', onMove);
-        removeEventListener('pointerup', onUp);
-        document.body.style.cursor = '';
-        writeSetting('sidebarWidth', String(width));
-      };
-      document.body.style.cursor = 'col-resize';
-      addEventListener('pointermove', onMove);
-      addEventListener('pointerup', onUp);
-    },
-    [sidebarWidth],
-  );
-  const [helpOpen, setHelpOpen] = useState(false);
-  const [reviewOpen, setReviewOpen] = useState(false);
-  // Reading code in light while GitHub sits in dark is a fair preference, so
-  // once this is set it wins over the page. Light or dark, nothing automatic:
-  // no stored choice means the page decides
-  const [themeChoice, setThemeChoice] = useChoice('theme', ['light', 'dark'] as const, undefined);
-  const [comparing, setComparing] = useState<string | undefined>(undefined);
-
-  const [includeInput, setIncludeInput] = useState(() => readSetting('include', ''));
-  const [excludeInput, setExcludeInput] = useState(() => readSetting('exclude', ''));
-
-  const [include, setInclude] = useState(includeInput);
-  const [exclude, setExclude] = useState(excludeInput);
-  const [includeCase, setIncludeCase] = useState(() => readSetting('includeCase', '') === 'on');
-  const [includeRegex, setIncludeRegex] = useState(() => readSetting('includeRegex', '') === 'on');
-  const [excludeCase, setExcludeCase] = useState(() => readSetting('excludeCase', '') === 'on');
-  const [excludeRegex, setExcludeRegex] = useState(() => readSetting('excludeRegex', '') === 'on');
-
-  // Memoised on the flags themselves: a fresh object every render would look
-  // like a filter change and republish the whole view on every keystroke
-  const includeOptions = useMemo(
-    () => ({ caseSensitive: includeCase, regex: includeRegex }),
-    [includeCase, includeRegex],
-  );
-  const excludeOptions = useMemo(
-    () => ({ caseSensitive: excludeCase, regex: excludeRegex }),
-    [excludeCase, excludeRegex],
-  );
-
-  useEffect(() => {
-    writeSetting('includeCase', includeCase ? 'on' : '');
-    writeSetting('includeRegex', includeRegex ? 'on' : '');
-    writeSetting('excludeCase', excludeCase ? 'on' : '');
-    writeSetting('excludeRegex', excludeRegex ? 'on' : '');
-  }, [includeCase, includeRegex, excludeCase, excludeRegex]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setInclude(includeInput);
-      setExclude(excludeInput);
-      writeSetting('include', includeInput);
-      writeSetting('exclude', excludeInput);
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [includeInput, excludeInput]);
-
-  const viewedRef = useRef<ReadonlySet<string>>(new Set());
-  const decorationRef = useRef<{
-    viewed: ReadonlySet<string>;
-    folders: ReadonlyMap<string, { total: number; viewed: number }>;
-    /** Matches per file while find is open, which the tree shows instead of the tick */
-    found: ReadonlyMap<string, number>;
-  }>({ viewed: new Set(), folders: new Map(), found: new Map() });
-
-  /**
-   * Which item in the diff each path belongs to, kept by the patch stream and
-   * read by the tree. It is declared here rather than returned by the stream
-   * because the tree's callbacks are built first and both of them need it.
-   */
-  const pathToItemIdRef = useRef<ReadonlyMap<string, string>>(new Map());
-
-  const onSelectionChange = useCallback((selectedPaths: readonly string[]) => {
-    if (selectedPaths.length !== 1) return;
-    const [path] = selectedPaths;
-    if (path == null) return;
-    const itemId = pathToItemIdRef.current.get(path);
-    if (itemId == null) return;
-    viewerRef.current?.scrollTo({ type: 'item', id: itemId, align: 'start', behavior: 'smooth' });
-  }, []);
-
-  const { model } = useFileTree({
-    id: 'diffshub-tree',
-    paths: [],
-    gitStatus: [],
-    presorted: true,
-    sort: () => 0,
-    search: true,
-    stickyFolders: true,
-    flattenEmptyDirectories: true,
-    initialExpansion: 'open',
-    itemHeight: 24,
-    unsafeCSS: TREE_CSS,
-    onSelectionChange,
-    renderRowDecoration({ item }) {
-      const { viewed: seen, folders, found } = decorationRef.current;
-      const pathToItemId = pathToItemIdRef.current;
-      if (item.kind === 'file') {
-        const id = pathToItemId.get(item.path);
-        const matches = id == null ? undefined : found.get(id);
-        if (matches != null) return { text: String(matches), title: `${matches} matches` };
-        if (id == null || !seen.has(id)) return null;
-        return { text: '✓', title: 'Viewed' };
-      }
-      // The tree names a folder with a trailing slash. The tally is keyed by
-      // the path as it appears in the patch, which has none
-      const folder = folders.get(item.path.replace(/\/$/, ''));
-      if (folder == null || folder.total === 0 || folder.viewed < folder.total) return null;
-      return { text: '✓', title: `All ${folder.total} files viewed` };
-    },
-  });
-  const search = useFileTreeSearch(model);
-
-  const {
-    state,
-    items,
-    visibleRef,
-    files: parsedFiles,
-  } = usePatchStream({
+  const key = `${pr.owner}/${pr.repo}/${pr.number}`;
+  const [session] = useState(() => createSession(storedViewed(key, openedAtSha)));
+  usePatchLoader({
+    session,
     url: patchUrl(pr),
     sha: openedAtSha,
     /**
@@ -213,86 +76,32 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
      * of each file under it, and the same position names different content
      * once the branch moves
      */
-    cacheKeyPrefix: `${pr.owner}/${pr.repo}/${pr.number}@${openedAtSha ?? 'unknown'}`,
-    include,
-    exclude,
-    includeOptions,
-    excludeOptions,
-    ignoreWhitespace,
-    model,
-    pathToItemIdRef,
+    cacheKeyPrefix: `${key}@${openedAtSha ?? 'unknown'}`,
+    filter: filters.filter,
+    ignoreWhitespace: choices.ignoreWhitespace,
   });
+  const { toggle, markAll } = useViewed(session, key, openedAtSha, pushToast);
 
-  const navigation = useNavigation(viewerRef, visibleRef);
-  const markInView = useInViewMarks({ viewerRef, visibleRef, model });
-  const [expansion] = useState(createExpansionMemory);
-  const find = useFind({ viewerRef, files: parsedFiles, expansion, currentFile: navigation.currentIndex });
-  const findInputRef = useRef<HTMLInputElement>(null);
-  const { viewed, toggle, markAll, baseSha } = useViewed(
-    `${pr.owner}/${pr.repo}/${pr.number}`,
-    openedAtSha,
-    pushToast,
+  const openFile = useCallback(
+    (path: string) => {
+      const id = session.get().pathToItemId.get(path);
+      if (id != null) viewerRef.current?.scrollTo({ type: 'item', id, align: 'start', behavior: 'smooth' });
+    },
+    [session],
   );
+  const model = useTreeModel({ session, onOpen: openFile, onToggle: toggle });
+  const search = useFileTreeSearch(model);
 
-  // A folder is marked once every file under it has been read
-  const folders = useMemo(() => {
-    const tally = new Map<string, { total: number; viewed: number }>();
-    for (const [path, id] of state.pathToItemId) {
-      const seen = viewed.has(id);
-      const segments = path.split('/');
-      for (let depth = 1; depth < segments.length; depth += 1) {
-        const folder = segments.slice(0, depth).join('/');
-        const entry = tally.get(folder) ?? { total: 0, viewed: 0 };
-        entry.total += 1;
-        if (seen) entry.viewed += 1;
-        tally.set(folder, entry);
-      }
-    }
-    return tally;
-  }, [state.pathToItemId, viewed]);
+  const navigation = useNavigation(viewerRef, session);
+  const markInView = useInViewMarks({ viewerRef, session, model });
+  const [expansion] = useState(createExpansionMemory);
+  const find = useFind({ viewerRef, session, expansion, currentFile: navigation.currentIndex });
+  const findInputRef = useRef<HTMLInputElement>(null);
+  const markViewed = useMarkViewed({ session, viewerRef, toggle });
 
-  const viewedOnShow = useMemo(() => {
-    let count = 0;
-    for (const id of state.pathToItemId.values()) if (viewed.has(id)) count += 1;
-    return count;
-  }, [state.pathToItemId, viewed]);
-
-  const found = find.open ? find.perFile : NO_MATCHES;
-  decorationRef.current = { viewed, folders, found };
-  viewedRef.current = viewed;
-
-  /**
-   * Decorations are worked out as rows render, so redraw when a file is ticked
-   * off or the matches change, rather than waiting for the next scroll.
-   *
-   * Only once the tree is on the page. Asked to render with no container, the
-   * tree makes one of its own, off the page, draws into that, and keeps the
-   * drawing when the real one arrives, which leaves the sidebar empty. The
-   * ticks change before the tree mounts whenever a push resets them, and a
-   * tree that mounts later draws the current ones anyway.
-   */
-  const drawn = useRef({ viewed, found });
-  useEffect(() => {
-    if (drawn.current.viewed === viewed && drawn.current.found === found) return;
-    drawn.current = { viewed, found };
-    if (model.getFileTreeContainer() == null) return;
-    model.render({});
-  });
-
-  /**
-   * The viewer tells us each time it draws a file. That is when find learns
-   * which gaps were opened, when its marks have new rows to go on, and when a
-   * layout change may have moved which files are in view. Held in a ref so the
-   * viewer's options do not change whenever find does
-   */
-  const afterRender = useRef<(instance: unknown) => void>(() => {});
-  useEffect(() => {
-    afterRender.current = (instance) => {
-      markInView();
-      if (expansion.record(instance) && find.open) find.refresh();
-      if (find.open) find.repaint();
-    };
-  });
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [comparing, setComparing] = useState<string | undefined>(undefined);
 
   /**
    * Cmd+F opens find, or selects what is in its box. Pressed again while the
@@ -304,8 +113,7 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
     if (find.open && active instanceof HTMLInputElement && active.closest('[data-dh-find]') != null)
       return false;
     const selected = document.getSelection()?.toString() ?? '';
-    const seed = selected !== '' && !selected.includes('\n') && selected.length <= 200 ? selected : undefined;
-    find.show(seed);
+    find.show(selected !== '' && !selected.includes('\n') && selected.length <= 200 ? selected : undefined);
     // The bar may only mount on this render, so the box is focused on the next frame
     requestAnimationFrame(() => {
       findInputRef.current?.focus();
@@ -319,75 +127,13 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
     viewerRef.current?.getInstance()?.getContainerElement()?.focus({ preventScroll: true });
   }, [find]);
 
-  /**
-   * Space on a file in the tree marks it viewed, or not, and leaves the
-   * keyboard on it, so a second Space takes the mark back off.
-   *
-   * The rows are buttons, so without this Space would press one, which opens
-   * the file in the diff. Enter and a click still do that, and Space on a
-   * folder still opens or closes it. Listened for on the window, ahead of
-   * everything else, so it does not depend on when the tree mounts.
-   */
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== ' ' || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-      const path = event.composedPath();
-      if (!path.some((node) => node instanceof HTMLElement && node.classList.contains('dh-tree'))) return;
-      const row = path.find(
-        (node): node is HTMLElement => node instanceof HTMLElement && node.dataset.type === 'item',
-      );
-      if (row?.dataset.itemType !== 'file' || row.dataset.fileTreeStickyRow != null) return;
-      const file = row.dataset.itemPath;
-      const id = file == null ? undefined : pathToItemIdRef.current.get(file);
-      if (file == null || id == null) return;
-      event.preventDefault();
-      event.stopPropagation();
-      toggle(id, file);
-    };
-    addEventListener('keydown', onKeyDown, true);
-    return () => removeEventListener('keydown', onKeyDown, true);
-  }, [toggle]);
-
-  /**
-   * Ticking a file off moves to the next one still to read and puts the
-   * keyboard on its eye, so the whole review is space, read, space. Files
-   * already read are skipped: stopping on one would mean ticking it off again
-   * or stepping past it by hand. Unticking a file leaves you on it, because
-   * you went back to it on purpose.
-   */
-
-  const markViewed = useCallback(
-    (id: string) => {
-      // Read through a ref: the header this button lives in is rendered by the
-      // viewer and can hold an older copy of this callback
-      const wasViewed = viewedRef.current.has(id);
-      const files = visibleRef.current;
-      toggle(id, files.find((file) => file.item.id === id)?.path ?? id);
-      if (wasViewed) return;
-      const from = files.findIndex((file) => file.item.id === id);
-      const seen = viewedRef.current;
-      const next =
-        files.slice(from + 1).find((file) => !seen.has(file.item.id)) ??
-        // Nothing unread below, so fall back to anything unread above: the
-        // reader may have worked through the list out of order
-        files.slice(0, from).find((file) => !seen.has(file.item.id));
-      if (next == null) return;
-      const viewer = viewerRef.current;
-      viewer?.scrollTo({ type: 'item', id: next.item.id, align: 'start', behavior: 'smooth' });
-      whenScrolled(viewer?.getInstance()?.getContainerElement(), () => {
-        document.querySelector<HTMLInputElement>(`[data-dh-viewed="${CSS.escape(next.item.id)}"]`)?.focus();
-      });
-    },
-    [toggle, viewedRef, visibleRef],
-  );
-
   useFocusTrap();
   useShortcuts({
     ...navigation,
     toggleViewed: useCallback(() => {
-      const file = visibleRef.current[navigation.currentIndex()];
-      if (file != null) markViewed(file.item.id);
-    }, [markViewed, navigation, visibleRef]),
+      const file = session.get().visible[navigation.currentIndex()];
+      if (file != null) markViewed(file.path);
+    }, [markViewed, navigation, session]),
     focusFilter: useCallback(() => search.open(), [search]),
     toggleHelp: useCallback(() => setHelpOpen((open) => !open), []),
     openFind,
@@ -402,9 +148,10 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
     close: useCallback(() => (find.open ? closeFind() : closeViewer()), [find.open, closeFind]),
   });
 
+  const visible = useSession(session, (state) => state.visible);
+  const items = useMemo(() => visible.map((file) => file.item), [visible]);
   const comments = useThreads(items, pushToast);
-  const { closeDraft, openDraft, post, reply, resolve, edit, remove } = comments;
-  const hideComments = comments.hidden;
+  const { closeDraft, post, reply, resolve, edit, remove } = comments;
 
   /**
    * The wrapper is what the card measures itself against. The cell the viewer
@@ -442,158 +189,73 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
     [closeDraft, edit, post, pushToast, remove, reply, resolve],
   );
 
-  const reportedError = useRef<string | undefined>(undefined);
+  const phase = useSession(session, (state) => state.phase);
+  const loadError = useSession(session, (state) => state.error);
   useEffect(() => {
-    if (state.phase !== 'error' || state.error == null) return;
-    if (reportedError.current === state.error) return;
-    reportedError.current = state.error;
-    pushToast(state.error, { label: 'Open on GitHub', href: filesUrl(pr) });
-  }, [state.phase, state.error, pushToast, pr]);
+    if (phase === 'error' && loadError != null) {
+      pushToast(loadError, { label: 'Open on GitHub', href: filesUrl(pr) });
+    }
+  }, [phase, loadError, pushToast, pr]);
 
   // The two revisions a binary file is compared across. Without the base there
   // is nothing to compare against, so the viewer shows the new file alone
   // rather than the same image twice under two headings
+  const baseSha = useSession(session, (state) => state.baseSha);
   const refs = useMemo<FileRefs | undefined>(
     () =>
       openedAtSha == null ? undefined : { owner: pr.owner, repo: pr.repo, baseSha, headSha: openedAtSha },
     [baseSha, openedAtSha, pr.owner, pr.repo],
   );
-
   const loadDiffFiles = useMemo(
     () => (openedAtSha == null ? undefined : createFileLoader(pr, openedAtSha)),
     [openedAtSha, pr],
   );
 
-  // An open eye means still to read, a closed one means done. A button rather
-  // than a tick box, so space works on it the same way and reviewing a pull
-  // request is space, read, space
-  const renderHeaderPrefix = useCallback(
-    (item: CodeViewItem<ReviewThread>) => {
-      const isViewed = viewed.has(item.id);
-      return (
-        <button
-          type="button"
-          className="dh-viewed"
-          data-dh-viewed={item.id}
-          aria-pressed={isViewed}
-          title={isViewed ? 'Mark as not viewed' : 'Mark as viewed'}
-          onClick={() => markViewed(item.id)}
-        >
-          {isViewed ? <IconEyeSlash size={14} /> : <IconEye size={14} />}
-        </button>
-      );
-    },
-    [markViewed, viewed],
-  );
-
   const copyToClipboard = useCallback(
-    async (path: string) => {
-      const copied = await copyPath(path);
-      pushToast(copied ? 'Path copied.' : 'The clipboard is blocked here.');
+    (path: string) => {
+      void (async () =>
+        pushToast((await copyPath(path)) ? 'Path copied.' : 'The clipboard is blocked here.'))();
     },
     [pushToast],
   );
-
+  const renderHeaderPrefix = useCallback(
+    (item: CodeViewItem<ReviewThread>) => (
+      <ViewedButton session={session} item={item} onToggle={markViewed} />
+    ),
+    [markViewed, session],
+  );
   const renderHeaderMetadata = useCallback(
-    (item: CodeViewItem<ReviewThread>) => {
-      if (item.type !== 'diff') return null;
-      const path = item.fileDiff.name;
-      const moved = item.fileDiff.type === 'rename-pure' || item.fileDiff.type === 'rename-changed';
-      const isBinary = item.fileDiff.hunks.length === 0;
-      return (
-        <span className="dh-file-links">
-          {moved && <span className="dh-moved">MOVED</span>}
-          {refs != null && isBinary && isImagePath(path) && (
-            <button type="button" onClick={() => setComparing(path)}>
-              Compare
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              void copyToClipboard(path);
-            }}
-          >
-            Copy path
-          </button>
-          {refs != null && (
-            <>
-              <a href={blobUrl(refs, path, 'head')} target="_top">
-                File
-              </a>
-              <a href={blameUrl(refs, path)} target="_top">
-                Blame
-              </a>
-            </>
-          )}
-        </span>
-      );
-    },
+    (item: CodeViewItem<ReviewThread>) => (
+      <FileLinks item={item} refs={refs} onCompare={setComparing} onCopy={copyToClipboard} />
+    ),
     [copyToClipboard, refs],
   );
 
-  const options = useMemo<CodeViewReactOptions<ReviewThread, undefined>>(
-    () => ({
-      layout: { paddingTop: SPACE_ABOVE_FILE, gap: FILE_GAP, paddingBottom: 0 },
-      diffStyle,
-      themeType: themeChoice ?? page.themeType,
-      theme: { light: page.lightTheme, dark: page.darkTheme },
-      stickyHeaders: true,
-      overflow: 'scroll',
-      lineHoverHighlight: 'number',
-      enableLineSelection: true,
-      enableGutterUtility: !hideComments,
-      onGutterUtilityClick(
-        range: { start: number; side?: string },
-        context: { item: CodeViewItem<ReviewThread> },
-      ) {
-        const item = context.item;
-        if (item.type !== 'diff') return;
-        openDraft(item.fileDiff.name, range.start, range.side === 'deletions' ? 'deletions' : 'additions');
-      },
-      unsafeCSS: `${HEADER_CSS}\n${SEPARATOR_CSS}\n${DIFF_TINT_CSS}\n${ANNOTATION_CSS}\n${FIND_CSS}`,
-      loadDiffFiles,
-      /** A file leaving the screen reports too, and has nothing to add */
-      onPostRender: (_node: HTMLElement, instance: unknown, phase: string) => {
-        if (phase !== 'unmount') afterRender.current(instance);
-      },
-    }),
-    [
-      diffStyle,
-      themeChoice,
-      page.themeType,
-      page.lightTheme,
-      page.darkTheme,
-      loadDiffFiles,
-      openDraft,
-      hideComments,
-    ],
-  );
+  const options = useDiffOptions({
+    diffStyle: choices.layout,
+    themeType: choices.themeType,
+    page,
+    commenting: !comments.hidden,
+    loadDiffFiles,
+    onComment: comments.openDraft,
+    /**
+     * After each file is drawn: find learns which gaps were opened, its marks
+     * get new rows to go on, and the files in view may have moved
+     */
+    afterRender: (instance) => {
+      markInView();
+      if (expansion.record(instance) && find.open) find.refresh();
+      if (find.open) find.repaint();
+    },
+  });
 
-  const toggleLayout = useCallback(
-    () => setLayout(layout === 'split' ? 'unified' : 'split'),
-    [layout, setLayout],
-  );
-
-  const toggleSidebar = useCallback(
-    () => setSidebar(sidebarOpen ? 'closed' : 'open'),
-    [sidebarOpen, setSidebar],
-  );
-
-  const toggleWhitespace = useCallback(
-    () => setWhitespace(ignoreWhitespace ? 'show' : 'ignore'),
-    [ignoreWhitespace, setWhitespace],
-  );
-
-  const themeType = themeChoice ?? page.themeType;
-  const themeName = themeType === 'dark' ? page.darkTheme : page.lightTheme;
+  const themeName = choices.themeType === 'dark' ? page.darkTheme : page.lightTheme;
   const surfaces = useThemeSurfaces(themeName);
-
-  const toggleTheme = useCallback(
-    () => setThemeChoice(themeType === 'dark' ? 'light' : 'dark'),
-    [setThemeChoice, themeType],
+  const stats = useSession(session, (state) => state.stats);
+  const viewedOnShow = useSession(
+    session,
+    (state) => state.visible.filter((file) => state.viewed.has(file.path)).length,
   );
-  const { stats } = state;
 
   return (
     /* `colorScheme` is what makes `light-dark` in the viewer's own stylesheet
@@ -601,26 +263,27 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
        the same scheme as the diff */
     <div
       className="dh-overlay"
-      data-theme={themeType}
-      data-layout={layout}
-      style={{ colorScheme: themeType, ...surfaces.overlay }}
+      data-theme={choices.themeType}
+      data-layout={choices.layout}
+      data-dh-phase={phase}
+      style={{ colorScheme: choices.themeType, ...surfaces.overlay }}
     >
       <Toolbar
         pr={pr}
         page={page}
         stats={stats}
         viewedOnShow={viewedOnShow}
-        loading={state.phase === 'loading'}
-        sidebarOpen={sidebarOpen}
-        diffStyle={diffStyle}
-        themeType={themeType}
-        ignoreWhitespace={ignoreWhitespace}
-        hideComments={hideComments}
-        onToggleSidebar={toggleSidebar}
-        onToggleWhitespace={toggleWhitespace}
+        loading={phase === 'loading'}
+        sidebarOpen={choices.sidebarOpen}
+        diffStyle={choices.layout}
+        themeType={choices.themeType}
+        ignoreWhitespace={choices.ignoreWhitespace}
+        hideComments={comments.hidden}
+        onToggleSidebar={choices.toggleSidebar}
+        onToggleWhitespace={choices.toggleWhitespace}
         onToggleComments={comments.toggleHidden}
-        onToggleLayout={toggleLayout}
-        onToggleTheme={toggleTheme}
+        onToggleLayout={choices.toggleLayout}
+        onToggleTheme={choices.toggleTheme}
         onFinishReview={() => setReviewOpen(true)}
         onShowHelp={() => setHelpOpen(true)}
         onFind={openFind}
@@ -629,36 +292,21 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
 
       <div className="dh-body">
         <Sidebar
-          open={sidebarOpen}
-          width={sidebarWidth}
+          open={choices.sidebarOpen}
+          width={sidebar.width}
           model={model}
           // The tree's own stylesheet follows the system until the theme resolves
-          treeSurface={{ colorScheme: themeType, ...surfaces.tree }}
-          stats={stats}
-          include={includeInput}
-          exclude={excludeInput}
-          includeError={state.includeError}
-          excludeError={state.excludeError}
-          hiddenCount={state.hiddenCount}
-          spacingOnlyCount={state.spacingOnlyCount}
-          includeCase={includeCase}
-          includeRegex={includeRegex}
-          excludeCase={excludeCase}
-          excludeRegex={excludeRegex}
-          onIncludeChange={setIncludeInput}
-          onExcludeChange={setExcludeInput}
-          onIncludeCase={() => setIncludeCase((on) => !on)}
-          onIncludeRegex={() => setIncludeRegex((on) => !on)}
-          onExcludeCase={() => setExcludeCase((on) => !on)}
-          onExcludeRegex={() => setExcludeRegex((on) => !on)}
+          treeSurface={{ colorScheme: choices.themeType, ...surfaces.tree }}
+          session={session}
+          filters={filters.fields}
         />
-        {sidebarOpen && (
+        {choices.sidebarOpen && (
           <div
             className="dh-resize"
             role="separator"
             aria-orientation="vertical"
             aria-label="Resize the file tree"
-            onPointerDown={startResize}
+            onPointerDown={sidebar.startResize}
           />
         )}
         <CodeView<ReviewThread, undefined>
@@ -676,9 +324,8 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
             inputRef={findInputRef}
             onClose={closeFind}
             onShowHidden={() => {
-              setIncludeInput('');
-              setExcludeInput('');
-              if (ignoreWhitespace) setWhitespace('show');
+              filters.clear();
+              if (choices.ignoreWhitespace) choices.showSpacingOnly();
             }}
           />
         )}
@@ -694,15 +341,9 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
           viewed={viewedOnShow}
           total={stats.fileCount}
           onViewRemaining={() => {
-            // Jump to the first file still to be read
-            const next = visibleRef.current.find((file) => !viewed.has(file.item.id));
-            if (next == null) return;
-            viewerRef.current?.scrollTo({
-              type: 'item',
-              id: next.item.id,
-              align: 'start',
-              behavior: 'smooth',
-            });
+            const { visible: files, viewed } = session.get();
+            const next = files.find((file) => !viewed.has(file.path));
+            if (next != null) openFile(next.path);
           }}
           onClose={() => setReviewOpen(false)}
           onSubmit={async (verdict, body, markRemaining) => {
@@ -712,9 +353,8 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
             void comments.reload();
             // After the verdict, so a refused tick never holds up the review
             if (markRemaining) {
-              const files = [...state.pathToItemId].map(([path, id]) => ({ id, path }));
               void (async () => {
-                const refused = await markAll(files);
+                const refused = await markAll(session.get().visible.map((file) => file.path));
                 if (refused.length === 0) return;
                 pushToast(`GitHub did not record ${refused.length} file(s) as viewed: ${refused.join(', ')}`);
               })();

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ReviewThread } from '@/shared/bridge';
 import { compileQuery, findInFiles, type FindMatch, type FindOptions } from '@/patch/findInPatch';
-import type { ParsedFiles } from '@/viewer/diff/usePatchStream';
+import { useSession, type Session } from '@/viewer/state/session';
 import type { ExpansionMemory } from '@/viewer/diff/expandedRegions';
 import { clearMatches, paintMatches } from '@/viewer/find/paintMatches';
 import { useChoice } from '@/viewer/settings';
@@ -15,6 +15,8 @@ const TYPING_PAUSE_MS = 120;
 const WRAP_NOTICE_MS = 1200;
 
 const SWITCH = ['on', 'off'] as const;
+
+const NO_MATCHES: ReadonlyMap<string, number> = new Map();
 
 export interface Find {
   /** Whether the bar is showing */
@@ -35,8 +37,6 @@ export interface Find {
   hiddenMatches: number;
   /** The last step went past the end and came round to the other side */
   wrapped: boolean;
-  /** Match counts per file, for the tree */
-  perFile: ReadonlyMap<string, number>;
   /** Opens the bar, with the text to look for when there is some */
   show: (seed?: string) => void;
   /** Closes the bar and takes the marks off */
@@ -69,17 +69,19 @@ interface Searched {
  */
 export function useFind({
   viewerRef,
-  files,
+  session,
   expansion,
   currentFile,
 }: {
   viewerRef: { current: CodeViewHandle<ReviewThread, undefined> | null };
-  files: ParsedFiles;
+  session: Session;
   expansion: ExpansionMemory;
   /** The file being read, so a new search starts from there rather than the top */
   currentFile: () => number;
 }): Find {
   const [open, setOpen] = useState(false);
+  const visible = useSession(session, (state) => state.visible);
+  const all = useSession(session, (state) => state.all);
   // Kept while the viewer is open, never stored: what someone searched a
   // private repository for is not worth leaving behind
   const [query, setQueryState] = useState('');
@@ -114,18 +116,23 @@ export function useFind({
   const result = useMemo(() => {
     if (!open || pattern == null) return { matches: [], capped: false, hiddenMatches: 0 };
     const expansionOf = (fileDiff: Parameters<typeof expanded.get>[0]) => expanded.get(fileDiff);
-    const { matches, capped } = findInFiles(files.visible, pattern, expansionOf);
-    const shown = new Set(files.visible);
-    const hidden = files.all.filter((file) => !shown.has(file));
+    const { matches, capped } = findInFiles(visible, pattern, expansionOf);
+    const shown = new Set(visible);
+    const hidden = all.filter((file) => !shown.has(file));
     const hiddenMatches = hidden.length === 0 ? 0 : findInFiles(hidden, pattern, expansionOf).matches.length;
     return { matches, capped, hiddenMatches };
-  }, [open, pattern, files, expanded]);
+  }, [open, pattern, visible, all, expanded]);
 
   const perFile = useMemo(() => {
     const counts = new Map<string, number>();
     for (const match of result.matches) counts.set(match.id, (counts.get(match.id) ?? 0) + 1);
     return counts;
   }, [result.matches]);
+
+  // The tree shows the counts in place of the ticks while find is open
+  useEffect(() => {
+    session.set({ found: open ? perFile : NO_MATCHES });
+  }, [open, perFile, session]);
 
   /**
    * The match stepped to, while it is still there. Otherwise the first match in
@@ -146,12 +153,12 @@ export function useFind({
       );
       if (kept >= 0) return kept;
     }
-    const order = new Map(files.visible.map((file, at) => [file.item.id, at]));
+    const order = new Map(visible.map((file, at) => [file.item.id, at]));
     return Math.max(
       matches.findIndex((match) => (order.get(match.id) ?? 0) >= searched.fromFile),
       0,
     );
-  }, [result, chosen, searched, files.visible]);
+  }, [result, chosen, searched, visible]);
 
   const current = index >= 0 ? result.matches[index] : undefined;
 
@@ -265,7 +272,6 @@ export function useFind({
     error: open ? error : undefined,
     hiddenMatches: result.hiddenMatches,
     wrapped,
-    perFile,
     show,
     hide,
     setQuery,

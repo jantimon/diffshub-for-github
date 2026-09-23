@@ -83,13 +83,6 @@
     {
       "files": ["src/viewer/Overlay.tsx"],
       "rules": {
-        // Two writes here put the current viewed set where the file tree can
-        // reach it. The tree renders its rows inside its own commit, and a
-        // child's effects run before its parent's, so moving these into an
-        // effect would draw every row against the previous set. That is the
-        // bug where ticking a file appeared to do nothing.
-        "react/refs": "off",
-
         // The sidebar handle is a drag target, which is the ARIA window
         // splitter pattern. `hr` is a thematic break and means something else.
         "jsx-a11y/prefer-tag-over-role": "off"

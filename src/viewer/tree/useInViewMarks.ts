@@ -3,7 +3,7 @@ import type { FileTree } from '@pierre/trees';
 import { useCallback, useEffect, useRef } from 'react';
 
 import type { ReviewThread } from '@/shared/bridge';
-import type { ParsedFile } from '@/patch/accumulator';
+import type { Session } from '@/viewer/state/session';
 import { filesInView } from '@/viewer/tree/filesInView';
 import { inViewCss, inViewRowsCss } from '@/viewer/tree/treeStyles';
 
@@ -37,11 +37,11 @@ function rowFor(model: FileTree, path: string): string {
  */
 export function useInViewMarks({
   viewerRef,
-  visibleRef,
+  session,
   model,
 }: {
   viewerRef: { current: CodeViewHandle<ReviewThread, undefined> | null };
-  visibleRef: { current: readonly ParsedFile[] };
+  session: Session;
   model: FileTree;
 }): () => void {
   const sheet = useRef<CSSStyleSheet | null>(null);
@@ -66,7 +66,7 @@ export function useInViewMarks({
       if (!root.adoptedStyleSheets.includes(sheet.current))
         root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet.current];
 
-      const files = visibleRef.current;
+      const files = session.get().visible;
       const ids = new Set(
         filesInView(files, (id) => view.getTopForItem(id), scrollTop.current, paneHeight.current),
       );
@@ -102,7 +102,7 @@ export function useInViewMarks({
       turn.current = turn.current === 0 ? 1 : 0;
       sheet.current.replaceSync(inViewCss(first, last, turn.current));
     });
-  }, [model, viewerRef, visibleRef]);
+  }, [model, viewerRef, session]);
 
   useEffect(() => {
     const view = viewerRef.current?.getInstance();

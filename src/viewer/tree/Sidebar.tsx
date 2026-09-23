@@ -13,6 +13,8 @@ import { IconX } from '@pierre/icons';
 import type { CSSProperties, JSX, KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 import type { DiffStats } from '@/patch/accumulator';
+import { useSession, type Session } from '@/viewer/state/session';
+import type { FilterFields } from '@/viewer/tree/useFilters';
 import { TREE_STYLE } from '@/viewer/tree/treeStyles';
 
 /**
@@ -116,102 +118,108 @@ function clearOnEscape(event: ReactKeyboardEvent<HTMLInputElement>, clear: () =>
   clear();
 }
 
+/** One of the two filter fields, with its switches and why its pattern cannot be used */
+function FilterField({
+  id,
+  label,
+  placeholder,
+  value,
+  onChange,
+  caseSensitive,
+  onCase,
+  regex,
+  onRegex,
+  error,
+}: {
+  id: string;
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (next: string) => void;
+  caseSensitive: boolean;
+  onCase: () => void;
+  regex: boolean;
+  onRegex: () => void;
+  error?: string;
+}): JSX.Element {
+  return (
+    <>
+      <div className="dh-field">
+        <label className="dh-field-label" htmlFor={id}>
+          {label}
+        </label>
+        <div className="dh-field-box">
+          <input
+            id={id}
+            value={value}
+            placeholder={placeholder}
+            onChange={(event) => onChange(event.target.value)}
+            onKeyDown={(event) => clearOnEscape(event, () => onChange(''))}
+            spellCheck={false}
+          />
+          <FieldControls
+            value={value}
+            onClear={() => onChange('')}
+            caseSensitive={caseSensitive}
+            onCase={onCase}
+            regex={regex}
+            onRegex={onRegex}
+          />
+        </div>
+      </div>
+      {error != null && <p className="dh-pattern-error">{error}</p>}
+    </>
+  );
+}
+
 export function Sidebar({
   open,
   width,
   model,
   treeSurface,
-  stats,
-  include,
-  exclude,
-  includeError,
-  excludeError,
-  hiddenCount,
-  spacingOnlyCount,
-  includeCase,
-  includeRegex,
-  excludeCase,
-  excludeRegex,
-  onIncludeChange,
-  onExcludeChange,
-  onIncludeCase,
-  onIncludeRegex,
-  onExcludeCase,
-  onExcludeRegex,
+  session,
+  filters,
 }: {
   open: boolean;
   width: number;
   model: Parameters<typeof FileTree>[0]['model'];
   treeSurface: CSSProperties;
-  stats: DiffStats;
-  include: string;
-  exclude: string;
-  includeError?: string;
-  excludeError?: string;
-  hiddenCount: number;
-  spacingOnlyCount: number;
-  includeCase: boolean;
-  includeRegex: boolean;
-  excludeCase: boolean;
-  excludeRegex: boolean;
-  onIncludeChange: (next: string) => void;
-  onExcludeChange: (next: string) => void;
-  onIncludeCase: () => void;
-  onIncludeRegex: () => void;
-  onExcludeCase: () => void;
-  onExcludeRegex: () => void;
+  session: Session;
+  filters: FilterFields;
 }): JSX.Element {
+  const stats = useSession(session, (state) => state.stats);
+  const includeError = useSession(session, (state) => state.includeError);
+  const excludeError = useSession(session, (state) => state.excludeError);
+  const hiddenCount = useSession(session, (state) => state.hiddenCount);
+  const spacingOnlyCount = useSession(session, (state) => state.spacingOnlyCount);
+
   return (
     <aside className="dh-sidebar" hidden={!open} style={{ width }}>
       <div className="dh-filters">
-        <div className="dh-field">
-          <label className="dh-field-label" htmlFor="dh-include">
-            files to include
-          </label>
-          <div className="dh-field-box">
-            <input
-              id="dh-include"
-              value={include}
-              placeholder="e.g. config, src/**"
-              onChange={(event) => onIncludeChange(event.target.value)}
-              onKeyDown={(event) => clearOnEscape(event, () => onIncludeChange(''))}
-              spellCheck={false}
-            />
-            <FieldControls
-              value={include}
-              onClear={() => onIncludeChange('')}
-              caseSensitive={includeCase}
-              onCase={onIncludeCase}
-              regex={includeRegex}
-              onRegex={onIncludeRegex}
-            />
-          </div>
-        </div>
-        {includeError != null && <p className="dh-pattern-error">{includeError}</p>}
-        <div className="dh-field">
-          <label className="dh-field-label" htmlFor="dh-exclude">
-            files to exclude
-          </label>
-          <div className="dh-field-box">
-            <input
-              id="dh-exclude"
-              value={exclude}
-              placeholder="e.g. *.test.*, *.snap"
-              onChange={(event) => onExcludeChange(event.target.value)}
-              onKeyDown={(event) => clearOnEscape(event, () => onExcludeChange(''))}
-              spellCheck={false}
-            />
-            <FieldControls
-              value={exclude}
-              onClear={() => onExcludeChange('')}
-              caseSensitive={excludeCase}
-              onCase={onExcludeCase}
-              regex={excludeRegex}
-              onRegex={onExcludeRegex}
-            />
-          </div>
-        </div>
-        {excludeError != null && <p className="dh-pattern-error">{excludeError}</p>}
+        <FilterField
+          id="dh-include"
+          label="files to include"
+          placeholder="e.g. config, src/**"
+          value={filters.include}
+          onChange={filters.setInclude}
+          caseSensitive={filters.includeCase}
+          onCase={filters.toggleIncludeCase}
+          regex={filters.includeRegex}
+          onRegex={filters.toggleIncludeRegex}
+          error={includeError}
+        />
+        <FilterField
+          id="dh-exclude"
+          label="files to exclude"
+          placeholder="e.g. *.test.*, *.snap"
+          value={filters.exclude}
+          onChange={filters.setExclude}
+          caseSensitive={filters.excludeCase}
+          onCase={filters.toggleExcludeCase}
+          regex={filters.excludeRegex}
+          onRegex={filters.toggleExcludeRegex}
+          error={excludeError}
+        />
         {hiddenCount > 0 && <p className="dh-hidden">{hiddenCount.toLocaleString()} files hidden</p>}
         {spacingOnlyCount > 0 && (
           <p className="dh-hidden">{spacingOnlyCount.toLocaleString()} changed only in spacing</p>
