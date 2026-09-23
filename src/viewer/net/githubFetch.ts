@@ -64,7 +64,6 @@ export function githubFetch(url: string, signal?: AbortSignal): Promise<Response
       // belongs to the body stream, which may not exist yet on this turn
       if (reply.type === 'head') {
         if (settled) return;
-        settled = true;
 
         const body = new ReadableStream<Uint8Array>({
           start(controller) {
@@ -83,13 +82,20 @@ export function githubFetch(url: string, signal?: AbortSignal): Promise<Response
           },
         });
 
-        resolve(
-          new Response(allowsBody(reply.status) ? body : null, {
+        // Settled only once the Response exists. A status or header the
+        // constructor refuses would otherwise throw here, inside the port's
+        // listener, and leave the caller waiting for ever
+        try {
+          const response = new Response(allowsBody(reply.status) ? body : null, {
             status: reply.status,
             statusText: reply.statusText,
             headers: reply.headers,
-          }),
-        );
+          });
+          settled = true;
+          resolve(response);
+        } catch (error) {
+          fail(error instanceof Error ? error : new Error(String(error)));
+        }
         return;
       }
 
