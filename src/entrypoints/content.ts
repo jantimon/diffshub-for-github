@@ -7,7 +7,7 @@ import {
   type Reply,
   type RequestName,
 } from '@/bridge';
-import { filesPaths, readPullRequestRef, GITHUB_ORIGIN, type PullRequestRef } from '@/pullRequest';
+import { filesPaths, pullPath, readPullRequestRef, GITHUB_ORIGIN, type PullRequestRef } from '@/pullRequest';
 import {
   findFilesChangedLink,
   findFilesChangedTab,
@@ -36,6 +36,12 @@ const MARKER_ATTRIBUTE = 'data-diffshub-marked';
  */
 const HIDDEN_BEFORE_RELEASE_MS = 5 * 60 * 1000;
 const FRAME_ID = 'diffshub-for-github-viewer';
+
+/** The pull request the page is on, as its path, or nothing off a pull request */
+const currentPull = (): string | undefined => {
+  const pr = readPullRequestRef();
+  return pr == null ? undefined : pullPath(pr);
+};
 
 const collectPageInfo = (): PageInfo => {
   const theme = readGitHubTheme();
@@ -292,12 +298,13 @@ export default defineContentScript({
     markTab();
 
     // An overlay open over one pull request has no business surviving a route
-    // change to another, or to anywhere that is not a pull request at all
-    let markedNumber = readPullRequestRef()?.number;
+    // change to another, or to anywhere that is not a pull request at all. The
+    // whole path counts: #5 in one repository is not #5 in another
+    let openedOn = currentPull();
     ctx.addEventListener(window, 'wxt:locationchange', () => {
-      const next = readPullRequestRef()?.number;
-      if (next !== markedNumber) destroy();
-      markedNumber = next;
+      const next = currentPull();
+      if (next !== openedOn) destroy();
+      openedOn = next;
       markTab();
     });
 
