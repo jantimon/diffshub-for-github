@@ -7,12 +7,20 @@ import path from 'node:path';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const images = path.resolve(root, '../docs/images');
 
-const PULL_REQUEST = process.argv[2] ?? 'https://github.com/nodejs/node/pull/59805';
-const FALLBACK = 'https://github.com/nodejs/node/pull/60000';
+/**
+ * The pull request the suite records, so the shots replay offline like the
+ * checks do. Any other pull request needs `DIFFSHUB_HAR=live` and its url as
+ * the argument.
+ */
+const PULL_REQUEST = process.argv[2] ?? 'https://github.com/microsoft/TypeScript/pull/64204';
 
 fs.mkdirSync(images, { recursive: true });
 
-const { context, page } = await launch({ viewport: { width: 1680, height: 1050 }, deviceScaleFactor: 2 });
+const { context, page } = await launch({
+  viewport: { width: 1680, height: 1050 },
+  deviceScaleFactor: 2,
+  har: true,
+});
 
 const shoot = async (name, options) => {
   await page.screenshot({ path: path.join(images, `${name}.png`), ...options });
@@ -30,13 +38,8 @@ const setColorMode = (mode) =>
 
 const loadPullRequest = async (url) => {
   await page.goto(url, { waitUntil: 'domcontentloaded' });
-  try {
-    await page.locator('[data-diffshub-marked]').first().waitFor({ timeout: 30000 });
-    await page.waitForTimeout(2500);
-    return true;
-  } catch {
-    return false;
-  }
+  await page.locator('[data-diffshub-marked]').first().waitFor({ timeout: 30000 });
+  await page.waitForTimeout(2500);
 };
 
 /** Shiki writes a styled span per token, so these count the highlighting */
@@ -78,32 +81,29 @@ const waitForRenderedDiff = async () => {
 };
 
 /**
- * The first files of a large pull request are often dotfiles and build config,
- * which have almost nothing to colour. Scroll the diff until real source code
- * is on screen, so the shot shows the viewer doing its job.
+ * The recorded pull request opens on a stack of three review threads. This
+ * scrolls past two of them, so the shot has one thread and the code under it,
+ * which is the viewer doing both its jobs at once.
  */
-const findHighlightedCode = async (frame) => {
-  await page.mouse.move(1100, 600);
-  // Past the dotfiles and build config at the top, quickly
-  for (let step = 0; step < 24; step += 1) {
-    await page.mouse.wheel(0, 3000);
-    await page.waitForTimeout(400);
-  }
-  // Then on, a screen at a time. Highlighting runs in a worker and lands after
-  // the lines do, so give each position time to colour before scrolling past
-  for (let step = 0; step < 30; step += 1) {
-    for (let settle = 0; settle < 6; settle += 1) {
-      if ((await tokenCount(frame)) > 400) {
-        await page.waitForTimeout(3000);
-        console.log(`  scrolled ${24 + step} turns to reach highlighted code`);
-        return;
-      }
-      await page.waitForTimeout(1000);
+const HERO_SCROLL = 540;
+
+/**
+ * Highlighting runs in a worker and lands after the lines do, so this waits
+ * for the tokens before shooting. A half-coloured screenshot is worse than
+ * none.
+ */
+const settleOnCode = async (frame) => {
+  await frame.locator('.dh-code').evaluate((pane, top) => pane.scrollTo({ top }), HERO_SCROLL);
+  let tokens = 0;
+  for (let settle = 0; settle < 20; settle += 1) {
+    tokens = await tokenCount(frame);
+    if (tokens > 100) {
+      await page.waitForTimeout(3000);
+      return;
     }
-    await page.mouse.wheel(0, 2500);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
   }
-  throw new Error('never reached a file with syntax highlighting');
+  throw new Error(`the code never got its syntax colours: ${tokens} coloured tokens`);
 };
 
 const openOverlay = async (mode) => {
@@ -111,17 +111,12 @@ const openOverlay = async (mode) => {
   await page.waitForTimeout(400);
   await page.locator('[data-diffshub-marked]').first().click();
   const frame = await waitForRenderedDiff();
-  await findHighlightedCode(frame);
+  await settleOnCode(frame);
   return frame;
 };
 
-let url = PULL_REQUEST;
-if (!(await loadPullRequest(url))) {
-  console.log(`${url} did not load — falling back to ${FALLBACK}`);
-  url = FALLBACK;
-  if (!(await loadPullRequest(url))) throw new Error('neither pull request loaded');
-}
-console.log(`capturing ${url}`);
+await loadPullRequest(PULL_REQUEST);
+console.log(`capturing ${PULL_REQUEST}`);
 
 // 1. The entry point: the marked "Files changed" tab, cropped so the badge reads.
 await setColorMode('dark');
@@ -158,7 +153,7 @@ await viewerFrame(page)?.evaluate(() => {
 });
 
 // 2. The hero: the overlay in dark mode.
-await loadPullRequest(url);
+await loadPullRequest(PULL_REQUEST);
 let frame = await openOverlay('dark');
 await shoot('overlay-dark');
 
@@ -171,17 +166,30 @@ await shoot('shortcut-help');
 await page.keyboard.press('Escape');
 await page.waitForTimeout(1000);
 
-// 4. The exclude filter, with the hidden count. Cropped to the sidebar and the
-//    first column of the diff, so the count is legible
-await frame.locator('.dh-field input').nth(1).fill('deps/**, test/**');
+// 4. Find: the bar, the count, the marks in the code and the counts in the
+//    tree. Cropped to the top of the window, where all four are
+await page.keyboard.press('ControlOrMeta+f');
+await frame.locator('[data-dh-find] input').waitFor({ timeout: 15000 });
+await frame.locator('[data-dh-find] input').fill('snapshot');
+await page.waitForTimeout(2500);
+await shoot('find', { clip: { x: 0, y: 0, width: 1680, height: 620 } });
+await page.keyboard.press('Escape');
+await page.waitForTimeout(1000);
+
+// 5. The exclude filter, with the hidden count. Cropped to the sidebar, so the
+//    count is legible
+await frame.locator('.dh-field input').nth(1).fill('**/test/**, tools/**');
 await frame.locator('.dh-hidden').waitFor({ timeout: 30000 });
 await page.waitForTimeout(5000);
-await shoot('exclude-filter', { clip: { x: 0, y: 0, width: 920, height: 1050 } });
+const sidebar = await frame.locator('.dh-sidebar').boundingBox();
+await shoot('exclude-filter', {
+  clip: { x: sidebar.x, y: sidebar.y, width: sidebar.width, height: 720 },
+});
 await frame.locator('.dh-field input').nth(1).fill('');
 await page.waitForTimeout(4000);
 
-// 5. The same overlay in light mode.
-await loadPullRequest(url);
+// 6. The same overlay in light mode.
+await loadPullRequest(PULL_REQUEST);
 frame = await openOverlay('light');
 await shoot('overlay-light');
 

@@ -5,18 +5,18 @@
 Review a GitHub pull request without waiting for it to render.
 
 Click "Files changed" and the diff opens in a fullscreen viewer built on
-Pierre's [`@pierre/diffs`](https://diffs.com) components, the same ones behind
-[diffshub.com](https://diffshub.com). A 3,420-file pull request scrolls at
-120 fps there. GitHub's own tab manages 12.
+Pierre's [`@pierre/diffs`](https://diffs.com), the open-source components
+behind [diffshub.com](https://diffshub.com). In it, a 3,420-file pull request
+scrolls at 120 fps. GitHub's own tab manages 12.
 
 The whole review happens in it: read the diff, tick files off, comment on a
-line, reply, resolve a conversation, approve or ask for changes. Every request
-goes to github.com from your own browser on your own session cookie. No token,
-no third-party server, nothing about the code leaves your machine.
+line, reply, resolve a conversation, approve or ask for changes. Everything goes
+to github.com from your own browser, signed in as you already are. No token to
+paste, no other server, nothing about the code leaves your machine.
 
-A Chrome and Firefox extension, MV3, from one source tree.
+For Chrome and Firefox.
 
-![The overlay on nodejs/node#59805, dark](docs/images/overlay-dark.png)
+![The viewer on microsoft/TypeScript#64204, dark](docs/images/overlay-dark.png)
 
 ## How you open it
 
@@ -27,7 +27,7 @@ rendering it.
 ![The marked Files changed tab](docs/images/files-changed-tab.png)
 
 Cmd- or Ctrl-click the tab to get GitHub's view instead. `Esc` closes the
-overlay and puts you back where you were — no navigation, no history entry, and
+viewer and puts you back where you were: no navigation, no history entry, and
 the URL never changes.
 
 ## Nothing leaves your browser
@@ -35,19 +35,18 @@ the URL never changes.
 <img src="docs/images/direct-to-github.png" align="right" width="260" alt="">
 
 diffshub.com already renders GitHub diffs far faster than GitHub does. To use it
-you copy a URL, swap the host, and load the diff on a site that is not GitHub.
+you copy a URL, swap the host, and read the diff on a site that is not GitHub.
 For a private repository you also paste a GitHub token into that site.
 
-This extension gives you the same viewer without leaving GitHub. It runs inside
-the GitHub tab, so there is no URL to rewrite, and every request goes to
-github.com from your own browser on your own session cookie.
+This extension gives you the same viewer inside the GitHub tab. There is no URL
+to rewrite, and every request goes to github.com from your own browser, as you.
 
-No token is stored, no third-party host is contacted, and no diff content leaves
-the machine.
+No token is stored, no other host is contacted, and no diff content leaves the
+machine.
 
 ## Speed
 
-Scrolling `nodejs/node#59805` — 3,420 files, 1.95M lines — over 180 frames:
+Scrolling `nodejs/node#59805`, 3,420 files and 1.95M lines, over 180 frames:
 
 | | Median frame | p95 | Worst | Frames over 50 ms |
 | --- | --- | --- | --- | --- |
@@ -56,65 +55,71 @@ Scrolling `nodejs/node#59805` — 3,420 files, 1.95M lines — over 180 frames:
 
 `pnpm test:fps` measures both and prints the table.
 
-The patch streams, so the first file is readable long before the download ends.
-The diff and the file tree are both virtualized: the number of elements on the
-page tracks the window, not the 3,420 files.
+The first file is readable long before the download ends, and only the lines
+on screen are drawn, so the page stays light however large the pull request.
 
 ## In the viewer
 
-**A file tree you can cut down.** Two fields, one to include and one to exclude, with a count of what they hide. Generated code and snapshots stop getting in the way. The viewer remembers the patterns for the next pull request.
+**A file tree you can cut down.** Two fields, one to include and one to
+exclude, with a count of what they hide. Generated code and snapshots stop
+getting in the way. The viewer remembers the patterns for the next pull request.
 
-Each field reads what you type the way you meant it. Plain words match anywhere in the path, so `config` finds `src/ConfigFile.ts`; anything written like a glob stays a glob, so `src/**` and `*.test.*` mean what they always have. Two switches on the field, as in a code editor: **Aa** for case, **.*** for regular expressions. A clear button appears next to them once there is something to clear, and `Esc` does the same.
+Each field reads what you type the way you meant it. Plain words match anywhere
+in the path, so `config` finds `src/ConfigFile.ts`; anything written like a glob
+stays a glob, so `src/**` and `*.test.*` mean what they always have. Two
+switches on each field, as in a code editor: **Aa** for case, **.\*** for
+regular expressions. A clear button appears once there is something to clear,
+and `Esc` does the same. A faint bar beside the tree marks the files on screen
+and moves as you scroll.
 
-<img src="docs/images/exclude-filter.png" width="440" alt="The file tree with an exclude filter on, and the count of hidden files">
+<img src="docs/images/exclude-filter.png" width="300" alt="The file tree with an exclude filter on, and the count of hidden files">
 
-Here `deps/**, test/**` takes the same pull request down from 3,420 files to 45.
+Here `**/test/**, tools/**` takes a 40-file pull request down to 27.
 
 **Keys that match GitHub's.** `j` and `k` move between files, `n` and `p`
-between hunks, `v` ticks a file off and moves to the next one, `/` jumps to the
-tree filter, `?` shows the list, `Esc` closes the overlay.
+between changes in a file, `v` ticks a file off and moves to the next one, `/`
+jumps to the tree filter, `?` shows the list, `Esc` closes the viewer. They
+work the moment the viewer opens, with no click into it first.
 
 ![The shortcut help dialog](docs/images/shortcut-help.png)
 
-**Find that sees the whole diff.** The diff draws only the rows on screen, so
-the browser's own find misses almost everything. `⌘F` opens a find bar that
-searches every changed file instead, with the same **Aa** and **.*** switches
-plus whole word, a count, and the matches marked in the code and counted in
-the tree. `Enter` steps through them. It searches the patch already loaded,
-and the code you expanded, and downloads nothing. Press `⌘F` again in the box
-for the browser's own find.
+**Find across the whole diff.** The browser's own find sees only the lines on
+screen, which on a long diff is almost nothing. `⌘F` (`Ctrl+F`) opens a find
+bar that searches every changed file instead: matches marked in the code and
+counted per file in the tree, `Enter` to step through them, and the same
+**Aa** and **.\*** switches plus whole word. It searches what is already loaded,
+including lines you expanded, and downloads nothing. Press `⌘F` again in the
+box for the browser's own find.
 
-**Your theme.** The overlay reads GitHub's active theme when it opens and
-renders in a matching one, including the dimmed, high-contrast and colourblind
-variants. A toolbar button switches light and dark on the spot. Light uses VS
-Code's own default, which keeps every token above the contrast the WCAG asks
-for.
+![The find bar, with matches marked in the code and counted in the tree](docs/images/find.png)
 
-![The overlay on the same pull request, light](docs/images/overlay-light.png)
+**Your theme.** The viewer opens in GitHub's theme, including the dimmed,
+high-contrast and colourblind variants, and a toolbar button switches light and
+dark on the spot. Light uses VS Code's own default, which keeps every token
+above the contrast WCAG asks for.
+
+![The viewer on the same pull request, light](docs/images/overlay-light.png)
 
 **A whole review, without leaving.** Every conversation on the pull request is
-read from GitHub, including the outdated ones its own page drops, and anchored
-to the line it was written against. Select lines to write a comment, reply to a
-thread, resolve or reopen any of them, and finish with a verdict — approve, request changes, or
-comment. The comment box is GitHub's own formatting toolbar and GitHub's own
-markdown preview, so what you see is what gets posted.
+shown at the line it was written against, including the outdated ones GitHub's
+own page drops. Select lines to comment, reply to a thread, resolve or reopen
+it, edit or delete your own comments, and finish with a verdict: approve,
+request changes, or comment. Approving can also tick the files you have not
+read. The comment box is GitHub's own formatting toolbar and markdown preview,
+so what you see is what gets posted. A toolbar button hides the conversations
+when you only want to read.
 
-Every write goes to github.com on your session cookie, from the GitHub tab
-itself. There is no token and no third party in the path.
-
-**Reading a pull request twice is free.** The patch is kept, compressed, against
-the commit it came from, so reopening one you have already read costs nothing —
-and a push makes a new key, so what you are shown is never behind the page you
-are on. It is gone when the browser closes. See
+**Reading a pull request twice is free.** The viewer keeps the diff in memory
+until the browser closes, so a reload, or a trip to another page and back,
+downloads nothing. A new push means a new diff, so what you see is never behind
+the page you are on. Nothing is written to disk. See
 [`docs/caching.md`](docs/caching.md).
 
-**The rest.** Split and unified layouts. Collapsed context expands in place —
-the old side of a file is rebuilt from the patch, because GitHub serves raw
-files only by commit sha and the base commit is not on the page. Copy path, open
-the file, and blame, per file. A diff stats panel. Ticking a file off as viewed,
-which marks it in the tree and marks the folder once all of it is read.
-A toast when a GitHub response is not what the viewer expects, naming what
-broke, while the diff keeps rendering.
+**The rest.** Split and unified layouts. Collapsed lines expand in place. Copy
+path, open the file, and blame, per file. Hiding files that changed only in
+spacing. Ticking a file off as viewed marks it in the tree, and marks the folder
+once all of it is read. A short message when GitHub answers something the
+viewer did not expect, naming what broke, while the diff keeps rendering.
 
 ## What is not built
 
@@ -122,22 +127,20 @@ broke, while the diff keeps rendering.
   be hidden whole, but a file mixing a reformatting with a real edit shows
   both. Hiding the individual lines would renumber what is left, and a comment
   anchored to a renumbered line is a comment on the wrong code.
-- **Applying a suggested change.** Suggestions render exactly as GitHub renders
-  them, but the Commit button is still on GitHub.
+- **Applying a suggested change.** Suggestions render as GitHub renders them,
+  but the Commit button is still on GitHub.
 - **Batching a review.** A comment written here is posted as it is written,
   the way a single comment is on GitHub, rather than held back until the
   review is submitted.
 
 ## Reading further
 
-- [`AGENTS.md`](AGENTS.md) the short version of how this is built, and what to
-  know before changing it
 - [`docs/capabilities.md`](docs/capabilities.md) everything it takes to replace
   GitHub's review page, and where each piece stands. Every must-have is built
-- [`docs/firefox.md`](docs/firefox.md) what Firefox does differently, and the
-  traps. Each one cost real time to find
 - [`docs/caching.md`](docs/caching.md) what is kept and where, why a stale diff
   cannot be served, and the measured limits
+- [`docs/firefox.md`](docs/firefox.md) what Firefox does differently, and the
+  traps
 - [`research/github-internal-api/`](research/github-internal-api/) the
   undocumented API this extension runs on, read out of GitHub's own published
   sourcemaps. As far as we can tell, nobody else has written it down
@@ -146,12 +149,14 @@ broke, while the diff keeps rendering.
 - [`docs/todo.md`](docs/todo.md) open items, each with enough detail to pick up
   cold
 
-## Requirements
+## Working on it
 
-- Node.js 22 or newer
-- pnpm 10
+Start with [`AGENTS.md`](AGENTS.md): how the code is split, the commands, and
+what to know before changing anything.
 
-## Getting started
+### Getting started
+
+Node.js 22 or newer, and pnpm 10.
 
 ```sh
 pnpm install
@@ -160,15 +165,12 @@ pnpm dev:firefox     # Firefox
 ```
 
 `pnpm dev` starts [WXT](https://wxt.dev), which builds the extension and opens a
-browser with it already loaded.
-
-`pnpm dev:firefox` has no dev server behind it. Firefox will not run an
-extension page's scripts from one, so the script builds on every change and
-reloads the add-on instead. Reload the page to see the change: reloading the
-add-on does not touch tabs already running the old one.
+browser with it already loaded. `pnpm dev:firefox` rebuilds on every change and
+reloads the add-on instead, because Firefox will not run an extension page from
+a dev server; reload the page to see the change.
 [docs/firefox.md](docs/firefox.md) has the why.
 
-## Building
+### Building
 
 ```sh
 pnpm build           # -> .output/chrome-mv3
@@ -182,12 +184,10 @@ Developer mode, and pick `.output/chrome-mv3` under "Load unpacked". In Firefox,
 open `about:debugging`, choose "This Firefox", and load
 `.output/firefox-mv3/manifest.json` as a temporary add-on.
 
-Both targets come from one source tree. WXT writes the per-browser manifest, so
-the code branches on the browser only where the platforms genuinely differ.
+### Testing
 
-## Testing
-
-Everything runs through a real browser against real github.com.
+The suites drive a real browser with the real extension loaded, and by default
+replay a recording of github.com, so they run offline. Build first.
 
 ```sh
 pnpm build && pnpm test   # the viewer, replayed from a recording: offline, no GitHub
@@ -196,35 +196,28 @@ pnpm test:record          # refresh the recording
 pnpm test:review          # comments, replies, verdicts and viewed state: these write
 pnpm test:firefox         # that the Firefox fetch path is still needed, and works
 pnpm test:whitespace      # hiding files that changed only in spacing
-pnpm test:units           # offline: old-side rebuild, whitespace, paths, recording safety, packing
+pnpm test:units           # offline, no browser
 pnpm test:fps             # frame times, against GitHub's own view
 pnpm capture:readme       # the screenshots above, into docs/images
 pnpm lint                 # oxlint, with every no-comment-slop rule on
 pnpm format               # oxfmt, at Prettier's own defaults
 ```
 
-`pnpm test` replays github.com from `test/har/`, so it needs no network and
-cannot be throttled. Record it once with `pnpm test:record`, which runs signed
-out against a public pull request and strips the credential headers GitHub
-hands out anyway. The recording is gitignored, and `pnpm test:units` proves the
-stripping works. Run
-`pnpm test:live` now and then to catch GitHub changing under the recording.
-`pnpm test:review` posts comments and submits reviews, so it runs against a
-pull request kept for the purpose — pass another as an argument if you want a
-different one. `pnpm test:units` needs no browser and no network.
+The recording is made signed out, against a public pull request, with the
+credential headers stripped, and it is gitignored. `pnpm test:live` catches
+GitHub changing under it. `pnpm test:review` posts comments and submits
+reviews, so it runs against a pull request kept for the purpose; pass another
+as an argument for a different one.
 
-The browser tests load `.output/chrome-mv3`, so build first. They launch
-Chromium with the persistent profile in `test/.profile`, which is gitignored;
-`pnpm test:login` opens a browser on that profile so you can sign in once, after
-which private repositories are testable too. `DIFFSHUB_PROFILE` points at a
-different profile, and `DIFFSHUB_FIREFOX_PROFILE` does the same for Firefox.
-None of this runs in CI, and a test can break when a real pull request changes.
-Both are the price of proving the session-cookie path against a real GitHub.
+The browser tests keep a profile in `test/.profile`, gitignored, and
+`pnpm test:login` opens a browser on it so you can sign in once; after that
+private repositories are testable too. `DIFFSHUB_PROFILE` and
+`DIFFSHUB_FIREFOX_PROFILE` point at other profiles. None of this runs in CI.
 
-## Layout
+### Layout
 
-The source is laid out by *where the code runs*, because that is the thing
-that decides what each part is allowed to do.
+The source is laid out by where the code runs, because that decides what each
+part is allowed to do. `AGENTS.md` has the reasoning.
 
 ```
 src/bridge.ts                 what the two sides say to each other
@@ -248,43 +241,23 @@ research/github-internal-api  what GitHub's undocumented API does
 research/pierre               git submodule, read-only reference (see below)
 ```
 
-The content script runs on github.com and can act as you. The viewer runs on
-the extension's own origin, where GitHub treats it as a stranger: it refuses a
-write from there, and Firefox will not even send the session cookie. So
-anything that has to happen as you is named in `bridge.ts`, asked for over
-`postMessage`, and carried out by the content script.
-
-The viewer is an extension page rather than part of the content script, because
-it needs the extension's own origin: github.com's CSP blocks a `blob:` worker,
-and a page cannot build one from a `chrome-extension:` URL. On the extension
-origin the Shiki worker is same-origin, the grammars load as split chunks, and
-`fetch` to github.com is credentialed and CORS-exempt — which is what lets
-rendering start before the download finishes. The page and the viewer talk over
-`postMessage`.
-
-## Research submodule
+### Research submodule
 
 `research/pierre` is a shallow clone of
 [pierrecomputer/pierre](https://github.com/pierrecomputer/pierre), the Apache-2.0
 monorepo that holds `@pierre/diffs`, `@pierre/trees`, and the source of
 diffshub.com itself (`apps/diffshub`). It is there to read, not to build
-against — the extension depends on the published npm packages.
-
-Clone with it:
+against: the extension depends on the published npm packages.
 
 ```sh
 git clone --recurse-submodules <this repo>
-```
-
-Or, in an existing clone:
-
-```sh
+# or, in an existing clone
 git submodule update --init --depth 1
 ```
 
 ## Licence
 
-MIT, Copyright (c) 2026 Jan Nicklas — see [LICENSE](LICENSE).
+MIT, Copyright (c) 2026 Jan Nicklas. See [LICENSE](LICENSE).
 
 The build bundles the Pierre packages (`@pierre/diffs`, `@pierre/trees`,
 `@pierre/icons`, `@pierre/theme`, `@pierre/theming`), which are Copyright 2025
