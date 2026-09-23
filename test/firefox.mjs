@@ -1,4 +1,5 @@
 import { firefox } from '@playwright/test';
+import { checker } from './browser.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -57,17 +58,7 @@ const page = context.pages()[0] ?? (await context.newPage());
 await page.goto(url, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(5000);
 
-let failures = 0;
-const check = async (name, fn) => {
-  try {
-    const value = await fn();
-    console.log(`${value ? 'ok  ' : 'FAIL'}  ${name}${value && value !== true ? ` — ${value}` : ''}`);
-    if (!value) failures += 1;
-  } catch (error) {
-    console.log(`FAIL  ${name} — ${String(error).slice(0, 140)}`);
-    failures += 1;
-  }
-};
+const { check, finish } = checker();
 
 await check('signed in', async () => {
   const who = await page.evaluate(
@@ -104,5 +95,4 @@ await check('the viewer alone cannot reach a private patch', async () => {
 });
 
 await page.screenshot({ path: path.resolve(root, 'screenshots', 'firefox.png') });
-await context.close();
-process.exit(failures === 0 ? 0 : 1);
+await finish(context);

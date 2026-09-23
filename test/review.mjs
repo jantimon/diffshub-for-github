@@ -1,5 +1,5 @@
 import { WRITE_JSON } from '../src/page/headers.ts';
-import { launch, viewerFrame } from './browser.mjs';
+import { checker, launch, openOverlay } from './browser.mjs';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,30 +13,7 @@ fs.mkdirSync(shots, { recursive: true });
 
 const { context, page } = await launch({ viewport: { width: 1600, height: 1000 } });
 
-await page.goto(url, { waitUntil: 'domcontentloaded' });
-await page.waitForTimeout(3500);
-await page.locator('[data-diffshub-marked]').first().click();
-await page.waitForTimeout(12000);
-
-let frame = viewerFrame(page);
-if (frame == null) {
-  console.log('FAIL: no viewer frame');
-  await context.close();
-  process.exit(1);
-}
-
-const check = async (name, fn) => {
-  try {
-    const value = await fn();
-    console.log(`${value ? 'ok  ' : 'FAIL'}  ${name}${value && value !== true ? ` — ${value}` : ''}`);
-    return value ? 0 : 1;
-  } catch (error) {
-    console.log(`FAIL  ${name} — ${String(error).slice(0, 140)}`);
-    return 1;
-  }
-};
-
-let failures = 0;
+const { check, finish } = checker();
 
 // Marking a file viewed is a real write, so remember what to put back
 const reviewed = [];
@@ -46,32 +23,22 @@ page.on('response', (r) => {
   reviewed.push({ status: r.status(), path: body == null ? null : JSON.parse(body).path });
 });
 
-// The profile persists between runs, so a file left ticked would make the click
-// below an unmark and the assertions meaningless
-await frame.evaluate(() => {
-  for (const key of Object.keys(localStorage)) {
-    if (key.startsWith('diffshub-for-github.')) localStorage.removeItem(key);
-  }
-});
-await page.reload({ waitUntil: 'domcontentloaded' });
-await page.waitForTimeout(3000);
-await page.locator('[data-diffshub-marked]').first().click();
-await page.waitForTimeout(10000);
-frame = viewerFrame(page);
-
-// The patch streams and the comments arrive in two paginated walks. The write
-// checks below are about state, so let the overlay settle before touching it
-await frame
-  .locator('.dh-loading')
-  .waitFor({ state: 'detached', timeout: 30000 })
-  .catch(() => {});
+// Opened twice, with the viewer's settings cleared in between: the profile
+// persists between runs, and a file left ticked would make the click below an
+// unmark and the assertions meaningless
+const frame = await openOverlay(page, url);
+if (frame == null) {
+  console.log('FAIL: no viewer frame');
+  await context.close();
+  process.exit(1);
+}
+// The comments arrive in two paginated walks after the patch
 await frame.locator('[data-dh-viewed]').first().waitFor({ timeout: 30000 });
-await page.waitForTimeout(1500);
 
 const marked = await frame.locator('[data-dh-viewed]').first().getAttribute('data-dh-viewed');
 
 // Writes into the review box and previews it, without posting
-failures += await check('markdown is written and previewed', async () => {
+await check('markdown is written and previewed', async () => {
   await frame.locator('[data-dh-action="review"]').click();
   await page.waitForTimeout(1500);
 
@@ -155,7 +122,7 @@ const deleteComment = async (comment) => {
 
 let posted = false;
 
-failures += await check('a comment can be written', async () => {
+await check('a comment can be written', async () => {
   const answered = watchResponses(/create_review_comment/);
 
   await frame.locator('[data-item-type="file"]').last().click();
@@ -199,30 +166,30 @@ failures += await check('a comment can be written', async () => {
   return 'posted, and the box closed';
 });
 
-failures += await check('thread renders', async () => {
+await check('thread renders', async () => {
   if (!posted) return false;
   await showMine();
   return 'the thread written above came back from GitHub';
 });
 
-failures += await check('comment shows its author and body', async () => {
+await check('comment shows its author and body', async () => {
   const text = (await mine().locator('.dh-comment').first().textContent())?.trim() ?? '';
   return text.includes('jantimon') && text.includes(written) ? text.slice(0, 60) : false;
 });
 
-failures += await check('a comment renders as GitHub renders it', async () => {
+await check('a comment renders as GitHub renders it', async () => {
   const html = await mine().locator('.dh-markdown').first().innerHTML();
   const rendered = html.includes('<strong>') && html.includes('<code') && html.includes('<li');
   if (!rendered) console.log('      body came back as', html.slice(0, 160));
   return rendered && 'bold, code and a list';
 });
 
-failures += await check('thread sits inside the diff', async () => {
+await check('thread sits inside the diff', async () => {
   const inside = await mine().evaluate((thread) => thread.closest('.dh-code') != null);
   return inside && 'anchored in the viewer';
 });
 
-failures += await check('a comment can be replied to', async () => {
+await check('a comment can be replied to', async () => {
   const answered = watchResponses(/create_review_comment/);
 
   const thread = mine();
@@ -263,7 +230,7 @@ failures += await check('a comment can be replied to', async () => {
   return shows ? "posted through GitHub's JSON route, in the same thread" : false;
 });
 
-failures += await check('a conversation can be resolved and reopened', async () => {
+await check('a conversation can be resolved and reopened', async () => {
   const answered = watchResponses(/page_data\/(un)?resolve_thread$/);
 
   await mine().locator('[data-dh-thread="resolve"]').click({ timeout: 5000 });
@@ -289,7 +256,7 @@ failures += await check('a conversation can be resolved and reopened', async () 
  * Rewrites the comment, then deletes the reply and the comment. The deletes are
  * also the cleanup: GitHub drops a thread once its last comment is gone
  */
-failures += await check('your own comment can be edited and then deleted', async () => {
+await check('your own comment can be edited and then deleted', async () => {
   if (!posted) return false;
   const answered = watchResponses(/update_review_comment|page_data\/review_comments\//);
 
@@ -347,7 +314,7 @@ const swept = await sweep().catch(() => 0);
 if (swept > 0) console.log(`deleted ${swept} comment(s) a failed check left on the fixture`);
 
 // Submits a real review on the fixture pull request, which is what it is for
-failures += await check('a review can be submitted', async () => {
+await check('a review can be submitted', async () => {
   const sent = [];
   page.on('response', (r) => {
     if (r.url().includes('submit_review')) sent.push(r.status());
@@ -389,7 +356,7 @@ failures += await check('a review can be submitted', async () => {
  * second Space takes the mark back off. The row is a button, so if Space
  * pressed it instead the diff would jump to the file
  */
-failures += await check('Space in the file tree marks a file viewed and back', async () => {
+await check('Space in the file tree marks a file viewed and back', async () => {
   const before = reviewed.length;
   const row = frame.locator('[role="treeitem"][data-item-type="file"]').first();
   const file = await row.getAttribute('data-item-path');
@@ -425,7 +392,7 @@ failures += await check('Space in the file tree marks a file viewed and back', a
   return `${file.split('/').pop()}: ${JSON.stringify(initial)} -> ${JSON.stringify(once)} -> ${JSON.stringify(twice)}, focus kept`;
 });
 
-failures += await check('viewed state reaches GitHub', async () => {
+await check('viewed state reaches GitHub', async () => {
   const before = reviewed.length;
   await frame.locator(`[data-dh-viewed="${marked}"]`).click();
   await page.waitForTimeout(3000);
@@ -439,7 +406,7 @@ failures += await check('viewed state reaches GitHub', async () => {
   return `${sent[0].path} accepted`;
 });
 
-failures += await check('the tick survives', async () => {
+await check('the tick survives', async () => {
   // Marking moves on to the next file, so that header is scrolled away and
   // recycled. The tally in the header is the durable evidence: a write GitHub
   // refused would have taken the tick back
@@ -449,7 +416,7 @@ failures += await check('the tick survives', async () => {
   return viewed >= 1 ? `${text} after the write` : false;
 });
 
-failures += await check('the tree marks it', async () => {
+await check('the tree marks it', async () => {
   const mark = frame.locator('[data-item-section="decoration"]', { hasText: '\u2713' }).first();
   await mark.waitFor({ timeout: 10000 }).catch(() => {});
   const marks = await frame.locator('[data-item-section="decoration"]', { hasText: '\u2713' }).count();
@@ -480,5 +447,4 @@ if (touched.length > 0) {
   console.log(`unmarked ${touched.length} file(s) on GitHub: ${cleaned.join(', ')}`);
 }
 console.log(`\nscreenshot: ${path.join(shots, 'comments.png')}`);
-await context.close();
-process.exit(failures === 0 ? 0 : 1);
+await finish(context);

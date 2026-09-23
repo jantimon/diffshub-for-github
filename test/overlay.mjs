@@ -5,7 +5,7 @@
  * needs no login. The checks that write have their own suite in `review.mjs`.
  */
 
-import { checker, launch, openOverlay, screenshots, viewerFrame } from './browser.mjs';
+import { checker, launch, openOverlay, openViewer, screenshots, until, viewerFrame } from './browser.mjs';
 
 /**
  * A pull request big enough that the viewer recycles rows as you scroll, and
@@ -89,18 +89,18 @@ await check('the author is shown', async () => {
 });
 
 await check('exclude filter', async () => {
-  const before = await frame.locator('[data-item-type="file"]').count();
+  const files = () => frame.locator('[data-item-type="file"]').count();
+  const before = await files();
   await frame.locator('.dh-field input').nth(1).fill('tsc/**');
-  await page.waitForTimeout(2500);
-  const after = await frame.locator('[data-item-type="file"]').count();
+  const after = (await until(async () => ((await files()) < before ? files() : false))) ?? before;
   const hidden = await frame
     .locator('.dh-hidden')
     .textContent()
     .catch(() => '');
   await shoot('exclude-filter');
   await frame.locator('.dh-field input').nth(1).fill('');
-  await page.waitForTimeout(2500);
-  const restored = await frame.locator('[data-item-type="file"]').count();
+  const restored =
+    (await until(async () => ((await files()) === before ? before : false))) ?? (await files());
   if (after >= before || restored !== before) return false;
   return `${before} -> ${after} (${hidden?.trim()}) -> ${restored}`;
 });
@@ -140,19 +140,25 @@ await check('a folder is ticked once every file under it is read', async () => {
     return 'skipped, needs a session';
   }
 
+  const start = await ticks();
   await eye.click();
-  await page.waitForTimeout(2500);
-  const unticked = await ticks();
+  const unticked =
+    (await until(async () => {
+      const now = await ticks();
+      return now.file < start.file ? now : false;
+    })) ?? (await ticks());
 
   await frame.locator('[data-dh-viewed][aria-pressed="false"]').first().click();
-  await page.waitForTimeout(2500);
-  const ticked = await ticks();
+  const ticked =
+    (await until(async () => {
+      const now = await ticks();
+      return now.file > unticked.file ? now : false;
+    })) ?? (await ticks());
   await shoot('folder-ticked');
 
   // Ticking a file jumps to the next one still to read, so put the view back
   // at the top for the checks that follow
   await frame.locator('.dh-code').evaluate((pane) => pane.scrollTo({ top: 0 }));
-  await page.waitForTimeout(1500);
 
   if (!(ticked.file > unticked.file && ticked.folder > unticked.folder)) {
     console.log(`      files ${unticked.file}->${ticked.file}, folders ${unticked.folder}->${ticked.folder}`);
@@ -176,11 +182,12 @@ await check('sidebar resizes', async () => {
 });
 
 await check('include filter', async () => {
+  const files = () => frame.locator('[data-item-type="file"]').count();
+  const before = await files();
   await frame.locator('.dh-field input').first().fill('**/*.ts');
-  await page.waitForTimeout(2500);
-  const only = await frame.locator('[data-item-type="file"]').count();
+  const only = (await until(async () => ((await files()) !== before ? files() : false))) ?? 0;
   await frame.locator('.dh-field input').first().fill('');
-  await page.waitForTimeout(2500);
+  await until(async () => (await files()) === before);
   return only > 0 ? `${only} files match **/*.ts` : false;
 });
 
@@ -189,16 +196,19 @@ await check('hunk expansion', async () => {
   // diff long enough to recycle rows the first separator is otherwise wherever
   // they happened to leave it, or not rendered at all
   await frame.locator('.dh-code').evaluate((pane) => pane.scrollTo({ top: 0 }));
-  await page.waitForTimeout(2000);
 
   const label = frame.locator('[data-unmodified-lines]').first();
+  await label.waitFor();
   const before = (await label.textContent())?.trim() ?? '';
 
   const expand = frame.locator('[data-expand-button]').first();
   await expand.scrollIntoViewIfNeeded({ timeout: 10000 });
   await expand.dispatchEvent('click');
-  await page.waitForTimeout(4000);
-  const after = (await label.textContent())?.trim() ?? '';
+  const after =
+    (await until(async () => {
+      const now = (await label.textContent())?.trim() ?? '';
+      return now !== before ? now : false;
+    })) ?? before;
   await shoot('hunk-expanded');
   return before !== after ? `${before} -> ${after}` : false;
 });
@@ -206,12 +216,13 @@ await check('hunk expansion', async () => {
 await check('theme switch', async () => {
   const before = await frame.locator('.dh-overlay').getAttribute('data-theme');
   const button = frame.locator('[data-dh-action="theme"]');
+  const theme = () => frame.locator('.dh-overlay').getAttribute('data-theme');
   await button.click();
-  await page.waitForTimeout(1500);
-  const after = await frame.locator('.dh-overlay').getAttribute('data-theme');
+  const after = (await until(async () => ((await theme()) !== before ? theme() : false))) ?? before;
+  await page.waitForTimeout(500);
   await shoot('theme-switched');
   await button.click();
-  await page.waitForTimeout(1000);
+  await until(async () => (await theme()) === before);
   return after !== before ? `${before} -> ${after}` : false;
 });
 
@@ -229,14 +240,12 @@ await check('the comments toggle takes the conversations off the diff', async ()
 
   const button = frame.locator('[data-dh-action="comments"]');
   await button.click();
-  await page.waitForTimeout(2500);
-  const hidden = await threads();
+  const hidden = (await until(async () => ((await threads()) === 0 ? 0 : false))) ?? (await threads());
   const hiddenGutter = await gutter();
   await shoot('comments-hidden');
 
   await button.click();
-  await page.waitForTimeout(2500);
-  const back = await threads();
+  const back = (await until(async () => ((await threads()) > 0 ? threads() : false))) ?? 0;
 
   if (hidden !== 0 || hiddenGutter !== 0 || back === 0) {
     console.log(`      threads ${before} -> ${hidden} -> ${back}, gutter ${hiddenGutter}`);
@@ -656,13 +665,11 @@ await check('a reload reuses the patch instead of fetching it again', async () =
   };
 
   await page.reload();
-  await page.waitForTimeout(3500);
+  await page.locator('[data-diffshub-marked]').first().waitFor();
   page.on('request', watch);
-  await page.locator('[data-diffshub-marked]').first().click();
-  await page.waitForTimeout(12000);
+  const reopened = await openViewer(page);
   page.off('request', watch);
 
-  const reopened = viewerFrame(page);
   const files = reopened == null ? 0 : await reopened.locator('[data-item-type="file"]').count();
   if (files === 0) {
     console.log('      the viewer did not come back, so nothing was proved');
@@ -689,10 +696,9 @@ await check('the file tree fills after a push has cleared the ticks', async () =
     ),
   );
   await page.reload();
-  await page.waitForTimeout(3500);
-  await page.locator('[data-diffshub-marked]').first().click();
-  await page.waitForTimeout(8000);
-  const tree = await viewerFrame(page)?.evaluate(() => {
+  const tree = await (
+    await openViewer(page)
+  )?.evaluate(() => {
     const root = document.querySelector('.dh-tree')?.shadowRoot;
     return {
       rows: root?.querySelectorAll('[role="treeitem"]').length ?? 0,

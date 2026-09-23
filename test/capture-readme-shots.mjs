@@ -1,4 +1,4 @@
-import { launch, viewerFrame } from './browser.mjs';
+import { clearSettings, launch, viewerFrame } from './browser.mjs';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -146,11 +146,8 @@ await page.waitForFunction(() => document.getElementById('diffshub-for-github-vi
   timeout: 30000,
 });
 await page.waitForTimeout(6000);
-await viewerFrame(page)?.evaluate(() => {
-  for (const key of Object.keys(localStorage)) {
-    if (key.startsWith('diffshub-for-github.')) localStorage.removeItem(key);
-  }
-});
+const opened = viewerFrame(page);
+if (opened != null) await clearSettings(opened);
 
 // 2. The hero: the overlay in dark mode.
 await loadPullRequest(PULL_REQUEST);

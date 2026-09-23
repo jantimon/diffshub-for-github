@@ -16,10 +16,11 @@ import path from 'node:path';
 export const root = path.dirname(fileURLToPath(import.meta.url));
 export const dist = path.resolve(root, '../.output/chrome-mv3');
 
-/** How long GitHub's own page needs before its tab strip is there to click */
-const PAGE_SETTLE_MS = 3500;
-/** How long the viewer needs to stream a patch and lay out the first files */
-const VIEWER_SETTLE_MS = 12_000;
+/** Longest the viewer may take to read the whole patch before a test gives up on it */
+const VIEWER_READY_MS = 60_000;
+
+/** Enough for the viewer to lay out the first files once the patch is in */
+const LAYOUT_SETTLE_MS = 600;
 
 /**
  * Where a recorded run is kept, and which mode this run is in.
@@ -88,7 +89,8 @@ export async function launch({
 
   const context = await chromium.launchPersistentContext(profile, {
     channel: 'chromium',
-    headless: false,
+    /** Headed by default, so a run can be watched. `DIFFSHUB_HEADLESS=1` for a machine without a screen */
+    headless: process.env.DIFFSHUB_HEADLESS === '1',
     viewport,
     deviceScaleFactor,
     args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
@@ -127,6 +129,58 @@ export async function launch({
 }
 
 /**
+ * Waits until the page's Files-changed tab carries the extension's marker, then
+ * clicks it and waits for the viewer to have the whole patch.
+ *
+ * Waiting on what the page and the viewer say, rather than for a fixed time,
+ * is what keeps a run quick on a fast machine and correct on a slow one. The
+ * viewer puts its load phase on `.dh-overlay` as `data-dh-phase`.
+ */
+export async function openViewer(page, { pace = 0 } = {}) {
+  const tab = page.locator('[data-diffshub-marked]').first();
+  await tab.waitFor({ timeout: 30_000 });
+  // The tab is marked before GitHub's page has finished loading, and a click
+  // that early can go nowhere. So the page's load comes first, and a click that
+  // opened nothing is made again
+  await page.waitForLoadState('load');
+  if (pace > 0) await page.waitForTimeout(pace);
+  let frame;
+  for (let attempt = 0; attempt < 3 && frame == null; attempt += 1) {
+    await tab.click();
+    frame = await until(() => viewerFrame(page), { timeout: 3000 });
+  }
+  await frame
+    ?.locator('.dh-overlay[data-dh-phase="ready"], .dh-overlay[data-dh-phase="error"]')
+    .waitFor({ timeout: VIEWER_READY_MS });
+  await page.waitForTimeout(LAYOUT_SETTLE_MS + pace);
+  return viewerFrame(page);
+}
+
+/** Removes the viewer's remembered settings: filters, layout, ticks, the lot */
+export async function clearSettings(frame) {
+  await frame.evaluate(() => {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('diffshub-for-github.')) localStorage.removeItem(key);
+    }
+  });
+}
+
+/**
+ * Polls until `probe` answers something other than nothing or `false`, and
+ * answers that, or `undefined` once `timeout` has passed. For waiting on a
+ * state the page reaches, instead of sleeping for a guess of how long it takes.
+ */
+export async function until(probe, { timeout = 10_000, every = 100 } = {}) {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    const value = await probe();
+    if (value != null && value !== false) return value;
+    if (Date.now() > deadline) return undefined;
+    await new Promise((resolve) => setTimeout(resolve, every));
+  }
+}
+
+/**
  * Opens the pull request, clicks the marked tab and waits for the viewer.
  *
  * Done twice: settings are held in the viewer's own localStorage, which cannot
@@ -141,23 +195,12 @@ export async function openOverlay(page, url, { noise } = {}) {
   if (MODE === 'record') await refuseToRecordWhileRefused(url);
 
   await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(PAGE_SETTLE_MS + pace);
-  await page.locator('[data-diffshub-marked]').first().click();
-  await page.waitForTimeout(VIEWER_SETTLE_MS + pace);
-
-  let frame = viewerFrame(page);
-  if (frame == null) return undefined;
-
-  await frame.evaluate(() => {
-    for (const key of Object.keys(localStorage)) {
-      if (key.startsWith('diffshub-for-github.')) localStorage.removeItem(key);
-    }
-  });
+  const first = await openViewer(page, { pace });
+  if (first == null) return undefined;
+  await clearSettings(first);
 
   await page.reload();
-  await page.waitForTimeout(PAGE_SETTLE_MS + pace);
-  await page.locator('[data-diffshub-marked]').first().click();
-  await page.waitForTimeout(VIEWER_SETTLE_MS + pace);
+  const frame = await openViewer(page, { pace });
 
   // Console events are emitted by the page, never by a frame, so this listens
   // there and keeps only what came from the viewer
@@ -168,7 +211,7 @@ export async function openOverlay(page, url, { noise } = {}) {
       if (from.startsWith('chrome-extension://')) noise.push(`viewer: ${message.text().slice(0, 160)}`);
     });
   }
-  return viewerFrame(page);
+  return frame;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { launch, viewerFrame } from './browser.mjs';
+import { checker, launch, openOverlay, until } from './browser.mjs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -9,42 +9,15 @@ const url = process.argv[2] ?? 'https://github.com/jantimon/diffshub-for-github/
 
 const { context, page } = await launch({ viewport: { width: 1500, height: 950 } });
 
-const open = async () => {
-  await page.locator('[data-diffshub-marked]').first().click();
-  await page.waitForTimeout(12000);
-  return viewerFrame(page);
-};
-
-await page.goto(url, { waitUntil: 'domcontentloaded' });
-await page.waitForTimeout(3500);
-let frame = await open();
+// The toggle is remembered, so the viewer's settings are cleared on the way in
+const frame = await openOverlay(page, url);
 if (frame == null) {
   console.log('FAIL: no viewer frame');
   await context.close();
   process.exit(1);
 }
 
-// The toggle is remembered, so start from a known state
-await frame.evaluate(() => {
-  for (const key of Object.keys(localStorage)) {
-    if (key.startsWith('diffshub-for-github.')) localStorage.removeItem(key);
-  }
-});
-await page.reload({ waitUntil: 'domcontentloaded' });
-await page.waitForTimeout(3000);
-frame = await open();
-
-let failures = 0;
-const check = async (name, fn) => {
-  try {
-    const value = await fn();
-    console.log(`${value ? 'ok  ' : 'FAIL'}  ${name}${value && value !== true ? ` — ${value}` : ''}`);
-    if (!value) failures += 1;
-  } catch (error) {
-    console.log(`FAIL  ${name} — ${String(error).slice(0, 140)}`);
-    failures += 1;
-  }
-};
+const { check, finish } = checker();
 
 const fileCount = () => frame.locator('[data-item-type="file"]').count();
 const before = await fileCount();
@@ -53,8 +26,7 @@ await check('every file is shown to begin with', async () => (before > 1 ? `${be
 
 await check('the toggle hides a reindented file', async () => {
   await frame.locator('[data-dh-action="whitespace"]').click();
-  await page.waitForTimeout(3000);
-  const after = await fileCount();
+  const after = (await until(async () => ((await fileCount()) < before ? fileCount() : false))) ?? before;
   const note = (await frame.locator('.dh-hidden').allTextContents()).join(' ');
   if (after >= before) {
     console.log(`      ${before} -> ${after} files`);
@@ -71,11 +43,10 @@ await check('a real change is kept', async () => (await fileCount()) > 0);
 
 await check('turning it off brings the file back', async () => {
   await frame.locator('[data-dh-action="whitespace"]').click();
-  await page.waitForTimeout(3000);
-  const after = await fileCount();
+  const after =
+    (await until(async () => ((await fileCount()) === before ? before : false))) ?? (await fileCount());
   return after === before ? `${after} files again` : false;
 });
 
 await page.screenshot({ path: path.resolve(root, 'screenshots', 'ignore-whitespace.png') });
-await context.close();
-process.exit(failures === 0 ? 0 : 1);
+await finish(context);

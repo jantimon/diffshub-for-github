@@ -28,6 +28,17 @@ every read passes through and already tells a refusal from an answer. Only
 retry what is worth retrying — 429, 502, 503, 504, the set `test/browser.mjs`
 already names as `REFUSED` — and give up loudly rather than quietly.
 
+## A click on the tab straight after the page appears can be lost
+
+On a live pull request page the Files-changed tab carries the extension's
+marker a moment after the page appears, but a click made then opens nothing:
+no viewer, and the page stays where it is. The same click a few seconds later
+works. Measured on `jantimon/diffshub-for-github#1`, clicking the moment the
+marker appeared. The browser suites wait for the page's `load` event and click
+again if nothing opened (`openViewer` in `test/browser.mjs`); a reader has no
+such help. Worth finding where the early click goes: most likely GitHub
+replacing the tab strip as its page finishes loading.
+
 ## Smaller things
 
 - `usePatchStream` never sets `phase` back to `loading` when the patch url
