@@ -39,6 +39,31 @@ await check('the diff renders', async () => {
 });
 
 /**
+ * The tree rows the in-view bar runs beside. The tree pins copies of folder
+ * rows at its top, which are left out
+ */
+const barRows = () =>
+  frame.evaluate(() => {
+    const root = document.querySelector('.dh-tree')?.shadowRoot;
+    const bar = root?.querySelector('[data-dh-in-view]');
+    if (bar == null || bar.hidden) return [];
+    const edge = bar.getBoundingClientRect();
+    return [...root.querySelectorAll('[role="treeitem"]')]
+      .filter((row) => {
+        const box = row.getBoundingClientRect();
+        return box.bottom > edge.top + 1 && box.top < edge.bottom - 1;
+      })
+      .map((row) => row.dataset.itemPath);
+  });
+
+const FIRST_FILE = 'packages/typescript/src/api/async/api.ts';
+
+await check('the tree marks the file on screen', async () => {
+  const rows = await barRows();
+  return rows.includes(FIRST_FILE) && rows.length < 5 ? `beside ${rows.join(', ')}` : false;
+});
+
+/**
  * Whether a key pressed now reaches the viewer, without clicking into it
  * first. `?` is used because it opens something the check can see
  */
@@ -311,6 +336,28 @@ const highlights = () =>
     all: CSS.highlights.get('dh-find')?.size ?? 0,
     current: CSS.highlights.get('dh-find-current')?.size ?? 0,
   }));
+
+await check('the mark follows the diff, and a closed folder takes it', async () => {
+  const rows = await barRows();
+  const file = rows.find((path) => !path.endsWith('/'));
+  if (file == null || rows.includes(FIRST_FILE)) {
+    console.log('      beside', JSON.stringify(rows));
+    return false;
+  }
+  const folder = `${file.split('/').slice(0, -1).join('/')}/`;
+  const folderRow = frame.locator(`[role="treeitem"][data-item-path="${folder}"]`);
+  await folderRow.click();
+  await page.waitForTimeout(500);
+  const closed = await barRows();
+  await folderRow.click();
+  await page.waitForTimeout(500);
+  const open = await barRows();
+  if (!closed.includes(folder) || !open.includes(file)) {
+    console.log(`      closed ${JSON.stringify(closed)}, open again ${JSON.stringify(open)}`);
+    return false;
+  }
+  return `moved to ${file.split('/').pop()}, onto ${folder} while it was closed, and back`;
+});
 
 await check('Cmd+F opens find instead of the browser’s', async () => {
   // Registered after the viewer's own listener, so it sees what that one did

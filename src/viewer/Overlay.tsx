@@ -35,6 +35,7 @@ import { closeViewer, usePageInfo } from '@/viewer/shell/usePageInfo';
 import { useNavigation } from '@/viewer/diff/useNavigation';
 import { useThemeSurfaces } from '@/viewer/shell/useThemeSurfaces';
 import { useFocusTrap } from '@/viewer/shell/useFocusTrap';
+import { useInViewMarks } from '@/viewer/shell/useInViewMarks';
 import { useShortcuts } from '@/viewer/shell/useShortcuts';
 import { useViewed } from '@/viewer/review/useViewed';
 import { createExpansionMemory } from '@/viewer/diff/expandedRegions';
@@ -224,6 +225,7 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
   });
 
   const navigation = useNavigation(viewerRef, visibleRef);
+  const markInView = useInViewMarks({ viewerRef, visibleRef, model });
   const [expansion] = useState(createExpansionMemory);
   const find = useFind({ viewerRef, files: parsedFiles, expansion, currentFile: navigation.currentIndex });
   const findInputRef = useRef<HTMLInputElement>(null);
@@ -271,12 +273,14 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
 
   /**
    * The viewer tells us each time it draws a file. That is when find learns
-   * which gaps were opened, and when the marks have new rows to go on. Held in
-   * a ref so the viewer's options do not change whenever find does
+   * which gaps were opened, when its marks have new rows to go on, and when a
+   * layout change may have moved which files are in view. Held in a ref so the
+   * viewer's options do not change whenever find does
    */
   const afterRender = useRef<(instance: unknown) => void>(() => {});
   useEffect(() => {
     afterRender.current = (instance) => {
+      markInView();
       if (expansion.record(instance) && find.open) find.refresh();
       if (find.open) find.repaint();
     };

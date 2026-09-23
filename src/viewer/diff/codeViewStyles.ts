@@ -94,6 +94,25 @@ export const TREE_CSS = `
 [data-item-type='folder'] [data-item-section='decoration'] {
   opacity: 0.45;
 }
+
+/* The bar beside the rows of the files on screen in the diff. Faint, so the
+   focused row, the ticks and the find counts all read first. */
+[data-dh-in-view] {
+  position: absolute;
+  left: 0;
+  z-index: 1;
+  width: 2px;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--dh-accent) 45%, transparent);
+  border-radius: 1px;
+  transition:
+    top 160ms ease-out,
+    bottom 160ms ease-out;
+}
+
+[data-dh-in-view][hidden] {
+  display: none;
+}
 `;
 
 /**
@@ -244,3 +263,48 @@ export const FIND_CSS = `
   color: light-dark(#000, #fff);
 }
 `;
+
+/** A path inside a quoted attribute selector */
+function quotedPath(path: string): string {
+  return `"${path.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
+}
+
+/** A tree row by its path, leaving out the copies the tree pins at the top */
+function rowSelector(path: string): string {
+  return `[data-item-path=${quotedPath(path)}]:not([data-file-tree-sticky-row])`;
+}
+
+/**
+ * Where the in-view bar runs in the tree: from the top of the first row on
+ * screen in the diff to the bottom of the last.
+ *
+ * The two rows are named as anchors and the bar is placed between them with
+ * CSS anchor positioning. The names alternate between two sets on each change:
+ * a new name is a new computed value, which is what starts the transition, so
+ * the bar slides rather than jumps. A row the tree has not drawn leaves its end
+ * of the bar at the edge of the list, so the bar still points the right way.
+ */
+export function inViewCss(first: string, last: string, turn: 0 | 1): string {
+  const start = `--dh-view-start-${turn}`;
+  const end = `--dh-view-end-${turn}`;
+  const names =
+    first === last
+      ? `${rowSelector(first)} { anchor-name: ${start}, ${end}; }`
+      : `${rowSelector(first)} { anchor-name: ${start}; }\n${rowSelector(last)} { anchor-name: ${end}; }`;
+  return `${names}
+[data-dh-in-view] {
+  top: anchor(${start} top, 0px);
+  bottom: anchor(${end} bottom, 0px);
+}`;
+}
+
+/**
+ * The same mark for a browser without anchor positioning: a line inside each
+ * row, which no row changes size for, and without the slide
+ */
+export function inViewRowsCss(paths: readonly string[]): string {
+  if (paths.length === 0) return '';
+  return `${paths.map(rowSelector).join(',\n')} {
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--dh-accent) 45%, transparent);
+}`;
+}
