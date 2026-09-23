@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 
+import { isToViewer } from '@/bridge';
 import { Overlay } from '@/viewer/Overlay';
 import type { PullRequestRef } from '@/pullRequest';
 import './style.css';
@@ -17,5 +18,11 @@ const pr: PullRequestRef = {
  */
 const sha = params.get('sha');
 const openedAtSha = sha != null && /^[0-9a-f]{40}$/.test(sha) ? sha : undefined;
+
+// Outside React, so the keyboard arrives even before the first render
+addEventListener('message', (event: MessageEvent) => {
+  if (event.source !== parent || !isToViewer(event.data) || event.data.type !== 'focus') return;
+  focus();
+});
 
 createRoot(document.getElementById('root')!).render(<Overlay pr={pr} openedAtSha={openedAtSha} />);

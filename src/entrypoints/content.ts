@@ -102,6 +102,32 @@ export default defineContentScript({
     let frame: HTMLIFrameElement | undefined;
     let previousOverflow = '';
     let release: ReturnType<typeof setTimeout> | undefined;
+    /**
+     * Where the keyboard was before the overlay opened, to put it back after.
+     * While open, the keyboard is in the viewer: a key pressed here would reach
+     * a page nobody can see, and Cmd+F would open the browser's find over it
+     */
+    let focusedBefore: Element | null = null;
+
+    /**
+     * Focusing the iframe from here marks it active but leaves the keys with
+     * this page, in Chrome at least. The viewer focusing its own window is what
+     * moves them, so it is asked to, now and again once it has loaded
+     */
+    const askViewerToFocus = (): void => {
+      frame?.contentWindow?.postMessage({ channel: BRIDGE_CHANNEL, type: 'focus' }, '*');
+    };
+
+    const takeFocus = (): void => {
+      focusedBefore = document.activeElement;
+      frame?.focus();
+      askViewerToFocus();
+    };
+
+    const giveFocusBack = (): void => {
+      if (focusedBefore instanceof HTMLElement) focusedBefore.focus({ preventScroll: true });
+      focusedBefore = null;
+    };
 
     const showing = (): boolean => frame != null && frame.style.display !== 'none';
 
@@ -120,6 +146,7 @@ export default defineContentScript({
       if (frame == null) return;
       frame.style.display = 'none';
       document.documentElement.style.overflow = previousOverflow;
+      giveFocusBack();
       clearTimeout(release);
       release = setTimeout(destroy, HIDDEN_BEFORE_RELEASE_MS);
     };
@@ -128,9 +155,11 @@ export default defineContentScript({
       clearTimeout(release);
       release = undefined;
       if (frame == null) return;
+      const wasShowing = showing();
       frame.remove();
       frame = undefined;
       document.documentElement.style.overflow = previousOverflow;
+      if (wasShowing) giveFocusBack();
     };
 
     // The viewer runs as an extension page rather than in this content script,
@@ -146,6 +175,7 @@ export default defineContentScript({
         frame.style.display = '';
         previousOverflow = document.documentElement.style.overflow;
         document.documentElement.style.overflow = 'hidden';
+        takeFocus();
         return;
       }
 
@@ -175,6 +205,7 @@ export default defineContentScript({
       previousOverflow = document.documentElement.style.overflow;
       document.documentElement.style.overflow = 'hidden';
       document.documentElement.append(frame);
+      takeFocus();
     };
 
     // Everything the viewer can ask for. One entry per request in the bridge's
@@ -210,6 +241,7 @@ export default defineContentScript({
       }
 
       if (message.type === 'ready') {
+        if (showing()) askViewerToFocus();
         frame.contentWindow?.postMessage(
           { channel: BRIDGE_CHANNEL, type: 'page-info', info: collectPageInfo() },
           '*',

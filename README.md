@@ -76,6 +76,14 @@ tree filter, `?` shows the list, `Esc` closes the overlay.
 
 ![The shortcut help dialog](docs/images/shortcut-help.png)
 
+**Find that sees the whole diff.** The diff draws only the rows on screen, so
+the browser's own find misses almost everything. `⌘F` opens a find bar that
+searches every changed file instead, with the same **Aa** and **.*** switches
+plus whole word, a count, and the matches marked in the code and counted in
+the tree. `Enter` steps through them. It searches the patch already loaded,
+and the code you expanded, and downloads nothing. Press `⌘F` again in the box
+for the browser's own find.
+
 **Your theme.** The overlay reads GitHub's active theme when it opens and
 renders in a matching one, including the dimmed, high-contrast and colourblind
 variants. A toolbar button switches light and dark on the spot. Light uses VS
@@ -228,6 +236,7 @@ src/viewer/                   runs on the extension's own origin
   diff/                       the diff view, its styling and its workers
   comments/                   conversations, and the box for a new one
   review/                     the verdict, and which files are read
+  find/                       find in the diff, and its marks
   shell/                      the frame: toolbar, sidebar, toasts, shortcuts
 src/patch/                    a .diff becomes files, hunks and filters
 src/entrypoints/              WXT's entry points, kept thin

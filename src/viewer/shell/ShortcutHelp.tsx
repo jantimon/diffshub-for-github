@@ -6,8 +6,11 @@ const SHORTCUTS: readonly { keys: string; action: string }[] = [
   { keys: 'v', action: 'Mark viewed and go to the next file' },
   { keys: 'space', action: 'Same, when the tick box has focus' },
   { keys: '/', action: 'Focus the file-tree filter' },
+  { keys: '⌘F / Ctrl+F', action: 'Find in the diff. Press again in the box for the browser’s own find' },
+  { keys: 'Enter / Shift+Enter', action: 'Next / previous match, also ⌘G / ⌘⇧G' },
+  { keys: 'Alt+C / W / R', action: 'Match case / whole word / regular expression' },
   { keys: '?', action: 'Shortcut help' },
-  { keys: 'Esc', action: 'Close the overlay' },
+  { keys: 'Esc', action: 'Close find, then the overlay' },
 ];
 
 /**

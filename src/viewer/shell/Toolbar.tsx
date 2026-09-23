@@ -16,6 +16,7 @@ import {
   IconDiffUnified,
   IconParagraph,
   IconQuestion,
+  IconSearch,
   IconSidebarLeft,
   IconX,
 } from '@pierre/icons';
@@ -43,6 +44,7 @@ export function Toolbar({
   onToggleTheme,
   onFinishReview,
   onShowHelp,
+  onFind,
   onClose,
 }: {
   pr: PullRequestRef;
@@ -62,6 +64,7 @@ export function Toolbar({
   onToggleTheme: () => void;
   onFinishReview: () => void;
   onShowHelp: () => void;
+  onFind: () => void;
   onClose: () => void;
 }): JSX.Element {
   return (
@@ -112,6 +115,15 @@ export function Toolbar({
           Finish review
         </button>
         <span className="dh-actions-divider" aria-hidden="true" />
+        <button
+          type="button"
+          className="dh-icon-button"
+          data-dh-action="find"
+          onClick={onFind}
+          title="Find in the diff (⌘F)"
+        >
+          <IconSearch size={16} />
+        </button>
         <button
           type="button"
           className="dh-icon-button"

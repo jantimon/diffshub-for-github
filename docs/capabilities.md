@@ -125,7 +125,7 @@ Worth building once the rest holds.
 | --- | --- | :---: |
 | 28 | Review commit by commit | ❌ |
 | 29 | Link to a line | ❌ |
-| 30 | Search within the diff | ❌ |
+| 30 | Search within the diff | ✅ |
 | 31 | React to a comment | ❌ |
 | 32 | Edit or delete your own comment | ✅ |
 | 33 | Comment on a range of lines | ❌ |
@@ -141,8 +141,8 @@ Worth building once the rest holds.
 | --- | :---: | :---: | :---: | :---: |
 | Must have | 17 | 0 | 0 | 17 |
 | Should have | 6 | 3 | 1 | 10 |
-| Nice to have | 2 | 0 | 9 | 11 |
-| **All** | **25** | **3** | **10** | **38** |
+| Nice to have | 3 | 0 | 8 | 11 |
+| **All** | **26** | **3** | **9** | **38** |
 
 ### Resolving and replying take different routes
 

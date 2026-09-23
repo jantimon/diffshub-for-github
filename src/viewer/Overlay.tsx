@@ -34,18 +34,25 @@ import { ToastStack, useToasts } from '@/viewer/shell/Toast';
 import { closeViewer, usePageInfo } from '@/viewer/shell/usePageInfo';
 import { useNavigation } from '@/viewer/diff/useNavigation';
 import { useThemeSurfaces } from '@/viewer/shell/useThemeSurfaces';
+import { useFocusTrap } from '@/viewer/shell/useFocusTrap';
 import { useShortcuts } from '@/viewer/shell/useShortcuts';
 import { useViewed } from '@/viewer/review/useViewed';
+import { createExpansionMemory } from '@/viewer/diff/expandedRegions';
+import { FindBar } from '@/viewer/find/FindBar';
+import { useFind } from '@/viewer/find/useFind';
 import { readSetting, useChoice, writeSetting } from '@/viewer/settings';
 import {
   ANNOTATION_CSS,
   DIFF_TINT_CSS,
+  FIND_CSS,
   HEADER_CSS,
   HIGHLIGHTER_OPTIONS,
   POOL_OPTIONS,
   SEPARATOR_CSS,
   TREE_CSS,
 } from '@/viewer/diff/codeViewStyles';
+
+const NO_MATCHES: ReadonlyMap<string, number> = new Map();
 
 export function Overlay({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string }) {
   return (
@@ -141,7 +148,9 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
   const decorationRef = useRef<{
     viewed: ReadonlySet<string>;
     folders: ReadonlyMap<string, { total: number; viewed: number }>;
-  }>({ viewed: new Set(), folders: new Map() });
+    /** Matches per file while find is open, which the tree shows instead of the tick */
+    found: ReadonlyMap<string, number>;
+  }>({ viewed: new Set(), folders: new Map(), found: new Map() });
 
   /**
    * Which item in the diff each path belongs to, kept by the patch stream and
@@ -173,10 +182,12 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
     unsafeCSS: TREE_CSS,
     onSelectionChange,
     renderRowDecoration({ item }) {
-      const { viewed: seen, folders } = decorationRef.current;
+      const { viewed: seen, folders, found } = decorationRef.current;
       const pathToItemId = pathToItemIdRef.current;
       if (item.kind === 'file') {
         const id = pathToItemId.get(item.path);
+        const matches = id == null ? undefined : found.get(id);
+        if (matches != null) return { text: String(matches), title: `${matches} matches` };
         if (id == null || !seen.has(id)) return null;
         return { text: '✓', title: 'Viewed' };
       }
@@ -189,7 +200,12 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
   });
   const search = useFileTreeSearch(model);
 
-  const { state, items, visibleRef } = usePatchStream({
+  const {
+    state,
+    items,
+    visibleRef,
+    files: parsedFiles,
+  } = usePatchStream({
     url: patchUrl(pr),
     sha: openedAtSha,
     /**
@@ -208,6 +224,9 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
   });
 
   const navigation = useNavigation(viewerRef, visibleRef);
+  const [expansion] = useState(createExpansionMemory);
+  const find = useFind({ viewerRef, files: parsedFiles, expansion, currentFile: navigation.currentIndex });
+  const findInputRef = useRef<HTMLInputElement>(null);
   const { viewed, toggle, markAll, baseSha } = useViewed(
     `${pr.owner}/${pr.repo}/${pr.number}`,
     openedAtSha,
@@ -237,17 +256,56 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
     return count;
   }, [state.pathToItemId, viewed]);
 
-  decorationRef.current = { viewed, folders };
+  const found = find.open ? find.perFile : NO_MATCHES;
+  decorationRef.current = { viewed, folders, found };
   viewedRef.current = viewed;
 
   // Decorations are worked out as rows render, so redraw when a file is ticked
-  // off rather than waiting for the next scroll
-  const drawnViewed = useRef(viewed);
+  // off or the matches change, rather than waiting for the next scroll
+  const drawn = useRef({ viewed, found });
   useEffect(() => {
-    if (drawnViewed.current === viewed) return;
-    drawnViewed.current = viewed;
+    if (drawn.current.viewed === viewed && drawn.current.found === found) return;
+    drawn.current = { viewed, found };
     model.render({});
   });
+
+  /**
+   * The viewer tells us each time it draws a file. That is when find learns
+   * which gaps were opened, and when the marks have new rows to go on. Held in
+   * a ref so the viewer's options do not change whenever find does
+   */
+  const afterRender = useRef<(instance: unknown) => void>(() => {});
+  useEffect(() => {
+    afterRender.current = (instance) => {
+      if (expansion.record(instance) && find.open) find.refresh();
+      if (find.open) find.repaint();
+    };
+  });
+
+  /**
+   * Cmd+F opens find, or selects what is in its box. Pressed again while the
+   * box has the keyboard, it is left to the browser, so its own find is one
+   * more press away. Text selected in the diff becomes the query.
+   */
+  const openFind = useCallback((): boolean => {
+    const active = document.activeElement;
+    if (find.open && active instanceof HTMLInputElement && active.closest('[data-dh-find]') != null)
+      return false;
+    const selected = document.getSelection()?.toString() ?? '';
+    const seed = selected !== '' && !selected.includes('\n') && selected.length <= 200 ? selected : undefined;
+    find.show(seed);
+    // The bar may only mount on this render, so the box is focused on the next frame
+    requestAnimationFrame(() => {
+      findInputRef.current?.focus();
+      findInputRef.current?.select();
+    });
+    return true;
+  }, [find]);
+
+  const closeFind = useCallback(() => {
+    find.hide();
+    viewerRef.current?.getInstance()?.getContainerElement()?.focus({ preventScroll: true });
+  }, [find]);
 
   /**
    * Ticking a file off moves to the next one still to read and puts the
@@ -280,6 +338,7 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
     [toggle, viewedRef, visibleRef],
   );
 
+  useFocusTrap();
   useShortcuts({
     ...navigation,
     toggleViewed: useCallback(() => {
@@ -288,7 +347,16 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
     }, [markViewed, navigation, visibleRef]),
     focusFilter: useCallback(() => search.open(), [search]),
     toggleHelp: useCallback(() => setHelpOpen((open) => !open), []),
-    close: closeViewer,
+    openFind,
+    findStep: useCallback(
+      (delta: 1 | -1): boolean => {
+        if (!find.open) return false;
+        find.step(delta);
+        return true;
+      },
+      [find],
+    ),
+    close: useCallback(() => (find.open ? closeFind() : closeViewer()), [find.open, closeFind]),
   });
 
   const comments = useThreads(items, pushToast);
@@ -440,8 +508,9 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
         if (item.type !== 'diff') return;
         openDraft(item.fileDiff.name, range.start, range.side === 'deletions' ? 'deletions' : 'additions');
       },
-      unsafeCSS: `${HEADER_CSS}\n${SEPARATOR_CSS}\n${DIFF_TINT_CSS}\n${ANNOTATION_CSS}`,
+      unsafeCSS: `${HEADER_CSS}\n${SEPARATOR_CSS}\n${DIFF_TINT_CSS}\n${ANNOTATION_CSS}\n${FIND_CSS}`,
       loadDiffFiles,
+      onPostRender: (_node: HTMLElement, instance: unknown) => afterRender.current(instance),
     }),
     [
       diffStyle,
@@ -508,6 +577,7 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
         onToggleTheme={toggleTheme}
         onFinishReview={() => setReviewOpen(true)}
         onShowHelp={() => setHelpOpen(true)}
+        onFind={openFind}
         onClose={closeViewer}
       />
 
@@ -554,6 +624,18 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
           renderHeaderPrefix={renderHeaderPrefix}
           renderHeaderMetadata={renderHeaderMetadata}
         />
+        {find.open && (
+          <FindBar
+            find={find}
+            inputRef={findInputRef}
+            onClose={closeFind}
+            onShowHidden={() => {
+              setIncludeInput('');
+              setExcludeInput('');
+              if (ignoreWhitespace) setWhitespace('show');
+            }}
+          />
+        )}
       </div>
 
       {helpOpen && <ShortcutHelp onClose={() => setHelpOpen(false)} />}

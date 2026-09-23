@@ -40,6 +40,13 @@ export interface PatchStream {
   items: readonly CodeViewItem<ReviewThread>[];
   /** The same files for the key handlers, which need the current list without a redraw */
   visibleRef: { current: readonly ParsedFile[] };
+  /** The files on show and every parsed file, as state, for what has to redraw when they change */
+  files: ParsedFiles;
+}
+
+export interface ParsedFiles {
+  visible: readonly ParsedFile[];
+  all: readonly ParsedFile[];
 }
 
 interface Options {
@@ -75,6 +82,7 @@ export function usePatchStream({
   pathToItemIdRef,
 }: Options): PatchStream {
   const [items, setItems] = useState<readonly CodeViewItem<ReviewThread>[]>([]);
+  const [files, setFiles] = useState<ParsedFiles>({ visible: [], all: [] });
   const [state, setState] = useState<PatchStreamState>({
     phase: 'loading',
     stats: EMPTY_STATS,
@@ -106,6 +114,7 @@ export function usePatchStream({
       visibleRef.current = visible;
 
       setItems(visible.map((file) => file.item));
+      setFiles({ visible, all: [...accumulator.files] });
 
       /**
        * The tree renders rows inside the model calls below, and every row looks
@@ -221,7 +230,7 @@ export function usePatchStream({
     publish(true);
   }, [filter, ignoreWhitespace, publish]);
 
-  return { state, items, visibleRef };
+  return { state, items, visibleRef, files };
 }
 
 function yieldToBrowser(): Promise<void> {

@@ -186,7 +186,11 @@ export type FromViewer =
   | { channel: typeof BRIDGE_CHANNEL; type: 'close' }
   | Request;
 
-export type ToViewer = { channel: typeof BRIDGE_CHANNEL; type: 'page-info'; info: PageInfo } | Response;
+export type ToViewer =
+  | { channel: typeof BRIDGE_CHANNEL; type: 'page-info'; info: PageInfo }
+  /** The overlay was shown, so the viewer takes the keyboard */
+  | { channel: typeof BRIDGE_CHANNEL; type: 'focus' }
+  | Response;
 
 export function isToViewer(value: unknown): value is ToViewer {
   return (value as ToViewer | null)?.channel === BRIDGE_CHANNEL;

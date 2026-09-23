@@ -8,6 +8,10 @@ export interface ShortcutHandlers {
   toggleViewed(): void;
   focusFilter(): void;
   toggleHelp(): void;
+  /** Answers false to leave the key to the browser's own find */
+  openFind(): boolean;
+  /** Answers false while find is closed, so the browser's find-next still works */
+  findStep(delta: 1 | -1): boolean;
   close(): void;
 }
 
@@ -36,6 +40,18 @@ export function useShortcuts(handlers: ShortcutHandlers): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // Find's keys are chords, and work from inside a text box too
+      const chord = (event.metaKey || event.ctrlKey) && !event.altKey;
+      const key = event.key.toLowerCase();
+      if (chord && key === 'f' && !event.shiftKey) {
+        if (handlersRef.current.openFind()) event.preventDefault();
+        return;
+      }
+      if ((chord && key === 'g') || event.key === 'F3') {
+        if (handlersRef.current.findStep(event.shiftKey ? -1 : 1)) event.preventDefault();
+        return;
+      }
+
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isTyping(event)) return;
 
