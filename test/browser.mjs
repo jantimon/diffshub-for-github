@@ -61,6 +61,7 @@ export async function launch({
   viewport = { width: 1600, height: 1000 },
   deviceScaleFactor,
   har = false,
+  headed = process.env.DIFFSHUB_HEADED === '1',
 } = {}) {
   if (!fs.existsSync(dist)) {
     console.log(`No build at ${dist}. Run \`pnpm build\` first.`);
@@ -95,8 +96,12 @@ export async function launch({
 
   const context = await chromium.launchPersistentContext(profile, {
     channel: 'chromium',
-    /** Headed by default, so a run can be watched. `DIFFSHUB_HEADLESS=1` for a machine without a screen */
-    headless: process.env.DIFFSHUB_HEADLESS === '1',
+    /**
+     * Without a window by default, so a run does not take over the screen.
+     * This is Chrome's own headless mode, the full browser with extensions,
+     * not a separate shell. `DIFFSHUB_HEADED=1` shows it, to watch a run
+     */
+    headless: !headed,
     viewport,
     deviceScaleFactor,
     args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
@@ -151,9 +156,13 @@ export async function openViewer(page, { pace = 0 } = {}) {
   await page.waitForLoadState('load');
   if (pace > 0) await page.waitForTimeout(pace);
   let frame;
+  const before = page.url();
   for (let attempt = 0; attempt < 3 && frame == null; attempt += 1) {
     await clickMarker(page);
     frame = await until(() => viewerFrame(page), { timeout: 3000 });
+    // A click beside the icon goes to GitHub's own view, and every check after
+    // it would fail against the wrong page. Saying so names the real cause
+    if (page.url() !== before) throw new Error(`the click missed the icon and went to ${page.url()}`);
   }
   await frame
     ?.locator('.dh-overlay[data-dh-phase="ready"], .dh-overlay[data-dh-phase="error"]')
@@ -177,16 +186,18 @@ export async function clickMarker(page) {
       return { x: box.right - padding - 7, y: box.top + box.height / 2 };
     });
   // GitHub lays the tab strip out again for a moment after `load`, which moves
-  // the tab by some 75 px, so the point is taken once it has stopped moving
+  // the tab by some 75 px, so the point is taken once it has held still for
+  // three readings in a row
   let last;
+  let still = 0;
   const point = await until(
     async () => {
       const now = await iconCentre();
-      const still = last != null && now.x === last.x && now.y === last.y;
+      still = last != null && now.x === last.x && now.y === last.y ? still + 1 : 0;
       last = now;
-      return still && now;
+      return still >= 2 && now;
     },
-    { timeout: 5000, every: 150 },
+    { timeout: 5000, every: 200 },
   );
   await page.mouse.click((point ?? last).x, (point ?? last).y);
 }

@@ -2,7 +2,8 @@ import { clickMarker, launch, viewerFrame } from './browser.mjs';
 
 const pr = process.argv[2] ?? 'https://github.com/nodejs/node/pull/59805';
 
-const { context, page } = await launch({ viewport: { width: 1600, height: 1000 } });
+// Headed, since frame times are only real with a screen to draw to
+const { context, page } = await launch({ viewport: { width: 1600, height: 1000 }, headed: true });
 
 // Scrolls for a fixed number of frames and reports how long each one took
 const SCROLL = (selector) => `

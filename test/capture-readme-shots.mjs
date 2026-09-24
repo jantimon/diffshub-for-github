@@ -20,6 +20,8 @@ const { context, page } = await launch({
   viewport: { width: 1680, height: 1050 },
   deviceScaleFactor: 2,
   har: true,
+  /** Headed, so the README shows what a reader's screen shows */
+  headed: true,
 });
 
 const shoot = async (name, options) => {

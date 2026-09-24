@@ -196,7 +196,10 @@ open `about:debugging`, choose "This Firefox", and load
 
 The suites drive a real browser with the real extension loaded. `pnpm test`
 replays a recording of github.com, so it runs offline; the others go live.
-Build first, and record once with `pnpm test:record`.
+Build first, and record once with `pnpm test:record`. They run without a
+window, in Chrome's own headless mode, so they do not take over the screen;
+`DIFFSHUB_HEADED=1` shows the browser to watch a run. Signing in, the frame
+timings and the README screenshots always open a window.
 
 ```sh
 pnpm build && pnpm test   # the viewer, replayed from a recording: offline, no GitHub
