@@ -68,7 +68,7 @@ Two other behaviours read in the same file:
 
 ### The headers we send
 
-**measured.** Every call our extension makes carries:
+**measured.** Every `page_data` call our extension makes carries:
 
 ```
 accept: application/json
@@ -83,7 +83,9 @@ content-type: application/json
 github-verified-fetch: true
 ```
 
-No `authenticity_token`. No `X-Fetch-Nonce`. Every route we use answers without them.
+No `authenticity_token`. No `X-Fetch-Nonce`. Every route we use answers without
+them, except the markdown preview, which posts a form with the page's
+`authenticity_token` (`src/page/previewMarkdown.ts`).
 
 ### The rest of the base headers
 
@@ -158,8 +160,8 @@ impossible to guess.
 
 ## Verified against the live API
 
-Five claims below were confirmed by an actual request, not by reading source. They are the only
-ones in this document with that status.
+Claims marked **measured** were confirmed by an actual request, not by reading
+source.
 
 ### `resolve_thread` takes `threadId`, not `thread_id`
 
@@ -214,8 +216,8 @@ diff's merge base. Use it as the `base` half of a `range` param; do not resolve 
 
 ### The headers
 
-Listed above under [The headers we send](#the-headers-we-send). Every route we use works with that
-set and nothing more.
+Listed above under [The headers we send](#the-headers-we-send). Every
+`page_data` route we use works with that set and nothing more.
 
 ---
 
@@ -873,9 +875,6 @@ repeated `feedback_choice[]`, optional `text_response`.
 /:owner/:repo/pull/:n/walkthrough
 /:owner/:repo/pull/:n/file_metadata/:baseSha/:headSha
 ```
-
-`/files` became `/changes`. That one rename broke another extension for eight months; see
-[Stability and risk](#stability-and-risk).
 
 Page payload routes (GET, JSON):
 

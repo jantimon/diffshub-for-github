@@ -1,5 +1,5 @@
 /**
- * Clears whatever would stop `wxt -b firefox` from launching.
+ * Clears whatever would stop `web-ext run` from launching.
  *
  * Firefox refuses to start a second time on a profile that another process
  * already holds, and says so in a dialog. No debugger port opens, so web-ext

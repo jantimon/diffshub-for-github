@@ -1,6 +1,6 @@
 # Firefox
 
-What differs from Chrome, and the traps. Each item cost real time to find.
+What differs from Chrome, and the traps.
 
 ## Runtime
 
@@ -13,14 +13,14 @@ only, streamed in chunks so rendering stays progressive.
 
 **Do not remove that proxy because a test says it is unneeded.** A profile with
 `network.cookie.cookieBehavior` at 4 has the feature off. Firefox defaults to 5.
-Playwright's own profile ships 4, which once made the proxy look pointless and
-it was deleted. `test/firefox.mjs` now pins the real default.
+Playwright's own profile ships 4, which makes the proxy look pointless.
+`test/firefox.mjs` pins the real default.
 
 **Background is an event page**, `scripts: [background.js]`, not a service
 worker. AMO needs the add-on id and `data_collection_permissions` in
 `wxt.config.ts`.
 
-**Host access can be revoked after install.** `src/entrypoints/background.ts`
+**Host access can be revoked after install.** `src/background/hostAccess.ts`
 watches `browser.permissions` and marks the toolbar button when it goes.
 
 ## Development
@@ -32,12 +32,12 @@ Console names the real cause:
 
 ```
 Content-Security-Policy: The page's settings blocked a script (script-src-elem)
-at http://localhost:3198/src/entrypoints/viewer/main.tsx from being executed
+at http://localhost:3197/src/entrypoints/viewer/main.tsx from being executed
 because it violates the following directive: "script-src 'self'"
 ```
 
 The dev manifest asks for `script-src 'self' 'wasm-unsafe-eval'
-http://localhost:3198`. Firefox discards that and applies the default, because
+http://localhost:3197`. Firefox discards that and applies the default, because
 a remote source is not allowed there. Chrome grants the same request. MV2 does
 not help: its dev manifest carries the localhost origin too and Firefox refuses
 it the same way. Nothing in the config changes this.
@@ -54,12 +54,12 @@ with, so the change appears only on the next page load. The terminal saying
 `Last extension reload` means the new build is installed, not that you are
 looking at it.
 
-**The watch is pinned to `.output/.reload-stamp`**, a file the build touches
-once it has finished, rather than to anything inside the output. Watching the
-output directory reloads mid-build, since web-ext debounces for a hard-coded
-500ms and a build takes about twice that. Watching a file inside it breaks
-after one rebuild, since `wxt build` recreates the directory and leaves the
-watch on a dead inode.
+**The watch is pinned to `.output/.reload-stamp`**, a file the `dev:firefox`
+script touches after each build, rather than to anything inside the output.
+Watching the output directory reloads mid-build, since web-ext debounces for a
+hard-coded 500ms and a build takes about twice that. Watching a file inside it
+breaks after one rebuild, since `wxt build` recreates the directory and leaves
+the watch on a dead inode.
 
 **web-ext is driven by its own config**, `web-ext-config.mjs`, not by WXT.
 
@@ -70,14 +70,14 @@ debugger port, so the run dies on ECONNREFUSED.
 **`--new-instance --no-remote` are required.** An everyday Firefox is usually
 running and would otherwise swallow the launch.
 
-**Closing the browser kills `pnpm dev:firefox`.** web-ext ends the run when it
-loses the debugger connection, with ECONNREFUSED and exit 1. Expected, not a
-bug.
+**Closing the browser ends the script.** `web-ext run` exits, and
+`concurrently -k` stops the rebuild watcher with it. Without `-k` the watcher
+keeps running and rebuilds on every change for a browser that is gone.
 
-**Killing the dev server does not close the browser.** `pkill` on the wxt
-process leaves Firefox running. Starting again then hits Firefox's own "already
-running" dialog, no debugger port opens, and web-ext dies on ECONNREFUSED, which
-reads as a network fault rather than a browser that is already open.
+**Stopping the script does not close the browser.** Firefox keeps running.
+Starting again then hits Firefox's own "already running" dialog, no debugger
+port opens, and web-ext dies on ECONNREFUSED, which reads as a network fault
+rather than a browser that is already open.
 
 `pnpm dev:firefox` runs `scripts/free-firefox.mjs` first, which stops whatever
 still holds this repository's dev profile and clears a stale lock. It matches on
@@ -90,7 +90,8 @@ proves nothing: the patch comes from `patch-diff.githubusercontent.com`, which
 refuses on its own while github.com still answers 200. An empty viewer with a
 503 toast is that, not a broken build.
 
-`pnpm test:firefox` needs `DIFFSHUB_FIREFOX_PROFILE` pointing at a profile
+`pnpm test:firefox` runs `.output/firefox-mv3` from `pnpm build:firefox` and
+needs `DIFFSHUB_FIREFOX_PROFILE` pointing at a profile
 signed in to github.com. Playwright cannot load an extension into Firefox, so
 the suite drives web-ext's own RDP client
 (`node_modules/web-ext/lib/firefox/remote.js`) to install a temporary add-on.

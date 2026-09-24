@@ -11,14 +11,16 @@ The code runs in **two places with different powers**, and the tree says so:
   write goes here.
 - `src/viewer/` runs on the extension's own origin. It gets module workers and
   code splitting; GitHub treats it as a stranger and refuses its writes.
-- `src/shared/bridge.ts` is the contract between them. One table: add a
-  request there and a handler in `src/entrypoints/content.ts`, and nothing
-  else. Every GitHub URL the page calls is in `src/page/routes.ts`.
-- `src/background/` is the service worker. It serves the viewer only, and
-  checks the sender before it fetches or caches anything.
-- `src/patch/` is pure: a `.diff` becomes files, hunks and filters. It imports
-  no browser API and uses relative `.ts` paths, never `@/`, so Node's test
-  runner loads it as is.
+- `src/shared/bridge.ts` is the contract between them. A new request is an entry
+  in its `Requests` table and in `failedReply` beside it, a handler in
+  `src/entrypoints/content.ts`, and the function in `src/page/` that does the
+  work. The compiler flags any of the first three that is missing. Every GitHub
+  URL the page builds is in `src/page/routes.ts`.
+- `src/background/` is the background script: the toolbar button, and fetches
+  and the cache for the viewer, after checking the sender.
+- `src/patch/` is pure: a `.diff` becomes files, hunks and filters, and is
+  packed small for the cache (`pack.ts`). It imports no browser API and uses
+  relative `.ts` paths, never `@/`, so Node's test runner loads it as is.
 
 No token, ever. Everything goes to github.com on the reader's own session
 cookie.
@@ -31,15 +33,16 @@ pnpm test:live            # the same against real github.com, run it less often
 pnpm test:review          # comments, replies, verdicts: writes to a throwaway PR
 pnpm test:units           # offline, fast, no browser
 pnpm lint                 # oxlint
-pnpm format               # oxfmt, Prettier's options at Prettier's defaults
+pnpm format               # oxfmt, Prettier's options (see .oxfmtrc.json)
 pnpm compile              # tsc --noEmit
 ```
 
-CI (`.github/workflows/check.yml`) runs lint, format, types, the unit tests
-and both builds. The browser suites stay local: their recordings do not leave
-the machine that made them.
+CI (`.github/workflows/check.yml`) runs lint, format, types, the unit tests,
+both builds and `web-ext lint`. The browser suites stay local: their recordings
+do not leave the machine that made them.
 
-Anything that writes to GitHub runs only against `jantimon/diffshub-for-github`.
+`pnpm test:review` writes to `jantimon/diffshub-for-github#1` unless given
+another pull request.
 
 ## How the tests work
 
@@ -47,15 +50,17 @@ Anything that writes to GitHub runs only against `jantimon/diffshub-for-github`.
 > confidence they can give you.
 
 So the suites drive a real browser, with the real extension loaded, against
-real github.com: click the tab a reader clicks, press the keys they press,
-write a comment and check GitHub kept it. There is no mocked GitHub, no
-shallow rendering, and nothing calls an internal function to prove a feature
-works.
+github.com's own answers: click the tab a reader clicks, press the keys they
+press, write a comment and check GitHub kept it. There is no hand-written fake
+of GitHub, no shallow rendering, and nothing calls an internal function to
+prove a feature works. The answers are replayed from a recording by default
+(below), and one check turns the first patch request into a 503 to prove the
+retry.
 
 The suite runs against a pull request of forty files across two languages,
-chosen because the viewer recycles rows at that size. Ten files all stayed
-rendered, so the checks never met the recycling that several real bugs lived
-in. Switching to forty broke a check on the first run, which is the point.
+chosen because the viewer recycles rows at that size. Ten files all stay
+rendered, so the checks would never meet the row recycling where the bugs
+that matter live.
 
 A few things are unit tested instead, because a browser adds nothing to them
 or cannot reach them: splitting a streamed patch into files, the file filters,
@@ -66,7 +71,7 @@ a large patch survives the cache's packing. They are in `test/unit/`, on Node's
 own test runner, and `src/patch/` imports nothing that needs a browser, so all
 of it loads there.
 
-Four places knowingly reach past the interface. Each is a limit, not a
+Some places knowingly reach past the interface. Each is a limit, not a
 preference, and none should be copied without the same reason:
 
 - **Asserting a write reached GitHub.** `review.mjs` watches for the response,
@@ -80,16 +85,13 @@ preference, and none should be copied without the same reason:
   what a reader sees when they press `j`.
 
 `pnpm test` replays recorded traffic. That is a step away from the real thing,
-and it is the default for a reason worth knowing: a day of automated runs, with
-agents pulling GitHub's bundles alongside them, earned the account a 503 on
-every request. The suite could not tell that from a bug. Fifteen checks failed
-with an empty diff, and the first guess was a change that had nothing to do
-with it. The patch comes from a host of its own,
-`patch-diff.githubusercontent.com`, which refuses while github.com keeps
-answering 200, so asking for the page says nothing about whether the suite can
-run.
-
-Replaying also keeps the traffic down, which is what stops it happening again.
+and it is the default because GitHub throttles a session that asks too often:
+a day of automated runs is enough to get a 503 on every request, and the suite
+cannot tell that from a bug, since both look like an empty diff. The patch
+comes from a host of its own, `patch-diff.githubusercontent.com`, which refuses
+while github.com keeps answering 200, so asking for the page says nothing about
+whether the suite can run. Replaying keeps the traffic low enough that the
+throttling does not start.
 
 Going live has to be spelled out, so a script written in a hurry cannot reach
 github.com by forgetting a variable. `pnpm test:live` is the same checks
@@ -107,9 +109,9 @@ Measure before you claim. Several things here look wrong and are load-bearing;
 each carries its reason in a comment. Do not remove one to satisfy a linter.
 
 Styles sit next to the feature they dress, as a `.css` file in its folder, and
-`src/entrypoints/viewer/style.css` imports them in cascade order. Styles for
-the diff library's shadow DOM are strings in `src/viewer/diff/styles/`, because
-the library takes them that way.
+`src/entrypoints/viewer/style.css` imports them in cascade order. Styles for the
+libraries' shadow DOM are strings, in `src/viewer/diff/styles/` and
+`src/viewer/tree/treeStyles.ts`, because the libraries take them that way.
 
 ## Firefox
 
@@ -119,9 +121,14 @@ including the dev server.
 
 ## Other docs
 
-- [docs/caching.md](docs/caching.md) what is kept and where, why a stale diff
-  cannot be served, and the measured ceilings. **Read it before changing
-  anything that fetches**
+- [docs/lifecycle.md](docs/lifecycle.md) the order things happen in, from the
+  click on "Files changed" to the first file, and what closing does. **Start
+  here before reading `src/viewer/Overlay.tsx`**
+- [docs/caching.md](docs/caching.md) what is kept and where, what a push does to
+  it, and the measured ceilings. **Read it before changing anything that
+  fetches**
+- [research/github-internal-api/README.md](research/github-internal-api/README.md)
+  what each route in `src/page/routes.ts` takes and answers
 - [docs/todo.md](docs/todo.md) open items, each with enough detail to pick up cold
 - [docs/capabilities.md](docs/capabilities.md) what it takes to replace GitHub's
   review page, and where each piece stands

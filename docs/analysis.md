@@ -85,5 +85,7 @@ This is the thing our extension removes.
 6. `CodeView` virtualizes: it renders only what is near the viewport.
 
 That pipeline — stream, batch, yield, virtualize, highlight off the main thread
-— is why it stays smooth where GitHub does not. We get all of it from the
-published `@pierre/diffs` package; none of it is tied to diffshub's server.
+— is why it stays smooth where GitHub does not. Virtualising and the worker
+highlighting come from the published `@pierre/diffs` package; streaming and
+batching are diffshub's own app code, rebuilt here in `src/patch/` and
+`src/viewer/state/usePatchLoader.ts`. None of it is tied to diffshub's server.

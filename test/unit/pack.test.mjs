@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { pack, unpack } from '../../src/viewer/net/pack.ts';
+import { pack, unpack } from '../../src/patch/pack.ts';
 
 // Well past the size where one `String.fromCharCode` spread would throw, which
 // the browser suite's pull request never reaches

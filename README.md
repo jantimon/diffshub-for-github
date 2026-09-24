@@ -23,7 +23,7 @@ For Chrome and Firefox 147 or later.
 
 The extension marks the "Files changed" tab with its icon and takes over the
 click, so GitHub never renders its own diff. Most of the speed comes from not
-rendering it.
+rendering it. The toolbar button opens it too.
 
 ![The marked Files changed tab](docs/images/files-changed-tab.png)
 
@@ -55,7 +55,7 @@ measured in September 2026:
 | This viewer | 8.3 ms (120 fps) | 10.3 ms | 20 ms | 0 / 180 |
 | GitHub's Files changed | 12.3 ms (81 fps) | 98.6 ms | 157 ms | 59 / 180 |
 
-`pnpm test:fps` measures both and prints the table. GitHub's own numbers move
+`pnpm test:fps` measures both. GitHub's own numbers move
 from run to run: of three runs, its frames over 50 ms ranged from 51 to 61.
 
 The first file is readable long before the download ends, and only the lines
@@ -98,27 +98,25 @@ box for the browser's own find.
 
 **Your theme.** The viewer opens in GitHub's theme, including the dimmed,
 high-contrast and colourblind variants, and a toolbar button switches light and
-dark on the spot. Light uses VS Code's own default, which keeps every token
-above the contrast WCAG asks for.
+dark on the spot. Light uses VS Code's own default, whose tokens meet the
+contrast WCAG asks for, bar one.
 
 ![The viewer on the same pull request, light](docs/images/overlay-light.png)
 
 **A whole review, without leaving.** Every conversation on the pull request is
 shown at the line it was written against, including the outdated ones GitHub's
-own page drops. Select lines to comment, reply to a thread, resolve or reopen
-it, edit or delete your own comments, and finish with a verdict: approve,
-request changes, or comment. Approving can also tick the files you have not
-read. The comment box is GitHub's own formatting toolbar and markdown preview,
-so what you see is what gets posted. A toolbar button hides the conversations
-when you only want to read.
+own page drops. Comment on a line, reply to a thread, resolve or reopen it, edit
+or delete your own comments, and finish with a verdict: approve, request
+changes, or comment. Approving can also tick off the files still on show. The
+comment box is GitHub's own formatting toolbar and markdown preview, so what you
+see is what gets posted. A toolbar button hides the conversations when you only
+want to read.
 
-**Reading a pull request twice is free.** The viewer keeps the diff in memory
-until the browser closes, so a reload, or a trip to another page and back,
-downloads nothing. A new push means a new diff, so what you see is never behind
-the page you are on. The diff is never written to disk. What the viewer does
-keep, in the extension's own storage, is your preferences: the filter patterns,
-the layout, and which files you ticked as viewed. See
-[`docs/caching.md`](docs/caching.md).
+**Reading a pull request twice is cheap.** The viewer keeps the patch in
+memory until the browser closes, keyed on the commit, so a reload or a trip to
+another page and back does not download it again; a push does. The patch is
+never written to disk. Your preferences stay in the viewer's own localStorage.
+See [`docs/caching.md`](docs/caching.md).
 
 **The rest.** Split and unified layouts. Collapsed lines expand in place. Copy
 path, open the file, and blame, per file. Hiding files that changed only in
@@ -142,8 +140,10 @@ viewer did not expect, naming what broke, while the diff keeps rendering.
 
 - [`docs/capabilities.md`](docs/capabilities.md) everything it takes to replace
   GitHub's review page, and where each piece stands. Every must-have is built
-- [`docs/caching.md`](docs/caching.md) what is kept and where, why a stale diff
-  cannot be served, and the measured limits
+- [`docs/lifecycle.md`](docs/lifecycle.md) what happens, in order, from the
+  click to the first file, and what closing does
+- [`docs/caching.md`](docs/caching.md) what is kept and where, what a push does
+  to it, and the measured limits
 - [`docs/firefox.md`](docs/firefox.md) what Firefox does differently, and the
   traps
 - [`research/github-internal-api/`](research/github-internal-api/) the
@@ -194,8 +194,9 @@ open `about:debugging`, choose "This Firefox", and load
 
 ### Testing
 
-The suites drive a real browser with the real extension loaded, and by default
-replay a recording of github.com, so they run offline. Build first.
+The suites drive a real browser with the real extension loaded. `pnpm test`
+replays a recording of github.com, so it runs offline; the others go live.
+Build first, and record once with `pnpm test:record`.
 
 ```sh
 pnpm build && pnpm test   # the viewer, replayed from a recording: offline, no GitHub
@@ -208,7 +209,7 @@ pnpm test:units           # offline, no browser
 pnpm test:fps             # frame times, against GitHub's own view
 pnpm capture:readme       # the screenshots above, into docs/images
 pnpm lint                 # oxlint, with every no-comment-slop rule on
-pnpm format               # oxfmt, at Prettier's own defaults
+pnpm format               # oxfmt, Prettier's options (see .oxfmtrc.json)
 ```
 
 The recording is made signed out, against a public pull request, with the
@@ -217,10 +218,12 @@ GitHub changing under it. `pnpm test:review` posts comments and submits
 reviews, so it runs against a pull request kept for the purpose; pass another
 as an argument for a different one.
 
-The browser tests keep a profile in `test/.profile`, gitignored, and
-`pnpm test:login` opens a browser on it so you can sign in once; after that
-private repositories are testable too. `DIFFSHUB_PROFILE` and
-`DIFFSHUB_FIREFOX_PROFILE` point at other profiles. None of this runs in CI.
+The browser tests keep a profile in `test/.profile`, gitignored, and `pnpm
+test:login` opens a browser on it so you can sign in once; after that private
+repositories are testable too. `DIFFSHUB_PROFILE` points at another profile.
+`pnpm test:firefox` needs `pnpm build:firefox` and `DIFFSHUB_FIREFOX_PROFILE`, a
+Firefox profile signed in by hand ([docs/firefox.md](docs/firefox.md)). None of
+this runs in CI.
 
 ### Layout
 
@@ -230,7 +233,7 @@ part is allowed to do. `AGENTS.md` has the reasoning.
 ```
 src/shared/                   what both sides share: the messages between
                               them, which pull request, which URLs to trust
-src/background/               the service worker: fetches for Firefox and the
+src/background/               the background script: fetches for Firefox and the
                               in-memory cache, for the viewer only
 src/page/                     runs on github.com, as you: every write, and
                               everything read out of GitHub's own markup
@@ -244,7 +247,8 @@ src/viewer/                   runs on the extension's own origin
   review/                     the verdict, and which files are read
   find/                       find in the diff, and its marks
   shell/                      the frame: toolbar, toasts, dialogs, shortcuts
-src/patch/                    a .diff becomes files, hunks and filters
+src/patch/                    a .diff becomes files, hunks and filters,
+                              and is packed for the cache
 src/entrypoints/              WXT's entry points, kept thin
 public/                       files copied as-is
 scripts/                      one-off helpers for development

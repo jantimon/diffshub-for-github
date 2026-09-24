@@ -10,7 +10,7 @@ export const POOL_OPTIONS: WorkerPoolOptions = {
      *
      * `worker.js` is shipped unbundled: it imports `shiki/core`, `diff`,
      * `@pierre/theming` and four more by bare name. A module worker resolves no
-     * bare specifier and there is no import map, so it failed on its first line
+     * bare specifier and there is no import map, so it fails on its first line
      * in every browser and every build.
      *
      * Silently, too: highlighting falls back to the main thread, which is the

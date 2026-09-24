@@ -143,7 +143,9 @@ export function useTreeModel({
 
   /**
    * Space on a file in the tree marks it viewed, or not, and leaves the
-   * keyboard on it, so a second Space takes the mark back off.
+   * keyboard on it, so a second Space takes the mark back off. The eye in a
+   * file's header and `v` do more: they move on to the next unread file
+   * (`useToggleViewedAndAdvance`).
    *
    * The rows are buttons, so without this Space would press one, which opens
    * the file in the diff. Enter and a click still do that, and Space on a

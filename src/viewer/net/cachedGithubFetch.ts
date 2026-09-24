@@ -13,7 +13,7 @@
  */
 
 import { githubFetch } from '@/viewer/net/githubFetch';
-import { pack, unpack } from '@/viewer/net/pack';
+import { pack, unpack } from '@/patch/pack';
 import { debugLog } from '@/viewer/debug';
 import { MAX_RAW_BYTES, readCached, writeCached } from '@/viewer/net/responseCache';
 
@@ -139,19 +139,19 @@ function pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
  *
  * A pass-through and not a split. A split stream pulls its source whenever
  * either half pulls, so the half being kept -- which reads as fast as it can --
- * took the network at full speed while the parser worked to its own budget.
- * Everything the parser had not reached piled up in memory.
+ * would take the network at full speed while the parser worked to its own
+ * budget, and everything the parser had not reached would pile up in memory.
  *
  * Here the parser is the only thing pulling, which is the backpressure a plain
  * `fetch` has.
  *
- * It also decides what "finished" means, and decides it better.
+ * It also decides what "finished" means.
  *
  * `flush` runs only when the source ends of its own accord. A body that stops
  * short errors the stream, a reader giving up cancels it, and neither runs
  * `flush` -- so neither can leave half a patch to be served as the whole. That
- * is the signal the parser trusts to call the diff complete, so the two can no
- * longer disagree.
+ * is the same signal the parser trusts to call the diff complete, so the two
+ * cannot disagree.
  */
 function capture(
   sha: string,

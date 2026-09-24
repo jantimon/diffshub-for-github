@@ -11,6 +11,13 @@ import type { Expansion } from '@/patch/findInPatch';
  * against the file, since instances outlive the rows they draw. If the shape is
  * ever not there, opened gaps drop out of find and the patch is still searched.
  * `docs/upstream.md#expanded-regions` asks for a public way in.
+ *
+ * Keyed by the `FileDiffMetadata` object itself, the one the session holds.
+ * That works because the viewer loads a whole file into that same object
+ * (`hydratePartialDiff` in `"merge"` mode sets `isPartial` to false and fills
+ * `additionLines` in place) rather than into a copy. `findInPatch.ts` reads
+ * the full lines from it for the same reason. If the viewer ever loads into a
+ * copy, the keys stop matching and opened gaps drop out of find.
  */
 export interface ExpansionMemory {
   /** Answers whether anything find depends on changed */

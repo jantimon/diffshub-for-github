@@ -5,7 +5,7 @@ export interface ShortcutHandlers {
   previousFile(): void;
   nextHunk(): void;
   previousHunk(): void;
-  toggleViewed(): void;
+  toggleViewedAndAdvance(): void;
   focusFilter(): void;
   toggleHelp(): void;
   /** Answers false to leave the key to the browser's own find */
@@ -79,7 +79,7 @@ export function useShortcuts(handlers: ShortcutHandlers): void {
           current.previousHunk();
           break;
         case 'v':
-          current.toggleViewed();
+          current.toggleViewedAndAdvance();
           break;
         case '/':
           event.preventDefault();

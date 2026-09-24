@@ -75,7 +75,7 @@ Worth building once the rest holds.
 35. **Remember where you were** in a pull request between visits.
 36. **Image comparison modes** beyond side by side — swipe, onion skin.
 37. **Jump to a definition** from a changed line.
-38. **Who opened it.** The author's avatar in the header, with their details on
+38. **Who opened it.** The author's avatar in the header, with their name on
     hover, so a reviewer knows whose work this is without leaving the overlay.
 
 ## Where each one stands
@@ -113,7 +113,7 @@ Worth building once the rest holds.
 | 20 | Diff statistics | ✅ | With the split between additions and deletions |
 | 21 | Follow GitHub's theme, with an override | ✅ | Light and dark, no automatic third state |
 | 22 | Per-file actions | ✅ | Copy path, open the file, blame |
-| 23 | Compare binary files and images | ✅ | Both sides, against the commit the diff starts at. Shows the new file alone, and says so, when GitHub does not report that commit |
+| 23 | Compare binary files and images | ✅ | Images, both sides, against the commit the diff starts at. Shows the new file alone, and says so, when GitHub does not report that commit |
 | 24 | Render and apply suggested changes | 🟡 | Shown as GitHub renders them. Applying one still happens on GitHub |
 | 25 | A pending review | ❌ | A comment is posted as it is written rather than held back until the review is submitted |
 | 26 | Keyboard parity with GitHub | 🟡 | Navigation and viewed keys work; nothing for commenting or submitting |

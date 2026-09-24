@@ -80,18 +80,18 @@ export async function launch({
     process.exit(1);
   }
 
-  // A recorded run must not carry a signed-in session into the recording, so it
-  // gets a profile of its own that is thrown away afterwards
-  const recording = har && MODE !== 'live';
-  const profile = recording
+  // Replaying or recording, the run serves or writes the HAR. A recording must
+  // not carry a signed-in session into it, so both get a profile of their own
+  // that is thrown away afterwards
+  const usesHar = har && MODE !== 'live';
+  const profile = usesHar
     ? fs.mkdtempSync(path.join(os.tmpdir(), 'diffshub-har-'))
     : (process.env.DIFFSHUB_PROFILE ?? path.resolve(root, '.profile'));
 
   // Chrome keeps each service worker's script in the profile, and can start
   // that copy of an unpacked extension's background instead of the new build,
   // so a kept profile would test an old background. The copy goes first
-  if (!recording)
-    fs.rmSync(path.join(profile, 'Default', 'Service Worker'), { recursive: true, force: true });
+  if (!usesHar) fs.rmSync(path.join(profile, 'Default', 'Service Worker'), { recursive: true, force: true });
 
   const context = await chromium.launchPersistentContext(profile, {
     channel: 'chromium',
@@ -102,7 +102,7 @@ export async function launch({
     args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
   });
 
-  if (recording) {
+  if (usesHar) {
     fs.mkdirSync(path.dirname(harFile), { recursive: true });
     const target = MODE === 'record' ? partialFile : harFile;
     await context.routeFromHAR(target, {
@@ -146,8 +146,8 @@ export async function openViewer(page, { pace = 0 } = {}) {
   const tab = page.locator('[data-diffshub-marked]').first();
   await tab.waitFor({ timeout: 30_000 });
   // The page's load comes first, and a click that opened nothing is made
-  // again, so one lost click does not fail a run. `docs/todo.md` has what is
-  // known about when a click was lost
+  // again, so one lost click does not fail a run. `docs/todo.md` asks for the
+  // retry to say so
   await page.waitForLoadState('load');
   if (pace > 0) await page.waitForTimeout(pace);
   let frame;

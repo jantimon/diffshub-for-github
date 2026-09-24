@@ -92,8 +92,8 @@ own list, which drops any sheet added from outside.
 Today: `src/viewer/tree/useInViewMarks.ts` checks for its sheet on every update
 and adds it back.
 
-Ask: an `unsafeCSS` option as `@pierre/diffs` has, or append to the list
-rather than replace it.
+Ask: append to the list rather than replace it, or a way to change the
+`unsafeCSS` sheet at runtime.
 
 ### Mark rows without redrawing them {#row-state}
 

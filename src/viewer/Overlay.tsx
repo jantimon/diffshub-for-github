@@ -25,7 +25,7 @@ import { useFind } from '@/viewer/find/useFind';
 import { createFileLoader } from '@/viewer/net/fileLoader';
 import { copyPath, type FileRefs } from '@/viewer/net/fileLinks';
 import { ReviewDialog } from '@/viewer/review/ReviewDialog';
-import { useMarkViewed } from '@/viewer/review/useMarkViewed';
+import { useToggleViewedAndAdvance } from '@/viewer/review/useToggleViewedAndAdvance';
 import { storedViewed, useViewed } from '@/viewer/review/useViewed';
 import { ShortcutHelp } from '@/viewer/shell/ShortcutHelp';
 import { ToastStack, useToasts } from '@/viewer/shell/Toast';
@@ -54,6 +54,9 @@ export function Overlay({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?:
  * The viewer: the toolbar, the file tree, the diff and the dialogs, put
  * together. Each feature lives in a hook or a component of its own, and this
  * only connects them. What they share is the session (`state/session.ts`).
+ *
+ * `docs/lifecycle.md` draws the order things happen in from the click on
+ * "Files changed" to the first file, and what closing does.
  */
 function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string }) {
   const page = usePageInfo();
@@ -97,7 +100,7 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
   const [expansion] = useState(createExpansionMemory);
   const find = useFind({ viewerRef, session, expansion, currentFile: navigation.currentIndex });
   const findInputRef = useRef<HTMLInputElement>(null);
-  const markViewed = useMarkViewed({ session, viewerRef, toggle });
+  const toggleViewedAndAdvance = useToggleViewedAndAdvance({ session, viewerRef, toggle });
 
   const [helpOpen, setHelpOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -130,10 +133,10 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
   useFocusTrap();
   useShortcuts({
     ...navigation,
-    toggleViewed: useCallback(() => {
+    toggleViewedAndAdvance: useCallback(() => {
       const file = session.get().visible[navigation.currentIndex()];
-      if (file != null) markViewed(file.path);
-    }, [markViewed, navigation, session]),
+      if (file != null) toggleViewedAndAdvance(file.path);
+    }, [toggleViewedAndAdvance, navigation, session]),
     focusFilter: useCallback(() => search.open(), [search]),
     toggleHelp: useCallback(() => setHelpOpen((open) => !open), []),
     openFind,
@@ -220,9 +223,9 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
   );
   const renderHeaderPrefix = useCallback(
     (item: CodeViewItem<ReviewThread>) => (
-      <ViewedButton session={session} item={item} onToggle={markViewed} />
+      <ViewedButton session={session} item={item} onToggle={toggleViewedAndAdvance} />
     ),
-    [markViewed, session],
+    [toggleViewedAndAdvance, session],
   );
   const renderHeaderMetadata = useCallback(
     (item: CodeViewItem<ReviewThread>) => (

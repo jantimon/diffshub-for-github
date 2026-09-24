@@ -59,21 +59,23 @@ export function useViewed(
   }, [session, key, headSha]);
 
   /**
-   * Counts the reader's own changes, and the writes GitHub has not answered
-   * yet. What GitHub answers replaces the ticks here, unless a tick was made
-   * while it was on its way or is still being sent: that tick is newer than
-   * the answer, and would be thrown away
+   * `localEdits` counts every tick made here, `writesInFlight` the ticks
+   * GitHub has not answered yet. What GitHub answers replaces the ticks here,
+   * unless a tick was made while the read was on its way or is still being
+   * sent: that tick is newer than the answer, and would be thrown away.
+   *
+   * A read skipped this way is not retried. The next comes on the reader's return
    */
-  const changes = useRef(0);
-  const sending = useRef(0);
+  const localEdits = useRef(0);
+  const writesInFlight = useRef(0);
   useEffect(() => {
     let lastRead = 0;
     const read = async (): Promise<void> => {
       lastRead = Date.now();
-      const before = changes.current;
+      const before = localEdits.current;
       const { paths, baseSha, error } = await ask('viewed');
       if (baseSha != null) session.set({ baseSha });
-      if (error != null || changes.current !== before || sending.current > 0) return;
+      if (error != null || localEdits.current !== before || writesInFlight.current > 0) return;
       if (!sameSet(session.get().viewed, paths)) session.set({ viewed: new Set(paths) });
     };
     void read();
@@ -93,7 +95,7 @@ export function useViewed(
 
   const apply = useCallback(
     (path: string, next: boolean) => {
-      changes.current += 1;
+      localEdits.current += 1;
       session.set(({ viewed }) => {
         const updated = new Set(viewed);
         if (next) updated.add(path);
@@ -105,11 +107,11 @@ export function useViewed(
   );
 
   const send = useCallback(async (path: string, viewed: boolean) => {
-    sending.current += 1;
+    writesInFlight.current += 1;
     try {
       return await ask('file-review', { path, viewed });
     } finally {
-      sending.current -= 1;
+      writesInFlight.current -= 1;
     }
   }, []);
 

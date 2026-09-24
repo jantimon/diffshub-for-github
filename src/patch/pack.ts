@@ -52,7 +52,7 @@ export async function pack(chunks: readonly Uint8Array[]): Promise<string | unde
 /**
  * Base64, then gunzip, arriving as a stream the parser pulls on.
  *
- * Returns nothing rather than throwing when what was stored cannot be read, so
+ * Returns nothing rather than throwing when what was stored cannot be decoded, so
  * an unreadable entry costs a download the way a missing one does.
  */
 export function unpack(packed: string): ReadableStream<Uint8Array> | undefined {

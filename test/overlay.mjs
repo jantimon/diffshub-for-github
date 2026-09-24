@@ -20,10 +20,10 @@ import {
  * A pull request big enough that the viewer recycles rows as you scroll, and
  * small enough to record.
  *
- * Ten files stayed rendered all at once, so the checks never met the recycling
- * that several real bugs lived in: which file `j` thinks you are on, which
- * folder counts as read, and an annotation surviving its row being reused.
- * Forty files across two languages do meet it.
+ * Ten files stay rendered all at once, so the checks would never meet the
+ * recycling that matters: which file `j` thinks you are on, which folder
+ * counts as read, and an annotation surviving its row being reused. Forty
+ * files across two languages do meet it.
  */
 const url = process.argv[2] ?? 'https://github.com/microsoft/TypeScript/pull/64204';
 
@@ -288,7 +288,7 @@ await check('shortcut help', async () => {
   await page.keyboard.press('Shift+Slash');
   const open = (await until(() => shows('.dh-help'), { timeout: 3000 })) === true;
   const groups = await frame.locator('.dh-help-group h3').count();
-  // Long key combinations used to run into their description
+  // A long key combination must not run into its description
   const overlapping = await frame.evaluate(
     () =>
       [...document.querySelectorAll('.dh-help-row')].filter(
@@ -711,8 +711,9 @@ await shoot('sidebar-hidden');
  * Last, because it reloads the page and every frame handle above it goes stale.
  *
  * The check before this one proves the overlay is kept rather than rebuilt, so
- * it cannot see a download either way. A reload is the case that used to cost
- * the whole patch again -- 740 KB, from the host that refuses under load.
+ * it cannot see a download either way. A reload rebuilds it, and only the
+ * cache stops that costing the whole patch again -- 740 KB, from the host
+ * that refuses under load.
  */
 await check('a reload reuses the patch instead of fetching it again', async () => {
   const asked = [];

@@ -10,8 +10,9 @@
  * asked for over postMessage, and carried out by the content script.
  *
  * Both sides are driven by the `Requests` table below. Adding an action means
- * adding one line to it and one handler in the content script. The envelope,
- * the ids, the timeout and the types all follow from that line.
+ * a line there and in `failedReply`, and a handler in the content script. The
+ * compiler flags whichever is missing. The envelope, the ids, the timeout and
+ * the types all follow from the `Requests` line.
  */
 
 export const BRIDGE_CHANNEL = 'diffshub-for-github';

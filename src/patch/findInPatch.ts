@@ -96,7 +96,8 @@ function searchableLines(fileDiff: FileDiffMetadata, expansion: Expansion | unde
   const lines: Line[] = [];
   const { hunks, additionLines, deletionLines } = fileDiff;
   // A file loaded in full holds every line of the new side, which is what the
-  // opened gaps are read from. Until then only the patch's lines exist
+  // opened gaps are read from. Until then only the patch's lines exist. The
+  // viewer loads into this same object: `src/viewer/diff/expandedRegions.ts`
   const loaded = !fileDiff.isPartial;
 
   for (const [index, hunk] of hunks.entries()) {

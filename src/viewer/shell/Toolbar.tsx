@@ -3,7 +3,7 @@
  * every control that changes the whole view rather than one file.
  *
  * Each control carries a `data-dh-action` so the browser tests can name the one
- * they mean. Going by position broke every time a button was added.
+ * they mean. Going by position would break whenever a button is added.
  */
 
 import {

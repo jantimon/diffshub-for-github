@@ -20,7 +20,7 @@ import { CACHE_CHANNEL, CACHE_PREFIX, type CacheAsk } from '@/shared/runtime';
 /**
  * How much may be kept, counted in stored characters.
  *
- * `storage.session` holds 10,485,760 bytes and refuses a value past that. The
+ * `storage.session` holds 10,485,760 bytes in all. The
  * budget sits under it, and when a write would cross it the whole cache goes
  * rather than the oldest entry: at around 135 KB a patch that is dozens of pull
  * requests before it happens, and the cost is one download of whichever comes

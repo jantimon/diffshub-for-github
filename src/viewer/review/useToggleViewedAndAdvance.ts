@@ -12,7 +12,7 @@ import type { Session } from '@/viewer/state/session';
  * stepping past it by hand. Unticking a file leaves you on it, because you went
  * back to it on purpose.
  */
-export function useMarkViewed({
+export function useToggleViewedAndAdvance({
   session,
   viewerRef,
   toggle,
