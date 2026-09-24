@@ -61,8 +61,8 @@ export async function readThreads(
 ): Promise<{ threads: ReviewThread[]; truncated: boolean; error?: string }> {
   try {
     const [previews, threads] = await Promise.all([
-      walk<Preview>(routes.threadPreviews(ref)),
-      walk<Thread>(routes.threads(ref)),
+      walk<Preview>(routes.threadPreviews(ref), 'thread_previews'),
+      walk<Thread>(routes.threads(ref), 'threads'),
     ]);
 
     const bodies = new Map<string, Thread>();
@@ -118,7 +118,19 @@ function toComment(comment: RawComment): ReviewComment {
   };
 }
 
-async function walk<T>(start: string): Promise<{ items: T[]; truncated: boolean }> {
+/**
+ * The list in one page of an answer. GitHub has sent both a bare list and one
+ * wrapped as `{ threads: [...] }`, so both are read. Anything else throws, so
+ * the reader is told rather than shown a diff with no conversations
+ */
+function listIn(json: unknown, route: string): unknown[] {
+  if (Array.isArray(json)) return json;
+  const wrapped = (json as Record<string, unknown> | null)?.[route];
+  if (Array.isArray(wrapped)) return wrapped;
+  throw new Error(`GitHub answered ${route} in a shape this extension does not read.`);
+}
+
+async function walk<T>(start: string, route: string): Promise<{ items: T[]; truncated: boolean }> {
   const items: T[] = [];
   let url: string | undefined = start;
 
@@ -127,11 +139,11 @@ async function walk<T>(start: string): Promise<{ items: T[]; truncated: boolean 
       url,
       'the comments',
     );
-    if (!Array.isArray(batch)) break;
-    items.push(...(batch as T[]));
+    const list = listIn(batch, route);
+    items.push(...(list as T[]));
 
     url = nextPage(response.headers.get('link'));
-    if (batch.length < PAGE_LIMIT) break;
+    if (list.length < PAGE_LIMIT) break;
   }
 
   return { items, truncated: url != null };
