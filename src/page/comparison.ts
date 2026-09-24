@@ -1,7 +1,7 @@
 import { pullPath, type PullRequestRef } from '@/shared/pullRequest';
 import { readJson } from '@/page/client';
 import { routes } from '@/page/routes';
-import { BaseComparison } from '@/page/shapes';
+import { BaseComparison } from '@/page/githubApiSchemas';
 
 let comparison: { base: string; oids: Promise<{ baseOid: string; headOid: string }> } | undefined;
 

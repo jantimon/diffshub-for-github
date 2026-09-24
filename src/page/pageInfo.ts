@@ -9,7 +9,7 @@
 
 import * as v from 'valibot';
 
-import { EmbeddedPullRequest } from '@/page/shapes';
+import { EmbeddedPullRequest } from '@/page/githubApiSchemas';
 import { filesPaths, readPullRequestRef, type PullRequestRef } from '@/shared/pullRequest';
 
 /** The PR title, from the page if it exposes one and from the tab title if not */

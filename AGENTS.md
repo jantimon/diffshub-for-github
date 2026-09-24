@@ -16,8 +16,8 @@ The code runs in **two places with different powers**, and the tree says so:
   `src/entrypoints/content.ts`, and the function in `src/page/` that does the
   work. The compiler flags any of the first three that is missing. Every GitHub
   URL the page builds is in `src/page/routes.ts`, and every answer it reads
-  is checked against a valibot schema in `src/page/shapes.ts`. Keep those
-  schemas loose: require only what the code uses, so a field GitHub adds
+  is checked against a valibot schema in `src/page/githubApiSchemas.ts`. Keep
+  those schemas loose: require only what the code uses, so a field GitHub adds
   changes nothing.
 - `src/background/` is the background script: the toolbar button, and fetches
   and the cache for the viewer, after checking the sender.

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as v from 'valibot';
 
-import { mismatch, ThreadPage } from '../../src/page/shapes.ts';
+import { mismatch, ThreadPage } from '../../src/page/githubApiSchemas.ts';
 
 const thread = {
   id: '2776953441',

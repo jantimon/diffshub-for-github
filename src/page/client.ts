@@ -6,7 +6,7 @@
 import * as v from 'valibot';
 
 import { READ_JSON, WRITE_JSON } from '@/page/headers';
-import { mismatch, Refusal } from '@/page/shapes';
+import { mismatch, Refusal } from '@/page/githubApiSchemas';
 import type { Result } from '@/shared/bridge';
 import { describeError } from '@/shared/errors';
 
@@ -41,15 +41,15 @@ export async function refusal(response: Response): Promise<string | undefined> {
 }
 
 /**
- * Reads one of the `page_data` routes and checks the answer against `shape`
- * (`shapes.ts`). Throws with a sentence for the reader: GitHub's own reason
+ * Reads one of the `page_data` routes and checks the answer against `schema`
+ * (`githubApiSchemas.ts`). Throws with a sentence for the reader: GitHub's own reason
  * when it refuses, and when the answer is not JSON or no longer fits, which
  * field changed, since that means GitHub has changed the route
  */
 export async function readJson<S extends v.GenericSchema>(
   url: string,
   what: string,
-  shape: S,
+  schema: S,
 ): Promise<{ json: v.InferOutput<S>; response: Response }> {
   const response = await fetch(url, { credentials: 'include', headers: READ_JSON });
   if (!response.ok)
@@ -60,7 +60,7 @@ export async function readJson<S extends v.GenericSchema>(
   } catch {
     throw new Error(`GitHub's answer for ${what} was not JSON. GitHub may have changed the route.`);
   }
-  const parsed = v.safeParse(shape, json);
+  const parsed = v.safeParse(schema, json);
   if (!parsed.success) {
     throw new Error(
       `GitHub's answer for ${what} has changed (${mismatch(parsed.issues)}), so this extension cannot read it.`,

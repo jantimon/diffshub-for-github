@@ -9,7 +9,7 @@ import type { PullRequestRef } from '@/shared/pullRequest';
 import { describeError } from '@/shared/errors';
 import { readJson } from '@/page/client';
 import { routes } from '@/page/routes';
-import { FileTree } from '@/page/shapes';
+import { FileTree } from '@/page/githubApiSchemas';
 
 export async function readViewed(
   ref: PullRequestRef,

@@ -13,7 +13,7 @@ import type { PullRequestRef } from '@/shared/pullRequest';
 import { describeError } from '@/shared/errors';
 import { readJson } from '@/page/client';
 import { routes } from '@/page/routes';
-import { ThreadPage, ThreadPreviewPage, type ThreadComment } from '@/page/shapes';
+import { ThreadPage, ThreadPreviewPage, type ThreadComment } from '@/page/githubApiSchemas';
 
 const PAGE_LIMIT = 40;
 const MAX_PAGES = 20;
