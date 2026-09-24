@@ -15,3 +15,6 @@ test/screenshots/
 # Recorded github.com traffic for the offline suite. Large, and regenerated
 # with `pnpm test:record`.
 test/har/
+
+# Written by scripts/notices.mjs before each build
+public/THIRD-PARTY-NOTICES.txt
