@@ -7,6 +7,7 @@
 
 import {
   checker,
+  clickMarker,
   launch,
   openOverlay,
   openViewer,
@@ -657,6 +658,42 @@ await check('Esc closes find, and only find', async () => {
   return barGone && overlayOpen && marksGone ? 'the overlay stayed open' : false;
 });
 
+/**
+ * Only the icon opens the viewer. A click on the tab's text has to reach the
+ * link untouched, so GitHub's own view is one click away. A listener on the
+ * link runs only if the extension let the click through, and it cancels the
+ * navigation so the run stays on this page
+ */
+await check('a click on the tab text is left to GitHub', async () => {
+  const viewer = page.locator('#diffshub-for-github-viewer');
+  await frame.locator('[data-dh-action="close"]').click();
+  await until(async () => !(await viewer.isVisible()), { timeout: 3000 });
+
+  const tab = page.locator('[data-diffshub-marked]').first();
+  await tab.evaluate((link) => {
+    window.reachedLink = false;
+    link.addEventListener(
+      'click',
+      (event) => {
+        window.reachedLink = true;
+        event.preventDefault();
+      },
+      { once: true },
+    );
+  });
+  await tab.click({ position: { x: 4, y: 4 } });
+  const reached = await page.evaluate(() => window.reachedLink);
+  const opened = await viewer.isVisible();
+
+  await clickMarker(page);
+  await until(() => viewer.isVisible(), { timeout: 5000 });
+  if (!reached || opened) {
+    console.log(`      reached the link ${reached}, viewer opened ${opened}`);
+    return false;
+  }
+  return 'the text went to GitHub, the icon opened the viewer';
+});
+
 await check('closing and reopening asks GitHub for nothing', async () => {
   const asked = [];
   const watch = (request) => {
@@ -681,7 +718,7 @@ await check('closing and reopening asks GitHub for nothing', async () => {
       .catch(() => false)) === false;
   const keyboardBack = await page.evaluate(() => document.activeElement?.tagName !== 'IFRAME');
 
-  await page.locator('[data-diffshub-marked]').first().click();
+  await clickMarker(page);
   // A viewer that read the patch again would pass through loading, so the
   // requests are all in by the time it says ready
   await frame.locator('.dh-code').waitFor({ state: 'visible', timeout: 5000 });

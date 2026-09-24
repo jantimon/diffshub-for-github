@@ -17,6 +17,8 @@ import {
 } from '@/shared/pullRequest';
 import {
   findFilesChangedLink,
+  MARKER_SIZE,
+  onMarker,
   findFilesChangedTab,
   readAuthor,
   readBranchPair,
@@ -84,8 +86,8 @@ const markTab = (): void => {
   const text = `${selectors.join(', ')} {
     content: "";
     display: inline-block;
-    width: 14px;
-    height: 14px;
+    width: ${MARKER_SIZE}px;
+    height: ${MARKER_SIZE}px;
     margin-left: 6px;
     vertical-align: -3px;
     background-image: url("${badge}");
@@ -102,7 +104,7 @@ const markTab = (): void => {
   const tab = findFilesChangedTab(pr);
   if (tab == null) return;
   tab.setAttribute(MARKER_ATTRIBUTE, 'true');
-  tab.title = 'Opens the DiffsHub viewer. Cmd- or Ctrl-click for GitHub’s own view.';
+  tab.title = 'The DiffsHub icon opens the viewer. The rest of the tab opens GitHub’s own view.';
 };
 
 export default defineContentScript({
@@ -308,15 +310,16 @@ export default defineContentScript({
       if (pr != null) open(pr);
     });
 
-    // Listening on the document rather than on the tab means a re-render cannot
-    // drop the handler, and it covers every route to the diff: the tab strip,
-    // the file count in the timeline, the sidebar
+    // Only the icon opens the viewer (`onMarker`); the rest of the link, and
+    // Enter on it, still goes to GitHub. On the document, so a re-render cannot
+    // drop the handler, and every link to the diff carrying the icon is covered
     document.addEventListener(
       'click',
       (event: MouseEvent) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
         const pr = readPullRequestRef();
-        if (pr == null || findFilesChangedLink(event.target, pr) == null) return;
+        const link = pr == null ? undefined : findFilesChangedLink(event.target, pr);
+        if (pr == null || link == null || !onMarker(link, event.clientX)) return;
         event.preventDefault();
         event.stopImmediatePropagation();
         open(pr);

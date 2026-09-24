@@ -17,8 +17,8 @@ Without any of these a reviewer has to leave the overlay, and once they leave
 they have no reason to come back.
 
 ### Open and leave
-1. **Open from the pull request page.** One click on the tab a reviewer already
-   uses, no new URL to learn.
+1. **Open from the pull request page.** One click on the icon on the tab a
+   reviewer already uses, no new URL to learn.
 2. **A way back to GitHub's own view.** An escape hatch for anything the overlay
    cannot do, per file and for the whole pull request.
 3. **Close without losing your place.** No navigation, no lost scroll position.

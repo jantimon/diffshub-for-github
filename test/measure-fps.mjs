@@ -1,4 +1,4 @@
-import { launch, viewerFrame } from './browser.mjs';
+import { clickMarker, launch, viewerFrame } from './browser.mjs';
 
 const pr = process.argv[2] ?? 'https://github.com/nodejs/node/pull/59805';
 
@@ -38,7 +38,7 @@ const report = (label, r) =>
 
 await page.goto(pr, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(4000);
-await page.locator('[data-diffshub-marked]').first().click();
+await clickMarker(page);
 await page.waitForTimeout(30000);
 const frame = viewerFrame(page);
 report('DiffsHub overlay', await frame.evaluate(SCROLL(`document.querySelector('.dh-code')`)));

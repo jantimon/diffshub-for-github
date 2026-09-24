@@ -1,8 +1,8 @@
 # Lifecycle
 
-What happens from a click on "Files changed" to the first file on screen, and
-what happens when the viewer is closed. Each step names the function that does
-it.
+What happens from a click on the icon on "Files changed" to the first file on
+screen, and what happens when the viewer is closed. Each step names the
+function that does it.
 
 ## Opening
 
@@ -15,8 +15,8 @@ sequenceDiagram
     participant BG as Background<br/>entrypoints/background.ts
     participant GH as github.com
 
-    Reader->>CS: clicks Files changed
-    Note over CS: capture listener, findFilesChangedLink<br/>preventDefault, then open(pr)
+    Reader->>CS: clicks the icon on Files changed
+    Note over CS: capture listener, findFilesChangedLink, onMarker<br/>preventDefault, then open(pr)
     CS->>CS: readHeadSha(), readGitHubTheme()
     CS->>V: iframe src viewer.html?owner&repo&number&sha&theme
     Note over CS: html overflow hidden, takeFocus()

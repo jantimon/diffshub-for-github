@@ -152,7 +152,7 @@ export async function openViewer(page, { pace = 0 } = {}) {
   if (pace > 0) await page.waitForTimeout(pace);
   let frame;
   for (let attempt = 0; attempt < 3 && frame == null; attempt += 1) {
-    await tab.click();
+    await clickMarker(page);
     frame = await until(() => viewerFrame(page), { timeout: 3000 });
   }
   await frame
@@ -160,6 +160,35 @@ export async function openViewer(page, { pace = 0 } = {}) {
     .waitFor({ timeout: VIEWER_READY_MS });
   await page.waitForTimeout(LAYOUT_SETTLE_MS + pace);
   return viewerFrame(page);
+}
+
+/**
+ * Clicks the extension's icon on the Files-changed tab, which is what opens the
+ * viewer: a click on the rest of the tab goes to GitHub's own view. The icon
+ * is the last thing in the link, 14 px wide, ending where its right padding
+ * starts, so the click lands in its middle
+ */
+export async function clickMarker(page) {
+  const tab = page.locator('[data-diffshub-marked]').first();
+  const iconCentre = () =>
+    tab.evaluate((link) => {
+      const box = link.getBoundingClientRect();
+      const padding = Number.parseFloat(getComputedStyle(link).paddingRight);
+      return { x: box.right - padding - 7, y: box.top + box.height / 2 };
+    });
+  // GitHub lays the tab strip out again for a moment after `load`, which moves
+  // the tab by some 75 px, so the point is taken once it has stopped moving
+  let last;
+  const point = await until(
+    async () => {
+      const now = await iconCentre();
+      const still = last != null && now.x === last.x && now.y === last.y;
+      last = now;
+      return still && now;
+    },
+    { timeout: 5000, every: 150 },
+  );
+  await page.mouse.click((point ?? last).x, (point ?? last).y);
 }
 
 /** Removes the viewer's remembered settings: filters, layout, ticks, the lot */

@@ -1,5 +1,5 @@
 import { firefox } from '@playwright/test';
-import { checker } from './browser.mjs';
+import { checker, clickMarker } from './browser.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -68,7 +68,7 @@ await check('signed in', async () => {
 });
 
 await check('the tab is marked', async () => (await page.locator('[data-diffshub-marked]').count()) > 0);
-await page.locator('[data-diffshub-marked]').first().click();
+await clickMarker(page);
 await page.waitForTimeout(14000);
 
 const frame = page.frames().find((f) => f.url().startsWith('moz-extension://'));

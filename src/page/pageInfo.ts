@@ -41,6 +41,24 @@ export function findFilesChangedLink(
   return filesPaths(ref).includes(linkPath(anchor)) ? anchor : undefined;
 }
 
+/** The icon's width and height in CSS pixels, for drawing it and for finding it */
+export const MARKER_SIZE = 14;
+
+/**
+ * Whether a click at `x` landed on the icon rather than on the link's text.
+ *
+ * The icon is drawn by CSS as the last thing in the link, so it is no element
+ * of its own and the click's target is the link either way. It ends where the
+ * link's right padding starts, so it is found from there. A range over the
+ * link's content is no help: in Chrome it takes in the icon too
+ */
+export function onMarker(link: HTMLAnchorElement, x: number): boolean {
+  const box = link.getBoundingClientRect();
+  const end = box.right - Number.parseFloat(getComputedStyle(link).paddingRight);
+  // A little slack before the icon, since it is small
+  return x >= end - MARKER_SIZE - 3 && x <= box.right;
+}
+
 /**
  * The Files-changed tab itself. GitHub serves more than one pull request
  * layout, so this goes by where the link points rather than by the markup

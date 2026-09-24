@@ -21,13 +21,13 @@ For Chrome and Firefox 147 or later.
 
 ## How you open it
 
-The extension marks the "Files changed" tab with its icon and takes over the
-click, so GitHub never renders its own diff. Most of the speed comes from not
-rendering it. The toolbar button opens it too.
+The extension puts its icon on the "Files changed" tab. Click the icon and the
+viewer opens instead of GitHub's own diff, which GitHub then never renders.
+Most of the speed comes from not rendering it. The toolbar button opens it too.
 
 ![The marked Files changed tab](docs/images/files-changed-tab.png)
 
-Cmd- or Ctrl-click the tab to get GitHub's view instead. `Esc` closes the
+The rest of the tab still opens GitHub's own view. `Esc` closes the
 viewer and puts you back where you were: no navigation, no history entry, and
 the URL never changes.
 

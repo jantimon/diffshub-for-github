@@ -1,4 +1,4 @@
-import { clearSettings, launch, viewerFrame } from './browser.mjs';
+import { clearSettings, clickMarker, launch, viewerFrame } from './browser.mjs';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -109,7 +109,7 @@ const settleOnCode = async (frame) => {
 const openOverlay = async (mode) => {
   await setColorMode(mode);
   await page.waitForTimeout(400);
-  await page.locator('[data-diffshub-marked]').first().click();
+  await clickMarker(page);
   const frame = await waitForRenderedDiff();
   await settleOnCode(frame);
   return frame;
@@ -141,7 +141,7 @@ await shoot('files-changed-tab', {
 
 // The overlay remembers a chosen theme, which would outrank GitHub's. Drop
 // everything this profile remembers, so each shot starts from the page
-await page.locator('[data-diffshub-marked]').first().click();
+await clickMarker(page);
 await page.waitForFunction(() => document.getElementById('diffshub-for-github-viewer') != null, {
   timeout: 30000,
 });
