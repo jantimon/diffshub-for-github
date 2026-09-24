@@ -169,7 +169,6 @@ function Viewer({ pr, openedAtSha }: { pr: PullRequestRef; openedAtSha?: string 
         <div className="dh-annotation">
           {thread.isDraft === true ? (
             <CommentComposer
-              side={thread.side}
               onCancel={closeDraft}
               onSubmit={async (text) => {
                 const failed = await post(thread, text);

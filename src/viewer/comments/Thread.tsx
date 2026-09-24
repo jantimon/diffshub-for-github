@@ -232,12 +232,7 @@ export function Thread({
     );
 
   return (
-    <aside
-      className="dh-thread"
-      data-resolved={thread.isResolved}
-      data-side={thread.side}
-      data-tail={onALine ? 'line' : 'none'}
-    >
+    <aside className="dh-thread" data-resolved={thread.isResolved} data-tail={onALine ? 'line' : 'none'}>
       {labels.length > 0 && <p className="dh-thread-resolved">{labels.join(' · ')}</p>}
 
       {thread.comments.map((comment) => (

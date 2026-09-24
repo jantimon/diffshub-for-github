@@ -13,7 +13,10 @@ import { routes } from '@/page/routes';
 export async function writeComment(ref: PullRequestRef, comment: NewComment): Promise<Result> {
   try {
     const { baseOid, headOid } = await readComparison(ref);
-    const side = comment.side === 'deletions' ? 'left' : 'right';
+    // A removed line exists only in the old commit, so that is the commit to
+    // name. Named against the new one, GitHub files the comment on the same
+    // line number of the new file instead
+    const onOldSide = comment.side === 'deletions';
 
     return await writeJson(routes.createComment(ref), 'POST', {
       comparisonStartOid: baseOid,
@@ -28,9 +31,9 @@ export async function writeComment(ref: PullRequestRef, comment: NewComment): Pr
         headCommitOid: headOid,
         path: comment.path,
         line: comment.line,
-        commitOid: headOid,
+        commitOid: onOldSide ? baseOid : headOid,
       },
-      side,
+      side: onOldSide ? 'left' : 'right',
       subjectType: 'line',
     });
   } catch (error) {

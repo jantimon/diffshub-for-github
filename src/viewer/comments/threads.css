@@ -61,13 +61,6 @@
   transform: rotate(45deg);
 }
 
-/* The tail leans towards the half of the file the line sits in. Only a split
-   diff has halves: unified puts every line in one column on the left. */
-.dh-overlay[data-layout='split'] :is(.dh-thread, .dh-composer)[data-side='additions']::before {
-  inset-inline-start: auto;
-  inset-inline-end: 22px;
-}
-
 /* A narrow column has no room for a frame, nor for anything hung outside it. */
 @container dh-annotation (width < 460px) {
   .dh-thread,
