@@ -3,7 +3,10 @@
  * GitHub's own headers (`headers.ts`), and GitHub's own reason when it refuses
  */
 
+import * as v from 'valibot';
+
 import { READ_JSON, WRITE_JSON } from '@/page/headers';
+import { mismatch, Refusal } from '@/page/shapes';
 import type { Result } from '@/shared/bridge';
 import { describeError } from '@/shared/errors';
 
@@ -25,35 +28,45 @@ export async function refusal(response: Response): Promise<string | undefined> {
 
   if (said.trimStart().startsWith('<')) return undefined;
 
+  let json: unknown;
   try {
-    const body = JSON.parse(said) as {
-      message?: string;
-      error?: string;
-      errors?: { message?: string }[];
-    };
-    return body.message ?? body.error ?? body.errors?.find((one) => one.message != null)?.message;
+    json = JSON.parse(said);
   } catch {
     return undefined;
   }
+  const parsed = v.safeParse(Refusal, json);
+  if (!parsed.success) return undefined;
+  const { message, error, errors } = parsed.output;
+  return message ?? error ?? errors?.find((one) => one.message != null)?.message ?? undefined;
 }
 
 /**
- * Reads one of the `page_data` routes. Throws with a sentence for the reader:
- * GitHub's own reason when it gives one, and when the answer is not JSON, that
- * GitHub has most likely changed the route, which is what an HTML page in its
- * place means
+ * Reads one of the `page_data` routes and checks the answer against `shape`
+ * (`shapes.ts`). Throws with a sentence for the reader: GitHub's own reason
+ * when it refuses, and when the answer is not JSON or no longer fits, which
+ * field changed, since that means GitHub has changed the route
  */
-export async function readJson<T>(url: string, what: string): Promise<{ json: T; response: Response }> {
+export async function readJson<S extends v.GenericSchema>(
+  url: string,
+  what: string,
+  shape: S,
+): Promise<{ json: v.InferOutput<S>; response: Response }> {
   const response = await fetch(url, { credentials: 'include', headers: READ_JSON });
   if (!response.ok)
     throw new Error((await refusal(response)) ?? `GitHub answered ${response.status} for ${what}.`);
+  let json: unknown;
   try {
-    return { json: (await response.json()) as T, response };
+    json = await response.json();
   } catch {
+    throw new Error(`GitHub's answer for ${what} was not JSON. GitHub may have changed the route.`);
+  }
+  const parsed = v.safeParse(shape, json);
+  if (!parsed.success) {
     throw new Error(
-      `GitHub's answer for ${what} was not what this extension reads. GitHub may have changed it.`,
+      `GitHub's answer for ${what} has changed (${mismatch(parsed.issues)}), so this extension cannot read it.`,
     );
   }
+  return { json: parsed.output, response };
 }
 
 /**

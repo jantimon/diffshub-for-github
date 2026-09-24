@@ -6,44 +6,17 @@
  * as `truncated` rather than silently cut short or walked for ever.
  */
 
+import type * as v from 'valibot';
+
 import type { ReviewComment, ReviewThread } from '@/shared/bridge';
 import type { PullRequestRef } from '@/shared/pullRequest';
 import { describeError } from '@/shared/errors';
 import { readJson } from '@/page/client';
 import { routes } from '@/page/routes';
+import { ThreadPage, ThreadPreviewPage, type ThreadComment } from '@/page/shapes';
 
 const PAGE_LIMIT = 40;
 const MAX_PAGES = 20;
-
-interface Preview {
-  id?: string;
-  path?: string;
-  line?: number | null;
-  diffSide?: string;
-  subjectType?: string;
-  isOutdated?: boolean;
-}
-
-interface Thread {
-  id?: string;
-  isResolved?: boolean;
-  resolvedBy?: string | null;
-  viewerCanReply?: boolean;
-  commentsData?: { comments?: RawComment[] };
-}
-
-interface RawComment {
-  databaseId?: number | string;
-  bodyHTML?: string;
-  author?: { login?: string; avatarUrl?: string; isAgent?: boolean };
-  authorAssociation?: string;
-  lastUserContentEdit?: unknown;
-  viewerCanUpdate?: boolean;
-  viewerCanDelete?: boolean;
-  body?: string;
-  createdAt?: string;
-  url?: string;
-}
 
 /**
  * Reads the review threads on a pull request.
@@ -61,35 +34,27 @@ export async function readThreads(
 ): Promise<{ threads: ReviewThread[]; truncated: boolean; error?: string }> {
   try {
     const [previews, threads] = await Promise.all([
-      walk<Preview>(routes.threadPreviews(ref), 'thread_previews'),
-      walk<Thread>(routes.threads(ref), 'threads'),
+      walk(routes.threadPreviews(ref), ThreadPreviewPage),
+      walk(routes.threads(ref), ThreadPage),
     ]);
 
-    const bodies = new Map<string, Thread>();
-    for (const thread of threads.items) {
-      if (thread?.id != null) bodies.set(String(thread.id), thread);
-    }
+    const bodies = new Map(threads.items.map((thread) => [thread.id, thread]));
 
-    const out: ReviewThread[] = [];
-    for (const preview of previews.items) {
-      const id = String(preview?.id ?? '');
-      const path = String(preview?.path ?? '');
-      if (id === '' || path === '') continue;
-
-      const thread = bodies.get(id);
-      out.push({
-        id,
-        path,
+    const out: ReviewThread[] = previews.items.map((preview) => {
+      const thread = bodies.get(preview.id);
+      return {
+        id: preview.id,
+        path: preview.path,
         /** A comment on the file as a whole carries no line */
-        line: preview?.subjectType === 'FILE' ? null : (preview?.line ?? null),
-        side: preview?.diffSide === 'LEFT' ? 'deletions' : 'additions',
+        line: preview.subjectType === 'FILE' ? null : (preview.line ?? null),
+        side: preview.diffSide === 'LEFT' ? 'deletions' : 'additions',
         isResolved: thread?.isResolved === true,
-        isOutdated: preview?.isOutdated === true,
+        isOutdated: preview.isOutdated === true,
         resolvedBy: thread?.resolvedBy ?? '',
         canReply: thread?.viewerCanReply !== false,
-        comments: (thread?.commentsData?.comments ?? []).map(toComment),
-      });
-    }
+        comments: (thread?.commentsData.comments ?? []).map(toComment),
+      };
+    });
 
     return { threads: out, truncated: previews.truncated || threads.truncated };
   } catch (error) {
@@ -101,46 +66,33 @@ export async function readThreads(
   }
 }
 
-function toComment(comment: RawComment): ReviewComment {
+function toComment(comment: v.InferOutput<typeof ThreadComment>): ReviewComment {
   return {
-    databaseId: String(comment?.databaseId ?? ''),
-    author: comment?.author?.login ?? '',
-    avatarUrl: comment?.author?.avatarUrl ?? '',
-    isAgent: comment?.author?.isAgent === true,
-    association: comment?.authorAssociation ?? '',
-    isEdited: comment?.lastUserContentEdit != null,
-    canEdit: comment?.viewerCanUpdate === true,
-    canDelete: comment?.viewerCanDelete === true,
-    body: comment?.body ?? '',
-    bodyHTML: comment?.bodyHTML ?? '',
-    createdAt: comment?.createdAt ?? '',
-    url: comment?.url ?? '',
+    databaseId: comment.databaseId,
+    author: comment.author?.login ?? '',
+    avatarUrl: comment.author?.avatarUrl ?? '',
+    isAgent: comment.author?.isAgent === true,
+    association: comment.authorAssociation ?? '',
+    isEdited: comment.lastUserContentEdit != null,
+    canEdit: comment.viewerCanUpdate === true,
+    canDelete: comment.viewerCanDelete === true,
+    body: comment.body ?? '',
+    bodyHTML: comment.bodyHTML ?? '',
+    createdAt: comment.createdAt ?? '',
+    url: comment.url ?? '',
   };
 }
 
-/**
- * The list in one page of an answer. GitHub has sent both a bare list and one
- * wrapped as `{ threads: [...] }`, so both are read. Anything else throws, so
- * the reader is told rather than shown a diff with no conversations
- */
-function listIn(json: unknown, route: string): unknown[] {
-  if (Array.isArray(json)) return json;
-  const wrapped = (json as Record<string, unknown> | null)?.[route];
-  if (Array.isArray(wrapped)) return wrapped;
-  throw new Error(`GitHub answered ${route} in a shape this extension does not read.`);
-}
-
-async function walk<T>(start: string, route: string): Promise<{ items: T[]; truncated: boolean }> {
+async function walk<T>(
+  start: string,
+  page: v.GenericSchema<unknown, T[]>,
+): Promise<{ items: T[]; truncated: boolean }> {
   const items: T[] = [];
   let url: string | undefined = start;
 
-  for (let page = 0; page < MAX_PAGES && url != null; page += 1) {
-    const { json: batch, response }: { json: unknown; response: Response } = await readJson(
-      url,
-      'the comments',
-    );
-    const list = listIn(batch, route);
-    items.push(...(list as T[]));
+  for (let count = 0; count < MAX_PAGES && url != null; count += 1) {
+    const { json: list, response } = await readJson(url, 'the comments', page);
+    items.push(...list);
 
     url = nextPage(response.headers.get('link'));
     if (list.length < PAGE_LIMIT) break;

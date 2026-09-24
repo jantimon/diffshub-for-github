@@ -7,6 +7,9 @@
  * page embeds for its own React app -- rather than by the classes around it.
  */
 
+import * as v from 'valibot';
+
+import { EmbeddedPullRequest } from '@/page/shapes';
 import { filesPaths, readPullRequestRef, type PullRequestRef } from '@/shared/pullRequest';
 
 /** The PR title, from the page if it exposes one and from the tab title if not */
@@ -67,34 +70,33 @@ function linkPath(link: HTMLAnchorElement): string {
   }
 }
 
-interface EmbeddedPullRequest {
-  number?: number;
-  headSha?: string;
-  author?: { login?: string };
-}
-
 /**
  * The pull request as the page's own React app received it: an object under
  * one of the routes in `react-app.embeddedData`. Parsed rather than searched
  * with a pattern, so a key of the same name elsewhere in the payload, or
  * another pull request's data on the same page, cannot be read by mistake.
  */
-function embeddedPullRequest(): EmbeddedPullRequest | undefined {
+function embeddedPullRequest(): v.InferOutput<typeof EmbeddedPullRequest> | undefined {
   const number = readPullRequestRef()?.number;
   for (const script of document.querySelectorAll(
     'script[type="application/json"][data-target="react-app.embeddedData"]',
   )) {
-    let data: { payload?: Record<string, { pullRequest?: EmbeddedPullRequest } | null> };
+    let data: unknown;
     try {
-      data = JSON.parse(script.textContent ?? '') as typeof data;
+      data = JSON.parse(script.textContent ?? '');
     } catch {
       continue;
     }
-    for (const route of Object.values(data?.payload ?? {})) {
-      const pullRequest = route?.pullRequest;
-      if (pullRequest == null || typeof pullRequest !== 'object') continue;
-      if (pullRequest.number != null && pullRequest.number !== number) continue;
-      return pullRequest;
+    const payload = (data as { payload?: unknown } | null)?.payload;
+    if (payload == null || typeof payload !== 'object') continue;
+    for (const route of Object.values(payload)) {
+      const parsed = v.safeParse(
+        EmbeddedPullRequest,
+        (route as { pullRequest?: unknown } | null)?.pullRequest,
+      );
+      if (!parsed.success) continue;
+      if (parsed.output.number != null && parsed.output.number !== number) continue;
+      return parsed.output;
     }
   }
   return undefined;
@@ -114,5 +116,5 @@ export function readHeadSha(): string | undefined {
  * author link in the document, which belongs to whoever acted last
  */
 export function readAuthor(): string | undefined {
-  return embeddedPullRequest()?.author?.login;
+  return embeddedPullRequest()?.author?.login ?? undefined;
 }

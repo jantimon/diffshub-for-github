@@ -1,6 +1,7 @@
 import { pullPath, type PullRequestRef } from '@/shared/pullRequest';
 import { readJson } from '@/page/client';
 import { routes } from '@/page/routes';
+import { BaseComparison } from '@/page/shapes';
 
 let comparison: { base: string; oids: Promise<{ baseOid: string; headOid: string }> } | undefined;
 
@@ -22,13 +23,8 @@ export function readComparison(ref: PullRequestRef): Promise<{ baseOid: string; 
     comparison = {
       base,
       oids: (async () => {
-        const { json: payload } = await readJson<{
-          pullRequest?: { comparison?: { baseOid?: string; headOid?: string } };
-        }>(routes.baseComparison(ref), 'the commit range');
-        const { baseOid, headOid } = payload?.pullRequest?.comparison ?? {};
-        if (baseOid == null || headOid == null)
-          throw new Error('GitHub did not say which commits this diff spans.');
-        return { baseOid, headOid };
+        const { json } = await readJson(routes.baseComparison(ref), 'the commit range', BaseComparison);
+        return json.pullRequest.comparison;
       })(),
     };
   }
