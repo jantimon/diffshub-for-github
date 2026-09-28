@@ -125,12 +125,14 @@ export const SEPARATOR_CSS = `
 }
 
 /*
- * The divider between the two sides of a split view. The viewer draws it as a
+ * The divider between the two sides of a split view: a band of the page's
+ * background at the end of the old column, wide enough that a removed line
+ * and the added line beside it read as two sides. The viewer draws it as a
  * border on both sides, which sits outside what either column can paint over,
  * so it would run as a line through the middle of every bar, and it leaves the
  * two columns a pixel apart in width, so the halves would not meet. Drawn
- * inside the old column instead, it keeps its place beside the code, and the
- * bar, one layer up, covers it where the halves meet.
+ * inside the old column instead, it takes no width the viewer measures, and
+ * the bar, one layer up, covers it where the halves meet.
  */
 [data-deletions] {
   position: relative;
@@ -146,7 +148,7 @@ export const SEPARATOR_CSS = `
   inset-block: 0;
   inset-inline-end: 0;
   z-index: 1;
-  inline-size: 1px;
+  inline-size: 8px;
   pointer-events: none;
   content: '';
   background-color: var(--diffs-bg);
