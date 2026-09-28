@@ -236,16 +236,18 @@
  * 2.5:1. These two are measured: white on the darker green is 5.1:1, and
  * near-black on the lighter one is 7.4:1.
  */
-.dh-review-send {
+/* Named inside the actions row, so it outranks the plain button rule there,
+   whose inherited text colour would otherwise land on the green */
+.dh-review-actions .dh-review-send {
   font-weight: 600;
   color: #ffffff;
-  background: #1a7f37 !important;
-  border-color: transparent !important;
+  background: #1a7f37;
+  border-color: transparent;
 }
 
-.dh-overlay[data-theme='dark'] .dh-review-send {
+.dh-overlay[data-theme='dark'] .dh-review-actions .dh-review-send {
   color: #06140b;
-  background: #3fb950 !important;
+  background: #3fb950;
 }
 
 .dh-review-send:disabled {

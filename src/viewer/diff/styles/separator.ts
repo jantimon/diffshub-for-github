@@ -16,11 +16,13 @@
  * the bar is placed in, and 100cqi the width of the code column.
  */
 export const SEPARATOR_CSS = `
-[data-unmodified-lines]::before {
+/* Only a gap that can be opened says so. The viewer leaves the index off one
+   that cannot, as when no commit is known to load the file from */
+[data-expand-index] [data-unmodified-lines]::before {
   content: 'Show ';
 }
 
-[data-gutter] [data-separator][data-expand-index] [data-separator-wrapper] {
+[data-gutter] [data-separator^='line-info'] [data-separator-wrapper] {
   --dh-bar: light-dark(color-mix(in lab, var(--diffs-bg) 98%, var(--diffs-mixer)), var(--diffs-bg-separator));
 
   z-index: 2;
@@ -93,7 +95,7 @@ export const SEPARATOR_CSS = `
 /* The old side, or the only side: from where the code starts, with as much
    room again after the end as the line numbers take, so the middle of the
    label lands on the middle of the line */
-:is([data-deletions], [data-unified]) [data-gutter] [data-separator][data-expand-index] [data-separator-wrapper] {
+:is([data-deletions], [data-unified]) [data-gutter] [data-separator^='line-info'] [data-separator-wrapper] {
   inset-inline-start: 100%;
   /* This copy starts a line-number column further in than the other half's,
      so its stripes are drawn from where that half's start, to run on
@@ -105,13 +107,13 @@ export const SEPARATOR_CSS = `
   border-end-start-radius: 6px;
 }
 
-[data-deletions] [data-gutter] [data-separator][data-expand-index] [data-separator-wrapper] {
+[data-deletions] [data-gutter] [data-separator^='line-info'] [data-separator-wrapper] {
   inline-size: calc(200cqi - 100%);
 }
 
 /* The new side of a split view: the same bar, centred on the same line. The
    viewer hides this copy's label and chevrons, which are shown again here */
-[data-additions] [data-gutter] [data-separator][data-expand-index] [data-separator-wrapper] {
+[data-additions] [data-gutter] [data-separator^='line-info'] [data-separator-wrapper] {
   inset-inline-start: -100cqi;
   inline-size: 200cqi;
   border-radius: 0 6px 6px 0;
@@ -152,7 +154,7 @@ export const SEPARATOR_CSS = `
 
 /* A gap with a single chevron gets the same shape after the label too. It is
    part of the label, and the label already opens the whole gap */
-[data-gutter] [data-separator-wrapper]:not([data-separator-multi-button]) [data-unmodified-lines]::after {
+[data-gutter] [data-expand-index] [data-separator-wrapper]:not([data-separator-multi-button]) [data-unmodified-lines]::after {
   display: inline-block;
   inline-size: 16px;
   block-size: 16px;

@@ -194,10 +194,10 @@
   color: var(--dh-muted);
 }
 
-.dh-comment-delete {
+.dh-composer-actions .dh-comment-delete {
   font-weight: 600;
   color: var(--dh-deleted);
-  border-color: color-mix(in srgb, var(--dh-deleted) 45%, transparent) !important;
+  border-color: color-mix(in srgb, var(--dh-deleted) 45%, transparent);
 }
 
 .dh-badge {
@@ -242,10 +242,11 @@
   opacity: 0.5;
 }
 
-.dh-composer-send {
+/* Named inside the actions row, so it outranks the plain button rule there */
+.dh-composer-actions .dh-composer-send {
   font-weight: 600;
   color: var(--dh-added);
-  border-color: color-mix(in srgb, var(--dh-added) 45%, transparent) !important;
+  border-color: color-mix(in srgb, var(--dh-added) 45%, transparent);
 }
 
 .dh-thread-actions {

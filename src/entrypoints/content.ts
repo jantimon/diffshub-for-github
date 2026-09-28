@@ -25,6 +25,7 @@ import {
   readHeadSha,
   readPullRequestTitle,
 } from '@/page/pageInfo';
+import { readComparison } from '@/page/comparison';
 import { readThreads } from '@/page/readThreads';
 import { previewMarkdown } from '@/page/previewMarkdown';
 import { readViewed } from '@/page/readViewed';
@@ -106,6 +107,21 @@ const markTab = (): void => {
   tab.setAttribute(MARKER_ATTRIBUTE, 'true');
   tab.title = 'The DiffsHub icon opens the viewer. The rest of the tab opens GitHub’s own view.';
 };
+
+/**
+ * The head commit, from the page when it embeds one, which a full load does.
+ * After GitHub's own navigation between pages it embeds none, so the
+ * commit-range route is asked instead
+ */
+async function headSha(pr: PullRequestRef): Promise<string | undefined> {
+  const embedded = readHeadSha();
+  if (embedded != null) return embedded;
+  try {
+    return (await readComparison(pr)).headOid;
+  } catch {
+    return undefined;
+  }
+}
 
 export default defineContentScript({
   /**
@@ -201,8 +217,9 @@ export default defineContentScript({
     // The viewer runs as an extension page rather than in this content script,
     // which gives it the extension's own origin: real module workers, code
     // splitting, and a credentialed fetch to github.com under host permissions
+    let opening = false;
     const open = (pr: PullRequestRef): void => {
-      if (showing()) return;
+      if (showing() || opening) return;
 
       // Still there from last time, with the diff as it was left
       if (frame != null) {
@@ -215,17 +232,31 @@ export default defineContentScript({
         return;
       }
 
+      const embedded = readHeadSha();
+      if (embedded != null) {
+        build(pr, embedded);
+        return;
+      }
+      // A fraction of a second, and only after GitHub's own navigation
+      opening = true;
+      void (async () => {
+        const asked = await headSha(pr);
+        opening = false;
+        const still = readPullRequestRef();
+        if (frame == null && still != null && pullPath(still) === pullPath(pr)) build(pr, asked);
+      })();
+    };
+
+    const build = (pr: PullRequestRef, openedAtSha: string | undefined): void => {
       const url = new URL(browser.runtime.getURL('/viewer.html'));
       url.searchParams.set('owner', pr.owner);
       url.searchParams.set('repo', pr.repo);
       url.searchParams.set('number', String(pr.number));
       /**
-       * The commit the page is showing, read out of markup GitHub has already
-       * embedded. It travels on the url rather than over the bridge because the
-       * viewer needs it at its first render: the bridge answers a tick later,
-       * by which time the patch is already downloading
+       * The commit the page is showing. It travels on the url rather than over
+       * the bridge because the viewer needs it at its first render: the bridge
+       * answers a tick later, by which time the patch is already downloading
        */
-      const openedAtSha = readHeadSha();
       if (openedAtSha != null) url.searchParams.set('sha', openedAtSha);
       // Light or dark, for the same reason: a first frame painted from the
       // system's preference flashes whenever GitHub is set the other way
@@ -260,9 +291,9 @@ export default defineContentScript({
       'edit-comment': ({ databaseId, body }, pr) => editComment(pr, databaseId, body),
       'delete-comment': ({ databaseId }, pr) => deleteComment(pr, databaseId),
       review: async ({ event, body }, pr) => {
-        const headSha = readHeadSha();
-        if (headSha == null) return { ok: false, error: 'Could not tell which commit to review.' };
-        return submitReview(pr, headSha, event, body);
+        const commit = await headSha(pr);
+        if (commit == null) return { ok: false, error: 'Could not tell which commit to review.' };
+        return submitReview(pr, commit, event, body);
       },
       preview: ({ text }) => previewMarkdown(text),
     };
