@@ -107,6 +107,13 @@ export const SEPARATOR_CSS = `
   border-end-start-radius: 6px;
 }
 
+/* Over the line numbers the bar is left plain, as the rows the diff pads a side
+   with are: the viewer fills that cell grey, and it showed as a block before
+   the stripes began */
+[data-gutter] [data-separator^='line-info'] {
+  background-color: var(--diffs-bg);
+}
+
 [data-deletions] [data-gutter] [data-separator^='line-info'] [data-separator-wrapper] {
   inline-size: calc(200cqi - 100%);
 }
