@@ -84,9 +84,15 @@ const markTab = (): void => {
     return [`a[href="${value}"]::after`, `a[href="${CSS.escape(GITHUB_ORIGIN)}${value}"]::after`];
   });
   const badge = browser.runtime.getURL('/icon/32.png');
+  // GitHub's newer header lays the tab out as a grid, where the icon would
+  // start a new row. `grid-row: 1` keeps it after the counter, and flex and
+  // inline layouts ignore it
   const text = `${selectors.join(', ')} {
     content: "";
     display: inline-block;
+    grid-row: 1;
+    align-self: center;
+    flex-shrink: 0;
     width: ${MARKER_SIZE}px;
     height: ${MARKER_SIZE}px;
     margin-left: 6px;
