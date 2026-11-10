@@ -84,12 +84,26 @@ const markTab = (): void => {
     return [`a[href="${value}"]::after`, `a[href="${CSS.escape(GITHUB_ORIGIN)}${value}"]::after`];
   });
   const badge = browser.runtime.getURL('/icon/32.png');
+  // GitHub's newer header draws the selected tab's underline with this same
+  // `::after`, absolutely placed under the tab, so everything that places or
+  // paints it is reset here
   const text = `${selectors.join(', ')} {
     content: "";
     display: inline-block;
+    position: static;
+    inset: auto;
+    transform: none;
+    translate: none;
+    box-sizing: content-box;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
+    align-self: center;
+    flex-shrink: 0;
     width: ${MARKER_SIZE}px;
     height: ${MARKER_SIZE}px;
-    margin-left: 6px;
+    margin: 0 0 0 6px;
     vertical-align: -3px;
     background-image: url("${badge}");
     background-size: contain;
