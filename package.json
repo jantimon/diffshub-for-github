@@ -27,6 +27,7 @@
     "test:record": "DIFFSHUB_HAR=record node test/overlay.mjs",
     "capture:readme": "node test/capture-readme-shots.mjs",
     "test:login": "node test/login.mjs",
+    "test:login:firefox": "node test/login-firefox.mjs",
     "postinstall": "wxt prepare",
     "test:fps": "node test/measure-fps.mjs",
     "test:units": "node --test 'test/unit/*.test.mjs'",

@@ -34,7 +34,7 @@ sequenceDiagram
             BG-->>V: packed patch
             Note over V: unpack(), replayed as a stream
         else not kept
-            V->>GH: GET /pull/N.diff (githubFetch, via BG on Firefox)
+            V->>GH: GET /pull/N.diff (githubFetch, a signed address on Firefox)
             GH-->>V: body, streamed through capture()
         end
         loop each file (streamPatchFiles)

@@ -224,9 +224,10 @@ as an argument for a different one.
 The browser tests keep a profile in `test/.profile`, gitignored, and `pnpm
 test:login` opens a browser on it so you can sign in once; after that private
 repositories are testable too. `DIFFSHUB_PROFILE` points at another profile.
-`pnpm test:firefox` needs `pnpm build:firefox` and `DIFFSHUB_FIREFOX_PROFILE`, a
-Firefox profile signed in by hand ([docs/firefox.md](docs/firefox.md)). None of
-this runs in CI.
+`pnpm test:firefox` needs `pnpm build:firefox` and a Firefox profile signed in
+to github.com: `pnpm test:login:firefox` makes one in `test/.firefox-profile`,
+and `DIFFSHUB_FIREFOX_PROFILE` points at another
+([docs/firefox.md](docs/firefox.md)). None of this runs in CI.
 
 ### Layout
 
@@ -236,8 +237,8 @@ part is allowed to do. `AGENTS.md` has the reasoning.
 ```
 src/shared/                   what both sides share: the messages between
                               them, which pull request, which URLs to trust
-src/background/               the background script: fetches for Firefox and the
-                              in-memory cache, for the viewer only
+src/background/               the background script: the in-memory cache for the
+                              viewer, and redirect addresses on Firefox
 src/page/                     runs on github.com, as you: every write, and
                               everything read out of GitHub's own markup
 src/viewer/                   runs on the extension's own origin
