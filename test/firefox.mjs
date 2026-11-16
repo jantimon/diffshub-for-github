@@ -15,16 +15,18 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(root, '../.output/firefox-mv3');
 const url = process.argv[2] ?? 'https://github.com/jantimon/diffshub-for-github/pull/1';
 const PORT = 6794;
+/** The container check starts a second browser, which needs its own port */
+const CONTAINER_PORT = 6796;
 
 // Playwright's Firefox profile ships cookieBehavior 4, which is Total Cookie
 // Protection turned off. Firefox itself defaults to 5. Testing on 4 makes the
-// background fetch proxy look unnecessary, so pin the real default here
+// signed address look unnecessary, so pin the real default here
 const COOKIE_BEHAVIOUR = 5;
 
-const profile = process.env.DIFFSHUB_FIREFOX_PROFILE;
+const profile = process.env.DIFFSHUB_FIREFOX_PROFILE ?? path.resolve(root, '.firefox-profile');
 if (profile == null || !fs.existsSync(path.join(profile, 'cookies.sqlite'))) {
   console.log('This suite needs a Firefox profile signed in to github.com.');
-  console.log('Point DIFFSHUB_FIREFOX_PROFILE at one; see README.');
+  console.log('Run `pnpm test:login:firefox` once, or point DIFFSHUB_FIREFOX_PROFILE at one.');
   process.exit(2);
 }
 
@@ -39,53 +41,64 @@ const context = await firefox.launchPersistentContext(profile, {
   },
 });
 
-let client;
-for (let attempt = 0; attempt < 40 && client == null; attempt += 1) {
-  try {
-    client = await connect(PORT);
-  } catch {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+/** Installs the build over web-ext's RDP client, or ends the run */
+async function installAddon(port, closeable) {
+  let client;
+  for (let attempt = 0; attempt < 40 && client == null; attempt += 1) {
+    try {
+      client = await connect(port);
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
   }
+  if (client == null) {
+    console.log('FAIL: the debugger server never came up');
+    await closeable.close();
+    process.exit(1);
+  }
+  await client.installTemporaryAddon(dist);
 }
-if (client == null) {
-  console.log('FAIL: the debugger server never came up');
-  await context.close();
-  process.exit(1);
+
+/** Opens the pull request, clicks the marked tab, and returns the viewer's frame */
+async function openViewer(page) {
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(5000);
+  await clickMarker(page);
+  await page.waitForTimeout(14000);
+  return page.frames().find((f) => f.url().startsWith('moz-extension://'));
 }
-await client.installTemporaryAddon(dist);
+
+async function patchFiles(frame) {
+  const text = (await frame.locator('.dh-stats span').first().textContent())?.trim() ?? '';
+  const files = Number(text.split('/')[1]?.replace(/[^0-9]/g, '') ?? '0');
+  return files > 0 ? text : false;
+}
+
+await installAddon(PORT, context);
 
 const page = context.pages()[0] ?? (await context.newPage());
-await page.goto(url, { waitUntil: 'domcontentloaded' });
-await page.waitForTimeout(5000);
-
 const { check, finish } = checker();
 
+await page.goto(url, { waitUntil: 'domcontentloaded' });
 await check('signed in', async () => {
   const who = await page.evaluate(
     () => document.querySelector('meta[name="user-login"]')?.getAttribute('content') ?? null,
   );
   return who ?? false;
 });
-
 await check('the tab is marked', async () => (await page.locator('[data-diffshub-marked]').count()) > 0);
-await clickMarker(page);
-await page.waitForTimeout(14000);
 
-const frame = page.frames().find((f) => f.url().startsWith('moz-extension://'));
+const frame = await openViewer(page);
 if (frame == null) {
   console.log('FAIL  the overlay opens');
   await context.close();
   process.exit(1);
 }
 
-await check('a private patch renders', async () => {
-  const text = (await frame.locator('.dh-stats span').first().textContent())?.trim() ?? '';
-  const files = Number(text.split('/')[1]?.replace(/[^0-9]/g, '') ?? '0');
-  return files > 0 ? text : false;
-});
+await check('a private patch renders', () => patchFiles(frame));
 
-// The reason the background proxy exists. If this ever succeeds, Firefox has
-// changed and the proxy can go
+// The reason the signed address exists. If this ever succeeds, Firefox has
+// changed and the viewer can fetch for itself
 await check('the viewer alone cannot reach a private patch', async () => {
   const result = await frame.evaluate(async (target) => {
     const response = await fetch(target, { credentials: 'include' });
@@ -95,4 +108,35 @@ await check('the viewer alone cannot reach a private patch', async () => {
 });
 
 await page.screenshot({ path: path.resolve(root, 'screenshots', 'firefox.png') });
-await finish(context);
+
+/**
+ * In the default container the background is signed in too, so the check above
+ * cannot tell who downloaded. Playwright runs each Firefox `newContext` as a
+ * container, so only that context gets the session.
+ */
+const session = await context.storageState();
+await context.close();
+
+const browser = await firefox.launch({
+  headless: false,
+  args: ['-start-debugger-server', String(CONTAINER_PORT)],
+  firefoxUserPrefs: {
+    'devtools.debugger.remote-enabled': true,
+    'devtools.debugger.prompt-connection': false,
+    'network.cookie.cookieBehavior': COOKIE_BEHAVIOUR,
+  },
+});
+await installAddon(CONTAINER_PORT, browser);
+const container = await browser.newContext({
+  storageState: session,
+  viewport: { width: 1500, height: 950 },
+});
+const containerPage = await container.newPage();
+const containerFrame = await openViewer(containerPage);
+
+await check('a private patch renders in a container tab', async () =>
+  containerFrame == null ? false : patchFiles(containerFrame),
+);
+
+await containerPage.screenshot({ path: path.resolve(root, 'screenshots', 'firefox-container.png') });
+await finish(browser);

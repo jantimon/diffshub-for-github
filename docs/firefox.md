@@ -7,14 +7,23 @@ What differs from Chrome, and the traps.
 **Total Cookie Protection partitions the viewer's cookies.** The viewer is an
 extension iframe inside a github.com page, so its cookie jar is keyed by the
 top-level site and every github.com request from it leaves signed out. A
-private patch gets 404 there and 200 through the background script.
-`src/viewer/net/githubFetch.ts` proxies through the background on Firefox
-only, streamed in chunks so rendering stays progressive.
+private patch gets 404 there.
 
-**Do not remove that proxy because a test says it is unneeded.** A profile with
-`network.cookie.cookieBehavior` at 4 has the feature off. Firefox defaults to 5.
-Playwright's own profile ships 4, which makes the proxy look pointless.
-`test/firefox.mjs` pins the real default.
+**So the page asks, and the viewer downloads.** Only the content script has
+the tab's session: the background script uses the default container's cookies,
+which are not the session in a container tab. The content script asks
+github.com for the patch and stops at the redirect. The background reads the
+signed address from that redirect with `webRequest`, which only Firefox asks
+for. GitHub signs the address, so the viewer downloads it without a session.
+
+**A content script may not follow that redirect.** GitHub's content security
+policy does not list `patch-diff.githubusercontent.com`, and Firefox holds a
+content script to the page's policy: following the redirect fails with
+`NS_ERROR_DOM_BAD_URI`. A redirect that is not followed loads nothing, so the
+policy has nothing to refuse.
+
+**`onBeforeRedirect` never fires for that redirect**, because nothing follows
+it. The `location` header in `onHeadersReceived` is there either way.
 
 **Background is an event page**, `scripts: [background.js]`, not a service
 worker. AMO needs the add-on id and `data_collection_permissions` in
@@ -91,13 +100,19 @@ refuses on its own while github.com still answers 200. An empty viewer with a
 503 toast is that, not a broken build.
 
 `pnpm test:firefox` runs `.output/firefox-mv3` from `pnpm build:firefox` and
-needs `DIFFSHUB_FIREFOX_PROFILE` pointing at a profile
-signed in to github.com. Playwright cannot load an extension into Firefox, so
+needs a profile signed in to github.com, outside any container.
+`pnpm test:login:firefox` makes one, and `DIFFSHUB_FIREFOX_PROFILE` points at
+another. Playwright cannot load an extension into Firefox, so
 the suite drives web-ext's own RDP client
 (`node_modules/web-ext/lib/firefox/remote.js`) to install a temporary add-on.
 
-Playwright's bundled Firefox may refuse a profile it did not create. Use one it
-made, signed in once.
+Playwright's bundled Firefox may refuse a profile it did not create. Do not
+use an everyday profile either: Playwright writes its preferences into it, and
+a newer Firefox can upgrade it past what the everyday browser opens.
 
-Verify against a **private** pull request. A public one works with or without
-the proxy and proves nothing.
+Verify against a **private** pull request. A public one downloads signed out
+and proves nothing.
+
+The suite also checks a **container tab**. In the default container the
+background is signed in too, so only a container shows that the download uses
+the tab's own session.

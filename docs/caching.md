@@ -37,9 +37,7 @@ the parser worked a few files a turn.
 The same transform decides what finished means. Its `flush` runs only when the
 source ends of its own accord: a body that stops short errors the stream, a
 reader giving up cancels it, and neither can leave half a patch to be served
-as the whole. On Firefox the patch arrives over a port from the background,
-and the viewer treats a disconnect before `end` as an error for the same
-reason.
+as the whole.
 
 ## Where it is kept
 

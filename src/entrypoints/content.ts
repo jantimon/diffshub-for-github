@@ -34,6 +34,7 @@ import { submitReview } from '@/page/submitReview';
 import { writeComment } from '@/page/writeComment';
 import { writeViewed } from '@/page/writeViewed';
 import { readGitHubTheme } from '@/page/theme';
+import { signedAddress } from '@/page/signedAddress';
 
 const MARKER_ATTRIBUTE = 'data-diffshub-marked';
 
@@ -310,6 +311,7 @@ export default defineContentScript({
         return submitReview(pr, commit, event, body);
       },
       preview: ({ text }) => previewMarkdown(text),
+      'signed-address': ({ url }) => signedAddress(url),
     };
 
     ctx.addEventListener(window, 'message', async (event: MessageEvent) => {

@@ -133,6 +133,11 @@ export interface Requests {
   review: { ask: { event: ReviewEvent; body: string }; reply: Result };
   /** GitHub's own rendering of markdown, for the preview tab */
   preview: { ask: { text: string }; reply: { html?: string; error?: string } };
+  /** Where github.com redirects a download. In a Firefox container tab only the page has the session */
+  'signed-address': {
+    ask: { url: string };
+    reply: { address?: string; status?: number; error?: string };
+  };
 }
 
 export type RequestName = keyof Requests;
@@ -156,6 +161,7 @@ export const failedReply: { [K in RequestName]: (error: string) => Reply<K> } = 
   'delete-comment': (error) => ({ ok: false, error }),
   review: (error) => ({ ok: false, error }),
   preview: (error) => ({ error }),
+  'signed-address': (error) => ({ error }),
 };
 
 /**

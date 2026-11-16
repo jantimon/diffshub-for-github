@@ -54,7 +54,7 @@ export default defineConfig({
   zip: {
     excludeSources: ['research/**', 'test/screenshots/**', 'test/.profile/**', '.firefox-profile/**'],
   },
-  manifest: {
+  manifest: ({ browser }) => ({
     name: 'DiffsHub for GitHub',
     description:
       'Opens GitHub pull request diffs in a fast, virtualized viewer. Every request goes to github.com from your own browser.',
@@ -67,8 +67,11 @@ export default defineConfig({
      * `storage` alone, and only `storage.session` of it: an in-memory copy of
      * what github.com answered, gone when the browser closes. Nothing is
      * written to disk and nothing is synced
+     *
+     * Firefox adds `webRequest`, only to read where github.com redirects a
+     * download. In a container tab that is the one way to the reader's session
      */
-    permissions: ['storage'],
+    permissions: browser === 'firefox' ? ['storage', 'webRequest'] : ['storage'],
     action: { default_title: 'Open this pull request in DiffsHub' },
     browser_specific_settings: {
       gecko: {
@@ -88,5 +91,5 @@ export default defineConfig({
         matches: ['https://github.com/*'],
       },
     ],
-  },
+  }),
 });

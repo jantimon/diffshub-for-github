@@ -1,11 +1,11 @@
-import { serveGithubFetch } from '@/background/fetchProxy';
 import { watchHostAccess } from '@/background/hostAccess';
 import { serveResponseCache } from '@/background/sessionCache';
+import { serveSignedAddress } from '@/background/signedAddress';
 import { BRIDGE_CHANNEL } from '@/shared/bridge';
 
 export default defineBackground(() => {
-  if (import.meta.env.FIREFOX) serveGithubFetch();
-  /** Unconditional, unlike the fetch proxy: the viewer keeps its cache here in both browsers */
+  if (import.meta.env.FIREFOX) serveSignedAddress();
+  /** In both browsers: the viewer keeps its cache here */
   serveResponseCache();
   void watchHostAccess();
 
