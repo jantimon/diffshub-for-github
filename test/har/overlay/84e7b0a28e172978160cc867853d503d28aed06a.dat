@@ -1,0 +1,65 @@
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-0][oid]"
+
+339d06d865b9023eafca523b80042384492d3620
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-0][dropdown_direction]"
+
+w
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-0][disable_live_updates]"
+
+false
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-1][oid]"
+
+a6eb51d85bab403a1f9c4669656a9a8d3876dca1
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-1][dropdown_direction]"
+
+w
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-1][disable_live_updates]"
+
+false
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-2][oid]"
+
+f5503640f2b065a75d09b4cd32e0bc3623351bee
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-2][dropdown_direction]"
+
+w
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-2][disable_live_updates]"
+
+false
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-3][oid]"
+
+788f2ea035673d8fda7cd10c99130e122bb9a231
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-3][dropdown_direction]"
+
+w
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-3][disable_live_updates]"
+
+false
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-4][oid]"
+
+4244ab55078cb0ef465687bcb69447954dd0a29b
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-4][dropdown_direction]"
+
+w
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="items[item-4][disable_live_updates]"
+
+false
+------WebKitFormBoundaryaVpfaKioqYdZBp1I
+Content-Disposition: form-data; name="_method"
+
+GET
+------WebKitFormBoundaryaVpfaKioqYdZBp1I--

@@ -6,6 +6,7 @@
  */
 
 import {
+  INJECTED,
   checker,
   clickMarker,
   launch,
@@ -41,7 +42,7 @@ let refusedPatches = 0;
 await context.route(/\/pull\/\d+\.diff$/, (route) => {
   if (refusedPatches > 0) return route.fallback();
   refusedPatches += 1;
-  return route.fulfill({ status: 503, body: 'refused by the test' });
+  return route.fulfill({ status: 503, body: 'refused by the test', headers: { [INJECTED]: '1' } });
 });
 
 const frame = await openOverlay(page, url, { noise });

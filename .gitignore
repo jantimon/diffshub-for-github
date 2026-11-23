@@ -12,9 +12,8 @@ test/screenshots/
 .firefox-profile/
 .wxt/
 
-# Recorded github.com traffic for the offline suite. Large, and regenerated
-# with `pnpm test:record`.
-test/har/
+# A recording in progress. Once a run passes, it replaces test/har/<suite>/
+test/har/*.partial/
 
 # Written by scripts/notices.mjs before each build
 public/THIRD-PARTY-NOTICES.txt

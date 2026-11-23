@@ -1,0 +1,65 @@
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-0][id]"
+
+C_kwDOUf7zjtoAKGIzMGI5MGQ0M2U5NjRjMGZkYjdiOTg3YmEwMzQyMmVhMGM4NDMxNmQ
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-0][badge_size]"
+
+small
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-0][dropdown_direction]"
+
+s
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-0][pull_request_id]"
+
+4568705739
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-0][pull_request_repository_id]"
+
+1375662990
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-1][id]"
+
+C_kwDOUf7zjtoAKDQ3NTI4YTU0MjRjYzhhYzkwOGQ5NDM2YzQwZWUxMDY5ZGIwZGFhNGQ
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-1][badge_size]"
+
+small
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-1][dropdown_direction]"
+
+s
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-1][pull_request_id]"
+
+4568705739
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-1][pull_request_repository_id]"
+
+1375662990
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-2][id]"
+
+C_kwDOUf7zjtoAKDRlMjQ4MjIyODY4OWI0MDEwY2NjN2NhMDFiNzkxMDNlOTFlNTEzNGQ
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-2][badge_size]"
+
+small
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-2][dropdown_direction]"
+
+s
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-2][pull_request_id]"
+
+4568705739
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="items[item-2][pull_request_repository_id]"
+
+1375662990
+------geckoformboundary5ee713d7e132285642ee17263dc24bf
+Content-Disposition: form-data; name="_method"
+
+GET
+------geckoformboundary5ee713d7e132285642ee17263dc24bf--

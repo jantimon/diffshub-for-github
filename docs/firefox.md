@@ -99,10 +99,15 @@ proves nothing: the patch comes from `patch-diff.githubusercontent.com`, which
 refuses on its own while github.com still answers 200. An empty viewer with a
 503 toast is that, not a broken build.
 
-`pnpm test:firefox` runs `.output/firefox-mv3` from `pnpm build:firefox` and
-needs a profile signed in to github.com, outside any container.
-`pnpm test:login:firefox` makes one, and `DIFFSHUB_FIREFOX_PROFILE` points at
-another. Playwright cannot load an extension into Firefox, so
+`pnpm test:firefox` runs `.output/firefox-mv3` from `pnpm build:firefox`
+signed out, replayed from `test/har/firefox/`, and is what CI runs. It proves
+the build loads, marks the tab and renders a patch.
+
+`pnpm test:firefox:live` is the full check: a private patch, in the default
+container and in a container tab. It needs a profile signed in to github.com,
+outside any container. `pnpm test:login:firefox` makes one, and
+`DIFFSHUB_FIREFOX_PROFILE` points at another. Playwright cannot load an
+extension into Firefox, so
 the suite drives web-ext's own RDP client
 (`node_modules/web-ext/lib/firefox/remote.js`) to install a temporary add-on.
 

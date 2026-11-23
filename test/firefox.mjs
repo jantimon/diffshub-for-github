@@ -1,8 +1,26 @@
 import { firefox } from '@playwright/test';
-import { checker, clickMarker } from './browser.mjs';
+import {
+  MODE,
+  checker,
+  clickMarker,
+  refuseSignedInRecording,
+  refuseToRecordWhileRefused,
+  requireRecording,
+  routeFromRecording,
+  stopOnRefusal,
+} from './browser.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+
+/**
+ * Two runs in one file. Replayed, the default, it is signed out against a
+ * recording of a public pull request, and proves the Firefox build loads,
+ * marks the tab and renders a patch: what CI can check. Live, signed in, it
+ * also proves the signed address that a private pull request needs, in the
+ * default container and in a container tab, which no recording can show
+ */
 
 // web-ext does not export this, but it is the client `web-ext run` itself uses
 // to install a temporary add-on over the remote debugging protocol. Playwright
@@ -23,15 +41,22 @@ const CONTAINER_PORT = 6796;
 // signed address look unnecessary, so pin the real default here
 const COOKIE_BEHAVIOUR = 5;
 
-const profile = process.env.DIFFSHUB_FIREFOX_PROFILE ?? path.resolve(root, '.firefox-profile');
-if (profile == null || !fs.existsSync(path.join(profile, 'cookies.sqlite'))) {
-  console.log('This suite needs a Firefox profile signed in to github.com.');
+const live = MODE === 'live';
+const headless = process.env.DIFFSHUB_HEADED !== '1';
+
+const profile = live
+  ? (process.env.DIFFSHUB_FIREFOX_PROFILE ?? path.resolve(root, '.firefox-profile'))
+  : fs.mkdtempSync(path.join(os.tmpdir(), 'diffshub-firefox-har-'));
+if (live && !fs.existsSync(path.join(profile, 'cookies.sqlite'))) {
+  console.log('The live run needs a Firefox profile signed in to github.com.');
   console.log('Run `pnpm test:login:firefox` once, or point DIFFSHUB_FIREFOX_PROFILE at one.');
   process.exit(2);
 }
+if (!live) requireRecording('firefox');
+await refuseToRecordWhileRefused(url);
 
 const context = await firefox.launchPersistentContext(profile, {
-  headless: false,
+  headless,
   viewport: { width: 1500, height: 950 },
   args: ['-start-debugger-server', String(PORT)],
   firefoxUserPrefs: {
@@ -75,17 +100,22 @@ async function patchFiles(frame) {
 }
 
 await installAddon(PORT, context);
+if (!live) await routeFromRecording(context, 'firefox');
 
 const page = context.pages()[0] ?? (await context.newPage());
+if (!live) stopOnRefusal(context, page);
 const { check, finish } = checker();
 
 await page.goto(url, { waitUntil: 'domcontentloaded' });
-await check('signed in', async () => {
-  const who = await page.evaluate(
-    () => document.querySelector('meta[name="user-login"]')?.getAttribute('content') ?? null,
-  );
-  return who ?? false;
-});
+await refuseSignedInRecording(context, page);
+if (live) {
+  await check('signed in', async () => {
+    const who = await page.evaluate(
+      () => document.querySelector('meta[name="user-login"]')?.getAttribute('content') ?? null,
+    );
+    return who ?? false;
+  });
+}
 await check('the tab is marked', async () => (await page.locator('[data-diffshub-marked]').count()) > 0);
 
 const frame = await openViewer(page);
@@ -95,7 +125,13 @@ if (frame == null) {
   process.exit(1);
 }
 
-await check('a private patch renders', () => patchFiles(frame));
+await check(live ? 'a private patch renders' : 'the patch renders', () => patchFiles(frame));
+
+fs.mkdirSync(path.resolve(root, 'screenshots'), { recursive: true });
+if (!live) {
+  await page.screenshot({ path: path.resolve(root, 'screenshots', 'firefox.png') });
+  await finish(context);
+}
 
 // The reason the signed address exists. If this ever succeeds, Firefox has
 // changed and the viewer can fetch for itself
@@ -118,7 +154,7 @@ const session = await context.storageState();
 await context.close();
 
 const browser = await firefox.launch({
-  headless: false,
+  headless,
   args: ['-start-debugger-server', String(CONTAINER_PORT)],
   firefoxUserPrefs: {
     'devtools.debugger.remote-enabled': true,

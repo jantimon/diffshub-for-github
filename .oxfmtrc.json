@@ -34,5 +34,5 @@
 
   // The formatter is pointed at `src` and `test` from the package script, so
   // this only has to keep it out of what lives underneath them.
-  "ignorePatterns": ["**/.profile/**", "**/screenshots/**"]
+  "ignorePatterns": ["**/.profile/**", "**/screenshots/**", "test/har/**"]
 }
