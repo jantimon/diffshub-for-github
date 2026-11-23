@@ -102,6 +102,16 @@ async function patchFiles(frame) {
 await installAddon(PORT, context);
 if (!live) await routeFromRecording(context, 'firefox');
 
+/**
+ * The background reads the patch's address from GitHub's redirect with
+ * `webRequest`, and an answer Playwright serves from the recording never
+ * reaches Firefox's network layer, so `webRequest` would see nothing. That one
+ * request goes to github.com, a single small public redirect per run, and the
+ * patch it points at comes from the recording. Routes added later run first
+ */
+if (MODE === 'replay')
+  await context.route(/github\.com\/[^/]+\/[^/]+\/pull\/\d+\.diff$/, (route) => route.continue());
+
 const page = context.pages()[0] ?? (await context.newPage());
 if (!live) stopOnRefusal(context, page);
 const { check, finish } = checker();

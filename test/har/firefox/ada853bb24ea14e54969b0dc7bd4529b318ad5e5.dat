@@ -1,0 +1,65 @@
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-0][id]"
+
+C_kwDOUf7zjtoAKGIzMGI5MGQ0M2U5NjRjMGZkYjdiOTg3YmEwMzQyMmVhMGM4NDMxNmQ
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-0][badge_size]"
+
+small
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-0][dropdown_direction]"
+
+s
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-0][pull_request_id]"
+
+4568705739
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-0][pull_request_repository_id]"
+
+1375662990
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-1][id]"
+
+C_kwDOUf7zjtoAKDQ3NTI4YTU0MjRjYzhhYzkwOGQ5NDM2YzQwZWUxMDY5ZGIwZGFhNGQ
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-1][badge_size]"
+
+small
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-1][dropdown_direction]"
+
+s
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-1][pull_request_id]"
+
+4568705739
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-1][pull_request_repository_id]"
+
+1375662990
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-2][id]"
+
+C_kwDOUf7zjtoAKDRlMjQ4MjIyODY4OWI0MDEwY2NjN2NhMDFiNzkxMDNlOTFlNTEzNGQ
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-2][badge_size]"
+
+small
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-2][dropdown_direction]"
+
+s
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-2][pull_request_id]"
+
+4568705739
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="items[item-2][pull_request_repository_id]"
+
+1375662990
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4
+Content-Disposition: form-data; name="_method"
+
+GET
+------geckoformboundaryc678a22126e803c41dd63a1398c92fb4--

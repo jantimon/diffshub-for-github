@@ -211,7 +211,7 @@ pnpm test:live            # the same, against real github.com
 pnpm test:record          # refresh the recording
 pnpm test:review          # comments, replies, verdicts and viewed state: these write
 pnpm test:firefox         # the Firefox build, replayed from a recording
-pnpm test:firefox:live    # that the Firefox fetch path is still needed, and works
+pnpm test:firefox:live    # private patches in Firefox, container tabs included
 pnpm test:whitespace      # hiding files that changed only in spacing
 pnpm test:units           # offline, no browser
 pnpm test:fps             # frame times, against GitHub's own view

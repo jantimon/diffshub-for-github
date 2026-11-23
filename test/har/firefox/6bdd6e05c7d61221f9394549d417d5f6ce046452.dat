@@ -1,0 +1,41 @@
+------geckoformboundary95becd753d140382dca1db3d16c16018
+Content-Disposition: form-data; name="items[item-0][oid]"
+
+b30b90d43e964c0fdb7b987ba03422ea0c84316d
+------geckoformboundary95becd753d140382dca1db3d16c16018
+Content-Disposition: form-data; name="items[item-0][dropdown_direction]"
+
+w
+------geckoformboundary95becd753d140382dca1db3d16c16018
+Content-Disposition: form-data; name="items[item-0][disable_live_updates]"
+
+false
+------geckoformboundary95becd753d140382dca1db3d16c16018
+Content-Disposition: form-data; name="items[item-1][oid]"
+
+47528a5424cc8ac908d9436c40ee1069db0daa4d
+------geckoformboundary95becd753d140382dca1db3d16c16018
+Content-Disposition: form-data; name="items[item-1][dropdown_direction]"
+
+w
+------geckoformboundary95becd753d140382dca1db3d16c16018
+Content-Disposition: form-data; name="items[item-1][disable_live_updates]"
+
+false
+------geckoformboundary95becd753d140382dca1db3d16c16018
+Content-Disposition: form-data; name="items[item-2][oid]"
+
+4e2482228689b4010ccc7ca01b79103e91e5134d
+------geckoformboundary95becd753d140382dca1db3d16c16018
+Content-Disposition: form-data; name="items[item-2][dropdown_direction]"
+
+w
+------geckoformboundary95becd753d140382dca1db3d16c16018
+Content-Disposition: form-data; name="items[item-2][disable_live_updates]"
+
+false
+------geckoformboundary95becd753d140382dca1db3d16c16018
+Content-Disposition: form-data; name="_method"
+
+GET
+------geckoformboundary95becd753d140382dca1db3d16c16018--

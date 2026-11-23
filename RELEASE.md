@@ -265,9 +265,9 @@ pnpm build && pnpm test:record
 pnpm build:firefox && pnpm test:firefox:record
 ```
 
-Commit the changed folders in `test/har/`. One thing is not replayed: in
-Firefox the patch is fetched by the background script, which Playwright cannot
-intercept, so that one request goes to github.com on each run.
+Commit the changed folders in `test/har/`. One request is not replayed: the
+Firefox suite fetches GitHub's redirect to the patch live on each run, because
+the extension reads it with `webRequest`, which never sees a replayed answer.
 
 ## Building from source
 

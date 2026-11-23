@@ -80,9 +80,9 @@ jobs:
           name: screenshots-chromium
           path: test/screenshots/
 
-  # The replay covers every request but one: Firefox fetches the patch from the
-  # background script, which Playwright cannot route, so that request goes to
-  # github.com. One small public patch per run
+  # Replayed too, except GitHub's redirect to the patch, which the extension
+  # reads with webRequest and so has to come from github.com. One small public
+  # request per run
   browser-firefox:
     runs-on: ubuntu-latest
     steps:

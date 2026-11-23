@@ -101,7 +101,10 @@ refuses on its own while github.com still answers 200. An empty viewer with a
 
 `pnpm test:firefox` runs `.output/firefox-mv3` from `pnpm build:firefox`
 signed out, replayed from `test/har/firefox/`, and is what CI runs. It proves
-the build loads, marks the tab and renders a patch.
+the build loads, marks the tab and renders a patch. One request is not
+replayed: GitHub's redirect to the patch. The background reads it with
+`webRequest`, and an answer Playwright serves from a recording never reaches
+Firefox's network layer, so that redirect goes to github.com.
 
 `pnpm test:firefox:live` is the full check: a private patch, in the default
 container and in a container tab. It needs a profile signed in to github.com,
