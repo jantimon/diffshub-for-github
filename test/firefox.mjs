@@ -126,7 +126,12 @@ if (live) {
     return who ?? false;
   });
 }
-await check('the tab is marked', async () => (await page.locator('[data-diffshub-marked]').count()) > 0);
+// The content script marks the tab some time after the page loads, so this
+// waits for the mark instead of counting once
+await check('the tab is marked', async () => {
+  await page.locator('[data-diffshub-marked]').first().waitFor({ timeout: 30_000 });
+  return true;
+});
 
 const frame = await openViewer(page);
 if (frame == null) {
