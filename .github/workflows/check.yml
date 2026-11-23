@@ -1,5 +1,7 @@
-# Everything that runs without a browser or a GitHub login. The browser suites
-# replay recordings that stay on the machine that made them, so they run locally
+# Every check a pull request must pass before it merges, the release pull
+# request included. The browser suites replay github.com from the recordings in
+# test/har, made signed out, so they need no login and send GitHub next to
+# nothing
 name: check
 
 on:
@@ -14,9 +16,11 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.18
           cache: pnpm
@@ -28,3 +32,74 @@ jobs:
       - run: pnpm build
       - run: pnpm build:firefox
       - run: pnpm lint:firefox
+
+  # Each pull request says what it changes for users in .changeset/, or adds an
+  # empty changeset when nothing changes for them. The release pull request
+  # consumes the changesets, so it is the one exception
+  changeset:
+    if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.18
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: a changeset is present
+        run: |
+          added=$(git diff --name-only --diff-filter=A "origin/${{ github.base_ref }}...HEAD" -- '.changeset/*.md' ':!.changeset/README.md')
+          if [ -z "$added" ]; then
+            echo "::error::This pull request has no changeset. Run 'pnpm changeset' to describe the change for users, or 'pnpm changeset --empty' if they will not notice it. See RELEASE.md."
+            exit 1
+          fi
+          echo "$added"
+
+  browser-chromium:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.18
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - run: pnpm test
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: screenshots-chromium
+          path: test/screenshots/
+
+  # The replay covers every request but one: Firefox fetches the patch from the
+  # background script, which Playwright cannot route, so that request goes to
+  # github.com. One small public patch per run
+  browser-firefox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.18
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps firefox
+      - run: pnpm build:firefox
+      - run: pnpm test:firefox
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: screenshots-firefox
+          path: test/screenshots/

@@ -48,11 +48,18 @@ export default defineConfig({
   srcDir: 'src',
   manifestVersion: 3,
   /**
-   * The submodule is a read-only reference and the screenshots are rebuilt on
-   * every test run. Neither belongs in the source archive AMO asks for
+   * The submodule is a read-only reference, the screenshots are rebuilt on
+   * every test run, and the recordings are GitHub's traffic, not this code.
+   * None of it belongs in the source archive AMO asks for
    */
   zip: {
-    excludeSources: ['research/**', 'test/screenshots/**', 'test/.profile/**', '.firefox-profile/**'],
+    excludeSources: [
+      'research/**',
+      'test/screenshots/**',
+      'test/.profile/**',
+      'test/har/**',
+      '.firefox-profile/**',
+    ],
   },
   manifest: ({ browser }) => ({
     name: 'DiffsHub for GitHub',
