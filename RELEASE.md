@@ -59,7 +59,7 @@ your pull requests ──► merged to main, each with a changeset
           "chore: release" pull request, kept up to date by the bot:
           new version in package.json, new section in CHANGELOG.md
                                 │
-                                ▼  you merge it, once its checks pass
+                                ▼  you merge it
                                 │
           tag v1.2.3 ─► GitHub Release with the notes and three zips
                                 │
@@ -74,7 +74,8 @@ your pull requests ──► merged to main, each with a changeset
    changesets are waiting on `main`, and it updates itself after each merge.
 2. Read the new `CHANGELOG.md` section. This is what users will see. Edit the
    wording in the pull request if you want.
-3. Merge it once its checks pass.
+3. Merge it. It shows no checks (see "Required checks" below), so GitHub
+   offers to merge past the ruleset.
 
 The `release` workflow then:
 
@@ -106,32 +107,10 @@ wrong, fix it in a new pull request with a `patch` changeset.
 
 ## Setting it up
 
-This is done once. Steps 1 to 3 let the release pull request work; steps 4 to 8
-connect the stores.
+This is done once. Steps 1 and 2 make the first release; steps 3 to 7 connect
+the stores.
 
-### 1. The release app
-
-The release pull request must run the same checks as any other pull request.
-GitHub never starts workflows for changes made with Actions' built-in token, so
-the bot needs a token of its own, from a small private GitHub App.
-
-1. GitHub → **Settings → Developer settings → GitHub Apps → New GitHub App**.
-2. Name: `diffshub-release`. Homepage URL: this repository. Untick
-   **Webhook → Active**.
-3. **Repository permissions:** Contents *Read and write*, Pull requests *Read
-   and write*. Leave the rest at *No access*.
-4. **Where can this app be installed:** Only on this account. Create it.
-5. On the app's page, note the **Client ID**, then **Generate a private key**.
-   A `.pem` file downloads.
-6. **Install App** → this account → **Only select repositories** → this
-   repository.
-7. In this repository, **Settings → Secrets and variables → Actions**:
-   - Variables tab: `RELEASE_APP_CLIENT_ID` = the Client ID.
-   - Secrets tab: `RELEASE_APP_PRIVATE_KEY` = the whole `.pem` file.
-
-Until `RELEASE_APP_CLIENT_ID` exists, the `release` workflow does nothing.
-
-### 2. Required checks
+### 1. Required checks
 
 **Settings → Rules → Rulesets → New branch ruleset**, targeting the default
 branch:
@@ -139,11 +118,15 @@ branch:
 - **Require a pull request before merging**.
 - **Require status checks to pass**, with `check`, `changeset`,
   `browser-chromium` and `browser-firefox`.
+- **Bypass list:** add *Repository admin*.
 
-From then on, changes to `main` go through pull requests, the release pull
-request included.
+From then on, changes to `main` go through pull requests. The release pull
+request is the exception you merge past the ruleset: the bot opens it with
+Actions' built-in token, and GitHub runs no checks on a pull request that token
+opens. It only changes the version, the changelog and the changeset files, and
+every change it collects passed its checks when it merged.
 
-### 3. The first release, 1.0.0
+### 2. The first release, 1.0.0
 
 Neither store has a DiffsHub listing yet, and only a person can create one. So
 the first release runs with the store uploads switched off.
@@ -175,7 +158,7 @@ the first release runs with the store uploads switched off.
    from source" at the end of this file.
 3. Fill in the listing and submit.
 
-### 4. Chrome credentials
+### 3. Chrome credentials
 
 Chrome's API signs in with a Google Cloud service account.
 
@@ -188,12 +171,12 @@ Chrome's API signs in with a Google Cloud service account.
 5. Chrome developer dashboard → **Account** → add the service account's email
    as a service account for the publisher.
 
-### 5. Firefox credentials
+### 4. Firefox credentials
 
 [AMO → Manage API Keys](https://addons.mozilla.org/developers/addon/api/key/)
 → **Generate new credentials**. Note the **JWT issuer** and the **JWT secret**.
 
-### 6. The `stores` environment
+### 5. The `stores` environment
 
 **Settings → Environments → New environment** named `stores`. Under
 *Deployment branches and tags*, choose *Selected branches and tags* and add
@@ -201,8 +184,8 @@ Chrome's API signs in with a Google Cloud service account.
 
 | Kind | Name | Value |
 | --- | --- | --- |
-| Variable | `CHROME_PUBLISHER_ID` | publisher ID, step 3 |
-| Variable | `CHROME_EXTENSION_ID` | item ID, step 3 |
+| Variable | `CHROME_PUBLISHER_ID` | publisher ID, step 2 |
+| Variable | `CHROME_EXTENSION_ID` | item ID, step 2 |
 | Secret | `CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL` | `client_email` from the JSON key |
 | Secret | `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY` | `private_key` from the JSON key |
 | Secret | `FIREFOX_JWT_ISSUER` | JWT issuer |
@@ -211,7 +194,7 @@ Chrome's API signs in with a Google Cloud service account.
 Then check them without uploading: **Actions → stores → Run workflow**,
 version `1.0.0`, tick **dry-run**. Both jobs should pass.
 
-### 7. Verified uploads for Chrome
+### 6. Verified uploads for Chrome
 
 With verified uploads on, Chrome accepts only packages signed with a key you
 hold. Someone who steals the service account key still cannot ship an update.
@@ -232,7 +215,7 @@ openssl pkey -in diffshub-upload.pem -pubout
 about sixty lines on Node's own crypto, so no third-party package handles the
 key.
 
-### 8. Switch the stores on
+### 7. Switch the stores on
 
 **Settings → Secrets and variables → Actions → Variables**:
 `STORES_ENABLED` = `true`. From the next release on, merging the release pull
@@ -242,7 +225,6 @@ request is the whole release.
 
 | What | Lasts | When it stops working |
 | --- | --- | --- |
-| Release app private key | until revoked | generate a new one on the app's page, replace `RELEASE_APP_PRIVATE_KEY` |
 | Chrome service account key | until deleted | add a new JSON key, replace both `CHROME_SERVICE_ACCOUNT_*` secrets, delete the old key |
 | AMO JWT credentials | until revoked | generate new ones on the API keys page |
 | Chrome signing key | for good | only Chrome Web Store support can reset it |
@@ -254,8 +236,8 @@ requests need an empty changeset like any other.
 
 ## Test recordings
 
-The browser checks replay github.com from recordings in `test/har/`, so CI
-needs no GitHub login. The recordings are made signed out, and a unit test fails
+The browser checks replay github.com from recordings in `test/har/`, one zip
+per suite, so CI needs no GitHub login. The recordings are made signed out, and a unit test fails
 if one ever holds a session.
 
 When `pnpm test:live` fails locally because GitHub changed, record again:
@@ -265,7 +247,7 @@ pnpm build && pnpm test:record
 pnpm build:firefox && pnpm test:firefox:record
 ```
 
-Commit the changed folders in `test/har/`. One request is not replayed: the
+Commit the changed zips in `test/har/`. One request is not replayed: the
 Firefox suite fetches GitHub's redirect to the patch live on each run, because
 the extension reads it with `webRequest`, which never sees a replayed answer.
 

@@ -100,7 +100,7 @@ refuses on its own while github.com still answers 200. An empty viewer with a
 503 toast is that, not a broken build.
 
 `pnpm test:firefox` runs `.output/firefox-mv3` from `pnpm build:firefox`
-signed out, replayed from `test/har/firefox/`, and is what CI runs. It proves
+signed out, replayed from `test/har/firefox.zip`, and is what CI runs. It proves
 the build loads, marks the tab and renders a patch. One request is not
 replayed: GitHub's redirect to the patch. The background reads it with
 `webRequest`, and an answer Playwright serves from a recording never reaches

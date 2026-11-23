@@ -1,3 +1,0 @@
-performance.mark("js-parse-end:chunk-lazy-element-markdown-accessiblity-table-1f93b0bc05729370.js");
-export const __rspack_esm_ids=[64614];export const __webpack_modules__={905964(e,t,l){var r=l(936378),i=l(857144);let n=e=>{e.scrollWidth>e.clientWidth?null===e.getAttribute("tabindex")&&e.setAttribute("tabindex","0"):e.removeAttribute("tabindex")};class s extends HTMLElement{connectedCallback(){!function(e){let t=e.querySelector("table");if(!t)return;let l=new ResizeObserver(e=>{for(let t of e)n(t.target)});null===t.getAttribute("tabindex")&&l.observe(t)}(this)}}(0,r._)([(0,i.p_)("markdown-accessiblity-table")],s)}};
-//# sourceMappingURL=chunk-lazy-element-markdown-accessiblity-table-1f93b0bc05729370-f9c22c6b014806c2.js.map

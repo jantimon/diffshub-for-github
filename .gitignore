@@ -12,7 +12,7 @@ test/screenshots/
 .firefox-profile/
 .wxt/
 
-# A recording in progress. Once a run passes, it replaces test/har/<suite>/
+# A recording in progress. Once a run passes, it is packed into test/har/<suite>.zip
 test/har/*.partial/
 
 # Written by scripts/notices.mjs before each build

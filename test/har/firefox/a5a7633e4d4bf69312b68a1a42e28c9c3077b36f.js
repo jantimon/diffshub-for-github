@@ -1,2 +1,0 @@
-performance.mark("js-parse-end:code-menu-76369f92301f4be1.js");
-export const __rspack_esm_ids=[57045];export const __webpack_modules__={814121(){}};import{__webpack_require__ as o}from"./wp-runtime-e38e2131ff578e5c.js";import*as r from"./code-menu-76369f92301f4be1.js";o.C(r);import*as e from"./app-runtime-ca25080bcf36dff9.js";o.C(e);import*as s from"./react-core-fdd4d0f430dac315.js";o.C(s);import*as m from"./86048-f53467c0683118f6.js";o.C(m);import*as c from"./core-36c5cf86ec673944.js";o.C(c),o(o.s=814121);

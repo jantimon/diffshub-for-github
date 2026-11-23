@@ -8,6 +8,7 @@
  */
 
 import { chromium } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -40,27 +41,39 @@ const LAYOUT_SETTLE_MS = 600;
 export const MODE = process.env.DIFFSHUB_HAR ?? 'replay';
 
 /**
- * Each suite keeps its recording in a folder of its own, `test/har/<name>/`:
- * the HAR names the requests, and every response body sits beside it as a file
- * named by its hash
+ * Each suite keeps its recording in one zip, `test/har/<name>.zip`: the HAR
+ * names the requests, and every response body sits beside it, named by its
+ * hash. Playwright replays the zip as it is. One binary file per suite keeps
+ * thousands of lines of GitHub's own scripts out of every diff that refreshes
+ * a recording
  */
-export const harPath = (name) => path.resolve(root, 'har', name, 'recording.har');
+export const harPath = (name) => path.resolve(root, 'har', `${name}.zip`);
 
 /**
  * The recording this run serves or writes. A new recording goes to a folder
- * beside the good one and only takes its place once the run has finished
- * without being refused. A run cut short by throttling would otherwise leave
- * half a recording, and stray bodies, where a working one used to be.
+ * of its own and only replaces the zip once the run has finished without
+ * being refused, so a run cut short by throttling leaves the good one alone.
  */
 let harFile = harPath('overlay');
 let partialFile = partialFor(harFile);
 
 function partialFor(file) {
-  return path.join(`${path.dirname(file)}.partial`, path.basename(file));
+  return path.join(file.replace(/\.zip$/, '.partial'), 'recording.har');
 }
 
 function discardPartial() {
   fs.rmSync(path.dirname(partialFile), { recursive: true, force: true });
+}
+
+/** Packs the finished folder into the suite's zip, the HAR and its bodies side by side */
+function packPartial() {
+  const packed = `${harFile}.new`;
+  fs.rmSync(packed, { force: true });
+  // -X leaves out the file owners and extra timestamps, so the zip only
+  // changes when the recording does
+  execFileSync('zip', ['-q', '-X', '-r', '-D', packed, '.'], { cwd: path.dirname(partialFile) });
+  fs.renameSync(packed, harFile);
+  discardPartial();
 }
 
 /** How long to wait between the steps of a recording, so it asks gently */
@@ -143,7 +156,7 @@ export function requireRecording(name) {
 }
 
 /**
- * Serves github.com from `test/har/<name>.har`, or writes it when recording.
+ * Serves github.com from `test/har/<name>.zip`, or writes it when recording.
  * Every host with "github" in it, so the patch host and the avatars come from
  * the recording too
  */
@@ -471,9 +484,8 @@ export function checker() {
       } else {
         console.log(`recording cleaned: ${stripCredentials(partialFile)} credential header(s) removed`);
         console.log(`recording cleaned: ${dropInjected(partialFile)} made-up answer(s) removed`);
-        fs.rmSync(path.dirname(harFile), { recursive: true, force: true });
-        fs.renameSync(path.dirname(partialFile), path.dirname(harFile));
-        console.log(`recording replaced: ${path.dirname(harFile)}`);
+        packPartial();
+        console.log(`recording replaced: ${path.relative(process.cwd(), harFile)}`);
       }
     }
     process.exit(failures === 0 ? 0 : 1);
