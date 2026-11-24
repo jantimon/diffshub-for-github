@@ -5,10 +5,10 @@ A change reaches users in three steps:
 1. Every pull request carries a short note for users, called a **changeset**.
 2. A bot collects the notes into a **release pull request** that bumps the
    version and writes the changelog.
-3. Merging the release pull request **ships** the new version to the Chrome Web
+3. Merging the release pull request ships the new version to the Chrome Web
    Store and to addons.mozilla.org (AMO).
 
-Nobody builds or uploads anything by hand. The tool behind steps 1 and 2 is
+Nobody builds or uploads anything by hand. Steps 1 and 2 are
 [Changesets](https://github.com/changesets/changesets).
 
 ## For contributors: add a changeset
@@ -30,7 +30,7 @@ to `.changeset/`. Commit it with your change.
 
 Write the note for the people who use the extension, not for reviewers. It
 appears word for word in `CHANGELOG.md`, on the GitHub Release and on AMO's
-version page. Say what changed for them in plain words:
+version page:
 
 ```md
 ---
@@ -41,13 +41,13 @@ A comment on the first line of a file no longer opens on the second.
 ```
 
 If users will not notice the change (tests, CI, docs, a refactor), add an empty
-changeset instead:
+changeset:
 
 ```sh
 pnpm changeset --empty
 ```
 
-A pull request with no changeset at all fails the `changeset` check and cannot
+A pull request without a changeset fails the `changeset` check and cannot
 merge.
 
 ## For maintainers: ship a release
@@ -66,190 +66,51 @@ your pull requests ──► merged to main, each with a changeset
                  ┌──────────────┴──────────────┐
                  ▼                             ▼
          Chrome Web Store               addons.mozilla.org
-         goes live after                usually live within
-         Google's review                minutes
+         live after Google's            usually live within
+         review, hours to days          minutes
 ```
 
-1. Open the **chore: release** pull request. It exists whenever unreleased
-   changesets are waiting on `main`, and it updates itself after each merge.
-2. Read the new `CHANGELOG.md` section. This is what users will see. Edit the
-   wording in the pull request if you want.
-3. Merge it. It shows no checks (see "Required checks" below), so GitHub
-   offers to merge past the ruleset.
+The **chore: release** pull request exists whenever unreleased changesets wait
+on `main`. Read its `CHANGELOG.md` section, since users will see it, and edit
+the wording there if you want. Then merge it.
 
-The `release` workflow then:
-
-- tags the commit `v1.2.3` and creates the GitHub Release with the notes,
-- builds the Chrome zip, the Firefox zip and the source zip AMO asks for, and
-  attaches all three to the release,
-- sends them to both stores (the `stores` workflow).
-
-Chrome reviews each version before it goes live. That takes from a few hours to
-a few days, and the version goes live by itself once approved. AMO checks the
-upload automatically and usually lists it within minutes. A person at Mozilla
-may review it later.
+It shows no checks: the bot opens it with Actions' built-in token, and GitHub
+runs no workflows for that token. As a repository admin you can merge past the
+ruleset. The pull request only changes the version, the changelog and the
+changeset files, and each change it collects passed its checks on its own pull
+request.
 
 ## When a store upload fails
 
-Each store is its own job, so one can fail while the other succeeds. Nothing
-else needs undoing: the tag and the GitHub Release stay as they are.
+Each store has its own job, so one can fail while the other succeeds. The tag
+and the GitHub Release stay as they are.
 
-1. Fix the cause (usually an expired or wrong credential, see below).
-2. Open **Actions → stores → Run workflow**, enter the version (`1.2.3`), and
-   pick the store, or `both`.
+1. Fix the cause, usually an expired or wrong credential (see below).
+2. **Actions → stores → Run workflow**, enter the version (`1.2.3`), and pick
+   the store, or `both`.
 
-A store that already has the version is skipped, so `both` is always safe. The
-job sends the zips attached to the GitHub Release, never a fresh build, so a
-retry ships the same bytes.
+The job skips a store that already has the version, so `both` is always safe.
+It sends the zips attached to the GitHub Release, never a fresh build, so a
+retry ships the same bytes. Tick **dry-run** to check the credentials without
+uploading.
 
 Do not bump the version to get around a failed upload. If the build itself is
 wrong, fix it in a new pull request with a `patch` changeset.
 
-## Setting it up
-
-This is done once. Steps 1 and 2 make the first release; steps 3 to 7 connect
-the stores.
-
-### 1. Required checks
-
-**Settings → Rules → Rulesets → New branch ruleset**, targeting the default
-branch:
-
-- **Require a pull request before merging**.
-- **Require status checks to pass**, with `check`, `changeset`,
-  `browser-chromium` and `browser-firefox`.
-- **Bypass list:** add *Repository admin*.
-
-From then on, changes to `main` go through pull requests. The release pull
-request is the exception you merge past the ruleset: the bot opens it with
-Actions' built-in token, and GitHub runs no checks on a pull request that token
-opens. It only changes the version, the changelog and the changeset files, and
-every change it collects passed its checks when it merged.
-
-### 2. The first release, 1.0.0
-
-Neither store has a DiffsHub listing yet, and only a person can create one. So
-the first release runs with the store uploads switched off.
-
-1. Merge the pull request that adds this setup. It carries a `major`
-   changeset, so the bot opens a release pull request for `1.0.0`.
-2. Merge that. The workflow tags `v1.0.0` and attaches the zips to the GitHub
-   Release. It skips the stores because `STORES_ENABLED` is not set yet.
-3. Download the three zips from the release.
-
-**Chrome Web Store**
-
-1. [Developer dashboard](https://chrome.google.com/webstore/devconsole), as the
-   `ghommey` publisher → **New item** → upload
-   `diffshub-for-github-1.0.0-chrome.zip`.
-2. Fill in the listing: description, category, screenshots (`docs/images/`
-   has some), the privacy tab (no data collected; the host permissions exist to
-   fetch the patch from github.com), visibility *Public*.
-3. **Submit for review.**
-4. Note the **item ID** (in the item's URL) and the **publisher ID** (under
-   *Account*).
-
-**addons.mozilla.org**
-
-1. [Developer Hub](https://addons.mozilla.org/developers/) → **Submit a New
-   Add-on** → *On this site* → upload `diffshub-for-github-1.0.0-firefox.zip`.
-2. When asked for source code, answer yes and upload
-   `diffshub-for-github-1.0.0-sources.zip`. Point the reviewer to "Building
-   from source" at the end of this file.
-3. Fill in the listing and submit.
-
-### 3. Chrome credentials
-
-Chrome's API signs in with a Google Cloud service account.
-
-1. [Google Cloud console](https://console.cloud.google.com) → create a project,
-   e.g. `diffshub-release`.
-2. **APIs & Services → Library** → enable **Chrome Web Store API**.
-3. **IAM & Admin → Service accounts → Create service account**. No roles needed.
-4. Open it → **Keys → Add key → JSON**. A file downloads. You need its
-   `client_email` and `private_key`.
-5. Chrome developer dashboard → **Account** → add the service account's email
-   as a service account for the publisher.
-
-### 4. Firefox credentials
-
-[AMO → Manage API Keys](https://addons.mozilla.org/developers/addon/api/key/)
-→ **Generate new credentials**. Note the **JWT issuer** and the **JWT secret**.
-
-### 5. The `stores` environment
-
-**Settings → Environments → New environment** named `stores`. Under
-*Deployment branches and tags*, choose *Selected branches and tags* and add
-`main`. Then add:
-
-| Kind | Name | Value |
-| --- | --- | --- |
-| Variable | `CHROME_PUBLISHER_ID` | publisher ID, step 2 |
-| Variable | `CHROME_EXTENSION_ID` | item ID, step 2 |
-| Secret | `CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL` | `client_email` from the JSON key |
-| Secret | `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY` | `private_key` from the JSON key |
-| Secret | `FIREFOX_JWT_ISSUER` | JWT issuer |
-| Secret | `FIREFOX_JWT_SECRET` | JWT secret |
-
-Then check them without uploading: **Actions → stores → Run workflow**,
-version `1.0.0`, tick **dry-run**. Both jobs should pass.
-
-### 6. Verified uploads for Chrome
-
-With verified uploads on, Chrome accepts only packages signed with a key you
-hold. Someone who steals the service account key still cannot ship an update.
-
-```sh
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out diffshub-upload.pem
-openssl pkey -in diffshub-upload.pem -pubout
-```
-
-1. Chrome developer dashboard → the item → **Package** → opt in to verified
-   uploads, and paste the public key the second command printed.
-2. Add the secret `CHROME_UPLOAD_SIGNING_KEY` to the `stores` environment: the
-   whole of `diffshub-upload.pem`.
-3. Keep a copy of `diffshub-upload.pem` somewhere safe and offline. Losing it
-   means asking Chrome Web Store support to reset the key.
-
-`scripts/release/sign-crx.mjs` signs the zip when this secret is set. It is
-about sixty lines on Node's own crypto, so no third-party package handles the
-key.
-
-### 7. Switch the stores on
-
-**Settings → Secrets and variables → Actions → Variables**:
-`STORES_ENABLED` = `true`. From the next release on, merging the release pull
-request is the whole release.
-
 ## Credentials
 
-| What | Lasts | When it stops working |
+The store credentials are secrets in the `stores` environment, which only
+`main` can use.
+
+| Secret | Comes from | To replace it |
 | --- | --- | --- |
-| Chrome service account key | until deleted | add a new JSON key, replace both `CHROME_SERVICE_ACCOUNT_*` secrets, delete the old key |
-| AMO JWT credentials | until revoked | generate new ones on the API keys page |
-| Chrome signing key | for good | only Chrome Web Store support can reset it |
+| `CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL`, `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY` | a JSON key of the Google Cloud service account | add a new JSON key, update both secrets, delete the old key |
+| `CHROME_UPLOAD_SIGNING_KEY` | the private key whose public half Chrome holds for verified uploads | only Chrome Web Store support can reset it, so keep an offline copy |
+| `FIREFOX_JWT_ISSUER`, `FIREFOX_JWT_SECRET` | [AMO API keys](https://addons.mozilla.org/developers/addon/api/key/) | generate new ones there |
 
-The store secrets live in the `stores` environment, which only `main` can use,
-so a workflow on another branch or a fork cannot read them. Every action in the
-workflows is pinned to a commit, and Dependabot proposes new pins. Its pull
-requests need an empty changeset like any other.
-
-## Test recordings
-
-The browser checks replay github.com from recordings in `test/har/`, one zip
-per suite, so CI needs no GitHub login. The recordings are made signed out, and a unit test fails
-if one ever holds a session.
-
-When `pnpm test:live` fails locally because GitHub changed, record again:
-
-```sh
-pnpm build && pnpm test:record
-pnpm build:firefox && pnpm test:firefox:record
-```
-
-Commit the changed zips in `test/har/`. One request is not replayed: the
-Firefox suite fetches GitHub's redirect to the patch live on each run, because
-the extension reads it with `webRequest`, which never sees a replayed answer.
+The store jobs only run while the repository variable `STORES_ENABLED` is
+`true`. Every action in the workflows is pinned to a commit, and Dependabot
+proposes new pins. Its pull requests need an empty changeset like any other.
 
 ## Building from source
 
