@@ -1,6 +1,6 @@
 {
   "name": "diffshub-for-github",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Browser extension that adds a fast, virtualized diff viewer to GitHub pull requests, built on Pierre's @pierre/diffs components.",
   "author": "Jan Nicklas",
