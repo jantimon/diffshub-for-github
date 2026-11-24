@@ -161,6 +161,10 @@ viewer did not expect, naming what broke, while the diff keeps rendering.
 Start with [`AGENTS.md`](AGENTS.md): how the code is split, the commands, and
 what to know before changing anything.
 
+Each pull request needs a changeset, a one-line note for users written with
+`pnpm changeset`. [`RELEASE.md`](RELEASE.md) explains how those notes become a
+release and how a merge ships it to both stores.
+
 ### Getting started
 
 Node.js 22.18 or newer, and pnpm 10. The tests import TypeScript straight
@@ -195,8 +199,8 @@ open `about:debugging`, choose "This Firefox", and load
 ### Testing
 
 The suites drive a real browser with the real extension loaded. `pnpm test`
-replays a recording of github.com, so it runs offline; the others go live.
-Build first, and record once with `pnpm test:record`. They run without a
+and `pnpm test:firefox` replay recordings of github.com kept in `test/har/`, so
+they run offline; the others go live. Build first. They run without a
 window, in Chrome's own headless mode, so they do not take over the screen;
 `DIFFSHUB_HEADED=1` shows the browser to watch a run. Signing in, the frame
 timings and the README screenshots always open a window.
@@ -206,7 +210,8 @@ pnpm build && pnpm test   # the viewer, replayed from a recording: offline, no G
 pnpm test:live            # the same, against real github.com
 pnpm test:record          # refresh the recording
 pnpm test:review          # comments, replies, verdicts and viewed state: these write
-pnpm test:firefox         # that the Firefox fetch path is still needed, and works
+pnpm test:firefox         # the Firefox build, replayed from a recording
+pnpm test:firefox:live    # private patches in Firefox, container tabs included
 pnpm test:whitespace      # hiding files that changed only in spacing
 pnpm test:units           # offline, no browser
 pnpm test:fps             # frame times, against GitHub's own view
@@ -215,19 +220,24 @@ pnpm lint                 # oxlint, with every no-comment-slop rule on
 pnpm format               # oxfmt, Prettier's options (see .oxfmtrc.json)
 ```
 
-The recording is made signed out, against a public pull request, with the
-credential headers stripped, and it is gitignored. `pnpm test:live` catches
-GitHub changing under it. `pnpm test:review` posts comments and submits
+The recordings are made signed out, against public pull requests, with the
+credential headers stripped, and they are committed so CI can replay them. A
+unit test fails if one ever holds a session. `pnpm test:live` catches GitHub
+changing under them. `pnpm test:review` posts comments and submits
 reviews, so it runs against a pull request kept for the purpose; pass another
 as an argument for a different one.
 
 The browser tests keep a profile in `test/.profile`, gitignored, and `pnpm
 test:login` opens a browser on it so you can sign in once; after that private
 repositories are testable too. `DIFFSHUB_PROFILE` points at another profile.
-`pnpm test:firefox` needs `pnpm build:firefox` and a Firefox profile signed in
-to github.com: `pnpm test:login:firefox` makes one in `test/.firefox-profile`,
-and `DIFFSHUB_FIREFOX_PROFILE` points at another
-([docs/firefox.md](docs/firefox.md)). None of this runs in CI.
+`pnpm test:firefox:live` needs `pnpm build:firefox` and a Firefox profile
+signed in to github.com: `pnpm test:login:firefox` makes one in
+`test/.firefox-profile`, and `DIFFSHUB_FIREFOX_PROFILE` points at another
+([docs/firefox.md](docs/firefox.md)).
+
+CI runs lint, format, types, the unit tests, both builds and both replayed
+browser suites on every pull request. The live suites need a session, so they
+stay local.
 
 ### Layout
 
@@ -256,6 +266,7 @@ src/patch/                    a .diff becomes files, hunks and filters,
 src/entrypoints/              WXT's entry points, kept thin
 public/                       files copied as-is
 scripts/                      one-off helpers for development
+  release/                    release notes, CRX signing, store uploads
 docs/                         capabilities, Firefox, open items, README images
 test/                         the browser suites and the offline checks
 research/github-internal-api  what GitHub's undocumented API does

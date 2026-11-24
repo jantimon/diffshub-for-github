@@ -1,0 +1,10 @@
+{
+  "baseBranch": "main",
+  "changelog": "./changelog.mjs",
+  "commit": false,
+  "format": "oxfmt",
+  "privatePackages": {
+    "version": true,
+    "tag": true
+  }
+}

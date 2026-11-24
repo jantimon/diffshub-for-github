@@ -2,13 +2,14 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
 
   // The submodule is somebody else's code, read only, and the rest is build
-  // output or a browser profile.
+  // output, a browser profile, or GitHub's own scripts in a recording.
   "ignorePatterns": [
     "research/**",
     ".output/**",
     ".wxt/**",
     "node_modules/**",
     "test/.profile/**",
+    "test/har/**",
     ".firefox-profile/**"
   ],
 

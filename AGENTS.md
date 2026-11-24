@@ -33,16 +33,23 @@ cookie.
 ```sh
 pnpm build && pnpm test   # the viewer, replayed from test/har: offline, no GitHub
 pnpm test:live            # the same against real github.com, run it less often
+pnpm test:firefox         # the Firefox build, replayed (test:firefox:live signed in)
 pnpm test:review          # comments, replies, verdicts: writes to a throwaway PR
 pnpm test:units           # offline, fast, no browser
 pnpm lint                 # oxlint
 pnpm format               # oxfmt, Prettier's options (see .oxfmtrc.json)
 pnpm compile              # tsc --noEmit
+pnpm changeset            # the note for users every pull request carries
 ```
 
 CI (`.github/workflows/check.yml`) runs lint, format, types, the unit tests,
-both builds and `web-ext lint`. The browser suites stay local: their recordings
-do not leave the machine that made them.
+both builds, `web-ext lint`, both replayed browser suites, and checks that the
+pull request adds a changeset. The live suites need a session and stay local.
+The recordings in `test/har/` are committed, made signed out, and
+`test/unit/recordingCredentials.test.mjs` fails if one holds a session.
+
+Releases are [RELEASE.md](RELEASE.md): changesets, a release pull request, and
+`.github/workflows/release.yml` and `stores.yml` shipping to both stores.
 
 `pnpm test:review` writes to `jantimon/diffshub-for-github#1` unless given
 another pull request.
@@ -106,6 +113,10 @@ with `pnpm test:record` when it drifts.
 
 Comments say **why**, never what the code already says, and never narrate
 history: no "used to", no "this fixes", no version numbers as rationale.
+
+Every pull request adds a changeset (`pnpm changeset`, or `--empty` when users
+will not notice). Its text is what users read in the store and the changelog,
+so it follows the same prose rules.
 Prose follows Orwell's rules. `eslint-plugin-no-comment-slop` enforces the rest.
 
 Measure before you claim. Several things here look wrong and are load-bearing;

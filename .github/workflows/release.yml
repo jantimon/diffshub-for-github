@@ -1,0 +1,89 @@
+# Runs on every push to main. While changesets are waiting, it opens or updates
+# the release pull request. When that pull request merges, it tags the version,
+# creates the GitHub Release, attaches the built zips and sends them to both
+# stores. RELEASE.md explains the whole flow
+name: release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The tags decide which version still needs one
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.18
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - id: changesets
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          # GitHub runs no workflow for a pull request this token opens, so the
+          # release pull request shows no checks. It only changes the version,
+          # the changelog and the changesets, and the maintainer merges it past
+          # the ruleset
+          github-token: ${{ github.token }}
+          version-script: pnpm release:version
+          publish-script: pnpm release:tag
+          commit-message: 'chore: release'
+          pr-title: 'chore: release'
+      - id: version
+        if: steps.changesets.outputs.published == 'true'
+        run: echo "version=$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    if: needs.version.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: v${{ needs.version.outputs.version }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.18
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm zip
+      - run: pnpm zip:firefox
+      # The stores are sent these files, never a fresh build, so a retry ships
+      # exactly the bytes this run built
+      - name: attach the zips to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "v$VERSION" .output/*.zip --clobber
+
+  stores:
+    needs: [version, build]
+    if: needs.version.outputs.published == 'true' && vars.STORES_ENABLED == 'true'
+    uses: ./.github/workflows/stores.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+    secrets: inherit

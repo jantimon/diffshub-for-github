@@ -8,6 +8,7 @@
  */
 
 import { chromium } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -33,19 +34,47 @@ const LAYOUT_SETTLE_MS = 600;
  * github.com by forgetting to ask for the recording. Going live has to be
  * spelled out.
  *
- * The recording is made signed out, against a public pull request, so it
- * carries no cookie and nothing private. Anything needing a session has to run
- * live.
+ * The recordings are made signed out, against public pull requests, and are
+ * committed so CI can replay them. They carry no cookie and nothing private.
+ * Anything needing a session has to run live.
  */
-const MODE = process.env.DIFFSHUB_HAR ?? 'replay';
-const harFile = path.resolve(root, 'har', 'overlay.har');
+export const MODE = process.env.DIFFSHUB_HAR ?? 'replay';
 
 /**
- * A recording is written beside the good one and only takes its place once the
- * run has finished without being refused. A run cut short by throttling would
- * otherwise leave a half-written file where a working recording used to be.
+ * Each suite keeps its recording in one zip, `test/har/<name>.zip`: the HAR
+ * names the requests, and every response body sits beside it, named by its
+ * hash. Playwright replays the zip as it is. One binary file per suite keeps
+ * thousands of lines of GitHub's own scripts out of every diff that refreshes
+ * a recording
  */
-const partialFile = `${harFile}.partial`;
+export const harPath = (name) => path.resolve(root, 'har', `${name}.zip`);
+
+/**
+ * The recording this run serves or writes. A new recording goes to a folder
+ * of its own and only replaces the zip once the run has finished without
+ * being refused, so a run cut short by throttling leaves the good one alone.
+ */
+let harFile = harPath('overlay');
+let partialFile = partialFor(harFile);
+
+function partialFor(file) {
+  return path.join(file.replace(/\.zip$/, '.partial'), 'recording.har');
+}
+
+function discardPartial() {
+  fs.rmSync(path.dirname(partialFile), { recursive: true, force: true });
+}
+
+/** Packs the finished folder into the suite's zip, the HAR and its bodies side by side */
+function packPartial() {
+  const packed = `${harFile}.new`;
+  fs.rmSync(packed, { force: true });
+  // -X leaves out the file owners and extra timestamps, so the zip only
+  // changes when the recording does
+  execFileSync('zip', ['-q', '-X', '-r', '-D', packed, '.'], { cwd: path.dirname(partialFile) });
+  fs.renameSync(packed, harFile);
+  discardPartial();
+}
 
 /** How long to wait between the steps of a recording, so it asks gently */
 const RECORDING_PACE_MS = Number(process.env.DIFFSHUB_PACE_MS ?? 4000);
@@ -56,6 +85,12 @@ const RECORDING_PACE_MS = Number(process.env.DIFFSHUB_PACE_MS ?? 4000);
  * than anything that reads like an explanation.
  */
 const REFUSED = new Set([429, 502, 503, 504]);
+
+/**
+ * A header on answers a check makes up itself, such as the 503 that proves the
+ * retry, so the recorder does not take them for github.com refusing
+ */
+export const INJECTED = 'x-diffshub-injected';
 
 export async function launch({
   viewport = { width: 1600, height: 1000 },
@@ -68,18 +103,7 @@ export async function launch({
     process.exit(1);
   }
 
-  // The recording is made on each machine rather than kept in git, so a fresh
-  // clone has none, and replaying nothing would abort every request
-  if (har && MODE === 'replay' && !fs.existsSync(harFile)) {
-    console.log(`No recording at ${path.relative(process.cwd(), harFile)}.`);
-    console.log('');
-    console.log('The suite replays github.com from a recording you make once, on this machine.');
-    console.log('It is taken signed out, from a public pull request, with credentials stripped.');
-    console.log('');
-    console.log('  pnpm build && pnpm test:record   make the recording, then `pnpm test` runs offline');
-    console.log('  pnpm build && pnpm test:live     or run the same checks against github.com');
-    process.exit(1);
-  }
+  if (har) requireRecording('overlay');
 
   // Replaying or recording, the run serves or writes the HAR. A recording must
   // not carry a signed-in session into it, so both get a profile of their own
@@ -107,36 +131,86 @@ export async function launch({
     args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
   });
 
-  if (usesHar) {
-    fs.mkdirSync(path.dirname(harFile), { recursive: true });
-    const target = MODE === 'record' ? partialFile : harFile;
-    await context.routeFromHAR(target, {
-      url: '**/*github*/**',
-      update: MODE === 'record',
-      notFound: MODE === 'record' ? 'fallback' : 'abort',
-    });
-    console.log(`${MODE === 'record' ? 'recording' : 'replaying'} github.com traffic: ${target}`);
-  }
+  if (usesHar) await routeFromRecording(context, 'overlay');
 
   const page = context.pages()[0] ?? (await context.newPage());
   const noise = [];
   page.on('pageerror', (error) => noise.push(`github: ${error.message.slice(0, 160)}`));
-
-  // A recording made while github.com is refusing requests is worse than none:
-  // it would replay the refusals as if they were the answers
-  if (MODE === 'record') {
-    page.on('response', (response) => {
-      if (!REFUSED.has(response.status())) return;
-      if (!/github/.test(new URL(response.url()).host)) return;
-
-      console.log(`\ngithub.com answered ${response.status()} for ${response.url().slice(0, 90)}`);
-      console.log('stopping: a recording of refusals is worse than no recording');
-      fs.rmSync(partialFile, { force: true });
-      void context.close().finally(() => process.exit(2));
-    });
-  }
+  if (usesHar) stopOnRefusal(context, page);
 
   return { context, page, noise };
+}
+
+/** Replaying needs the recording. Without one every request would abort */
+export function requireRecording(name) {
+  const file = harPath(name);
+  if (MODE !== 'replay' || fs.existsSync(file)) return;
+  console.log(`No recording at ${path.relative(process.cwd(), file)}.`);
+  console.log('');
+  console.log('The suite replays github.com from a recording kept in test/har.');
+  console.log('It is taken signed out, from a public pull request, with credentials stripped.');
+  console.log('');
+  console.log('  pnpm build && pnpm test:record   make the recording, then `pnpm test` runs offline');
+  console.log('  pnpm build && pnpm test:live     or run the same checks against github.com');
+  process.exit(1);
+}
+
+/**
+ * Serves github.com from `test/har/<name>.zip`, or writes it when recording.
+ * Every host with "github" in it, so the patch host and the avatars come from
+ * the recording too
+ */
+export async function routeFromRecording(context, name) {
+  harFile = harPath(name);
+  partialFile = partialFor(harFile);
+  if (MODE === 'record') {
+    discardPartial();
+    fs.mkdirSync(path.dirname(partialFile), { recursive: true });
+  }
+  const target = MODE === 'record' ? partialFile : harFile;
+  await context.routeFromHAR(target, {
+    url: '**/*github*/**',
+    update: MODE === 'record',
+    updateContent: 'attach',
+    notFound: MODE === 'record' ? 'fallback' : 'abort',
+  });
+  console.log(`${MODE === 'record' ? 'recording' : 'replaying'} github.com traffic: ${target}`);
+}
+
+/**
+ * A recording made while github.com is refusing requests is worse than none:
+ * it would replay the refusals as if they were the answers
+ */
+export function stopOnRefusal(context, page) {
+  if (MODE !== 'record') return;
+  page.on('response', (response) => {
+    if (!REFUSED.has(response.status())) return;
+    if (!/github/.test(new URL(response.url()).host)) return;
+    if (response.headers()[INJECTED] != null) return;
+
+    console.log(`\ngithub.com answered ${response.status()} for ${response.url().slice(0, 90)}`);
+    console.log('stopping: a recording of refusals is worse than no recording');
+    discardPartial();
+    void context.close().finally(() => process.exit(2));
+  });
+}
+
+/**
+ * A recording is committed, so it must come from a signed-out browser. GitHub
+ * names the signed-in reader in a meta tag on every page. Finding one there
+ * stops the run before anything is written
+ */
+export async function refuseSignedInRecording(context, page) {
+  if (MODE !== 'record') return;
+  const login = await page.evaluate(
+    () => document.querySelector('meta[name="user-login"]')?.getAttribute('content') ?? '',
+  );
+  if (login === '') return;
+  console.log(`\nthis browser is signed in to github.com as ${login}`);
+  console.log('stopping: a committed recording must be made signed out');
+  discardPartial();
+  await context.close();
+  process.exit(2);
 }
 
 /**
@@ -258,9 +332,10 @@ export async function openOverlay(page, url, { noise } = {}) {
   // A burst is what gets a session throttled, and a throttled recording is a
   // recording of refusals
   const pace = MODE === 'record' ? RECORDING_PACE_MS : 0;
-  if (MODE === 'record') await refuseToRecordWhileRefused(url);
+  await refuseToRecordWhileRefused(url);
 
   await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await refuseSignedInRecording(page.context(), page);
   const first = await openViewer(page, { pace });
   if (first == null) return undefined;
   await clearSettings(first);
@@ -285,8 +360,7 @@ export async function openOverlay(page, url, { noise } = {}) {
  *
  * Recording runs signed out, but github.com still hands an anonymous session to
  * anyone who asks, so the file would otherwise carry `Cookie` and `Set-Cookie`
- * for every request. It is gitignored as well. This is so the bytes are
- * harmless even when the file is copied somewhere else.
+ * for every request. The file is committed, so the bytes must be harmless.
  */
 export function stripCredentials(file = harFile) {
   if (!fs.existsSync(file)) return 0;
@@ -308,13 +382,31 @@ export function stripCredentials(file = harFile) {
 }
 
 /**
+ * Takes out the answers a check made up itself. Playwright records a fulfilled
+ * route like any other answer, so the 503 that proves the retry would
+ * otherwise replay as GitHub's answer for the patch every time
+ */
+export function dropInjected(file = harFile) {
+  if (!fs.existsSync(file)) return 0;
+
+  const har = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const before = har.log.entries.length;
+  har.log.entries = har.log.entries.filter(
+    (entry) => !entry.response.headers.some((header) => header.name.toLowerCase() === INJECTED),
+  );
+  fs.writeFileSync(file, JSON.stringify(har));
+  return before - har.log.entries.length;
+}
+
+/**
  * Stops a recording before it starts if github.com is turning requests away.
  *
  * The patch is the one request the whole suite rests on, and it comes from a
  * host of its own that can refuse while github.com itself answers, so asking
  * for the page proves nothing. One request, before a browser is launched.
  */
-async function refuseToRecordWhileRefused(url) {
+export async function refuseToRecordWhileRefused(url) {
+  if (MODE !== 'record') return;
   const patch = `${url.replace(/\/+$/, '')}.diff`;
   let status;
   try {
@@ -388,11 +480,12 @@ export function checker() {
     if (MODE === 'record') {
       if (failures > 0) {
         console.log('kept the previous recording: this run had failures');
-        fs.rmSync(partialFile, { force: true });
+        discardPartial();
       } else {
         console.log(`recording cleaned: ${stripCredentials(partialFile)} credential header(s) removed`);
-        fs.renameSync(partialFile, harFile);
-        console.log(`recording replaced: ${harFile}`);
+        console.log(`recording cleaned: ${dropInjected(partialFile)} made-up answer(s) removed`);
+        packPartial();
+        console.log(`recording replaced: ${path.relative(process.cwd(), harFile)}`);
       }
     }
     process.exit(failures === 0 ? 0 : 1);

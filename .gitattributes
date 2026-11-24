@@ -1,0 +1,3 @@
+# Recorded github.com traffic: GitHub's own minified bundles and answers.
+# Kept out of diffs and out of the language statistics
+test/har/** -diff linguist-generated=true
